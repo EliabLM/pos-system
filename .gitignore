@@ -1,0 +1,39 @@
+# ── Dependencies ──
+node_modules/
+
+# ── Env / secrets (never commit) ──
+.env
+.env.*
+!.env.example
+
+# ── Build artifacts ──
+dist/
+build/
+.next/
+web-build/
+*.tsbuildinfo
+
+# ── Test / coverage ──
+coverage/
+.nyc_output/
+
+# ── Expo ──
+.expo/
+.expo-shared/
+
+# ── Caches ──
+.turbo/
+.cache/
+.eslintcache
+*.log
+
+# ── OS / editor ──
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# ── Misc tooling ──
+.atl/

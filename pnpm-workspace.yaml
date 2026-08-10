@@ -1,0 +1,7 @@
+packages:
+  # pos-system-client is tracked in this git repo but stays self-managed by its own
+  # pnpm-lock.yaml during the strangler-fig migration. Fase 5 absorbs it into the
+  # workspace once its server actions/Prisma are fully extracted.
+  - 'pos-system-server'
+  - 'pos-system-app'
+  - 'packages/*'
