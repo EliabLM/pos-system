@@ -1,0 +1,1118 @@
+'use server';
+
+import { Organization, PaymentMethod, Prisma } from '@/generated/prisma';
+import { ActionResponse } from '@/interfaces';
+import { prisma, checkAdminRole, unauthorizedResponse } from '../utils';
+import { createCategory } from '../category';
+import { createPaymentMethod } from '../payment-methods';
+import { createBrand } from '../brand';
+import { setBusinessType } from '../system-config';
+import { createUnitMeasure } from '../unit-measure';
+
+const organizationInclude: Prisma.OrganizationInclude = {
+  users: {
+    take: 5,
+    orderBy: { createdAt: 'desc' },
+    where: { isDeleted: false },
+  },
+  stores: {
+    take: 5,
+    orderBy: { createdAt: 'desc' },
+    where: { isDeleted: false },
+  },
+  products: {
+    take: 5,
+    orderBy: { createdAt: 'desc' },
+    where: { isDeleted: false },
+  },
+  customers: {
+    take: 5,
+    orderBy: { createdAt: 'desc' },
+    where: { isDeleted: false },
+  },
+  _count: {
+    select: {
+      users: true,
+      stores: true,
+      products: true,
+      customers: true,
+      suppliers: true,
+      brands: true,
+      categories: true,
+      stockMovements: true,
+    },
+  },
+};
+
+// Definir constantes para configuraciones por defecto
+const DEFAULT_PAYMENT_METHODS: Omit<
+  PaymentMethod,
+  | 'id'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'isActive'
+  | 'organizationId'
+  | 'isDeleted'
+  | 'deletedAt'
+>[] = [
+  { name: 'Efectivo', type: 'CASH' },
+  { name: 'Tarjeta', type: 'CARD' },
+  { name: 'Cheque', type: 'CHECK' },
+  { name: 'Crédito', type: 'CREDIT' },
+  { name: 'Transferencia', type: 'TRANSFER' },
+  { name: 'Otro', type: 'OTHER' },
+] as const;
+
+// ============================================
+// CONSTANTES PARA ZAPATERÍAS
+// ============================================
+
+// Categorías para ZAPATERÍAS (Calzado deportivo)
+const FOOTWEAR_CATEGORIES = [
+  { name: 'Calzado Hombre', description: 'Calzado deportivo para hombre' },
+  { name: 'Calzado Mujer', description: 'Calzado deportivo para mujer' },
+  { name: 'Calzado Niños', description: 'Calzado deportivo para niños' },
+  { name: 'Zapatillas Running', description: 'Zapatillas especializadas para correr' },
+  { name: 'Zapatillas Training', description: 'Zapatillas para entrenamiento y gimnasio' },
+  { name: 'Zapatillas Basketball', description: 'Zapatillas de baloncesto' },
+  { name: 'Zapatillas Fútbol', description: 'Guayos y zapatillas de fútbol' },
+  { name: 'Zapatillas Casual', description: 'Calzado deportivo casual/lifestyle' },
+  { name: 'Zapatillas Skateboarding', description: 'Zapatillas para skateboarding' },
+  { name: 'Sandalias Deportivas', description: 'Sandalias y chancletas deportivas' },
+] as const;
+
+// Marcas para ZAPATERÍAS (Internacionales - Calzado deportivo)
+const FOOTWEAR_BRANDS_INTERNATIONAL = [
+  { name: 'Nike', description: 'Marca estadounidense líder en calzado deportivo' },
+  { name: 'Adidas', description: 'Marca alemana de calzado deportivo' },
+  { name: 'Puma', description: 'Marca alemana de artículos deportivos' },
+  { name: 'Reebok', description: 'Marca británica-estadounidense de calzado deportivo' },
+  { name: 'New Balance', description: 'Marca estadounidense especializada en running' },
+  { name: 'Asics', description: 'Marca japonesa especializada en calzado deportivo' },
+  { name: 'Converse', description: 'Marca estadounidense icónica de zapatillas' },
+  { name: 'Vans', description: 'Marca estadounidense de zapatillas skate' },
+  { name: 'Under Armour', description: 'Marca estadounidense de ropa y calzado deportivo' },
+  { name: 'Fila', description: 'Marca italiana de calzado deportivo' },
+  { name: 'Skechers', description: 'Marca estadounidense de calzado lifestyle y deportivo' },
+  { name: 'Jordan', description: 'Línea de Nike especializada en basketball' },
+  { name: 'Mizuno', description: 'Marca japonesa especializada en calzado deportivo' },
+  { name: 'Saucony', description: 'Marca estadounidense especializada en running' },
+  { name: 'Brooks', description: 'Marca estadounidense especializada en running' },
+  { name: 'Salomon', description: 'Marca francesa especializada en outdoor y trail' },
+  { name: 'Hoka One One', description: 'Marca francesa especializada en running maximalista' },
+  { name: 'On Running', description: 'Marca suiza de calzado de running premium' },
+  { name: 'Crocs', description: 'Marca estadounidense de calzado cómodo' },
+  { name: 'Timberland', description: 'Marca estadounidense de calzado outdoor y casual' },
+] as const;
+
+// ============================================
+// CONSTANTES PARA LICORERAS
+// ============================================
+
+// Categorías para LICORERAS
+const LIQUOR_CATEGORIES = [
+  { name: 'Whisky', description: 'Whisky escocés, irlandés, bourbon, etc.' },
+  { name: 'Ron', description: 'Ron blanco, añejo, premium' },
+  { name: 'Vodka', description: 'Vodka nacional e importado' },
+  { name: 'Tequila', description: 'Tequila blanco, reposado, añejo' },
+  { name: 'Ginebra', description: 'Ginebra dry, London dry, premium' },
+  { name: 'Aguardiente', description: 'Aguardiente nacional' },
+  { name: 'Cerveza Nacional', description: 'Cervezas nacionales' },
+  { name: 'Cerveza Importada', description: 'Cervezas importadas' },
+  { name: 'Vino Tinto', description: 'Vinos tintos nacionales e importados' },
+  { name: 'Vino Blanco', description: 'Vinos blancos nacionales e importados' },
+  { name: 'Vino Rosado', description: 'Vinos rosados' },
+  { name: 'Champagne/Espumosos', description: 'Champagne y vinos espumosos' },
+  { name: 'Licores', description: 'Licores cremosos y digestivos' },
+  { name: 'Brandy/Cognac', description: 'Brandy y cognac' },
+  { name: 'Aperitivos', description: 'Aperitivos y vermut' },
+] as const;
+
+// Marcas para LICORERAS (Nacionales Colombia)
+const LIQUOR_BRANDS_NATIONAL = [
+  { name: 'Aguardiente Antioqueño', description: 'Aguardiente colombiano' },
+  { name: 'Ron Viejo de Caldas', description: 'Ron colombiano' },
+  { name: 'Club Colombia', description: 'Cerveza premium colombiana' },
+  { name: 'Poker', description: 'Cerveza colombiana' },
+  { name: 'Aguila', description: 'Cerveza colombiana' },
+  { name: 'Pilsen', description: 'Cerveza colombiana' },
+  { name: 'Tres Cordilleras', description: 'Ron colombiano' },
+] as const;
+
+// Marcas para LICORERAS (Internacionales)
+const LIQUOR_BRANDS_INTERNATIONAL = [
+  { name: 'Johnnie Walker', description: 'Whisky escocés' },
+  { name: 'Jack Daniels', description: 'Whisky americano' },
+  { name: 'Bacardi', description: 'Ron caribeño' },
+  { name: 'Absolut', description: 'Vodka sueco' },
+  { name: 'Smirnoff', description: 'Vodka' },
+  { name: 'Jose Cuervo', description: 'Tequila mexicano' },
+  { name: 'Heineken', description: 'Cerveza holandesa' },
+  { name: 'Corona', description: 'Cerveza mexicana' },
+  { name: 'Budweiser', description: 'Cerveza americana' },
+  { name: 'Stella Artois', description: 'Cerveza belga' },
+] as const;
+
+// ============================================
+// UNIDADES DE MEDIDA POR TIPO DE NEGOCIO
+// ============================================
+
+// Unidades de medida para LICORERAS
+const LIQUOR_UNIT_MEASURES = [
+  { name: 'Botella', abbreviation: 'bot' },
+  { name: 'Lata', abbreviation: 'lata' },
+  { name: 'Litro', abbreviation: 'L' },
+  { name: 'Mililitro', abbreviation: 'ml' },
+  { name: 'Caja', abbreviation: 'cj' },
+  { name: 'Six-pack', abbreviation: '6pk' },
+  { name: 'Twelve-pack', abbreviation: '12pk' },
+  { name: 'Docena', abbreviation: 'doc' },
+  { name: 'Barril', abbreviation: 'barril' },
+] as const;
+
+// Unidades de medida para ZAPATERÍAS
+const FOOTWEAR_UNIT_MEASURES = [
+  { name: 'Unidad', abbreviation: 'un' },
+  { name: 'Par', abbreviation: 'par' },
+  { name: 'Caja', abbreviation: 'cj' },
+] as const;
+
+const createInitialConfigurations = async (
+  organizationId: string,
+  adminUserId: string,
+  businessType?: 'liquor_store' | 'shoe_store' | null
+): Promise<void> => {
+  try {
+    // Determinar qué categorías y marcas crear según el tipo de negocio
+    let categories;
+    let brands;
+    let unitMeasures;
+
+    if (businessType === 'liquor_store') {
+      categories = LIQUOR_CATEGORIES;
+      brands = [...LIQUOR_BRANDS_NATIONAL, ...LIQUOR_BRANDS_INTERNATIONAL];
+      unitMeasures = LIQUOR_UNIT_MEASURES;
+    } else if (businessType === 'shoe_store') {
+      categories = FOOTWEAR_CATEGORIES;
+      brands = FOOTWEAR_BRANDS_INTERNATIONAL;
+      unitMeasures = FOOTWEAR_UNIT_MEASURES;
+    } else {
+      // Sin tipo de negocio específico - usar configuración genérica
+      categories = FOOTWEAR_CATEGORIES;
+      brands = FOOTWEAR_BRANDS_INTERNATIONAL;
+      unitMeasures = FOOTWEAR_UNIT_MEASURES;
+    }
+
+    // EJECUTAR OPERACIONES SECUENCIALMENTE POR TIPO
+    // Sin transacción global para evitar conflictos con transacciones anidadas
+
+    // 1. Crear categorías en paralelo
+    const categoryPromises = categories.map((category) =>
+      createCategory(organizationId, adminUserId, {
+        name: category.name,
+        description: category.description,
+        isActive: true,
+      })
+    );
+    await Promise.all(categoryPromises);
+
+    // 2. Crear métodos de pago en paralelo
+    const paymentMethodPromises = DEFAULT_PAYMENT_METHODS.map((method) =>
+      createPaymentMethod(organizationId, adminUserId, {
+        name: method.name,
+        type: method.type,
+        isActive: true,
+      })
+    );
+    await Promise.all(paymentMethodPromises);
+
+    // 3. Crear marcas según tipo de negocio
+    const brandsPromises = brands.map((brand) =>
+      createBrand(organizationId, adminUserId, {
+        name: brand.name,
+        description: brand.description,
+        isActive: true,
+      })
+    );
+    await Promise.all(brandsPromises);
+
+    // 4. Crear unidades de medida según tipo de negocio
+    const unitMeasurePromises = unitMeasures.map((unit) =>
+      createUnitMeasure(organizationId, adminUserId, {
+        name: unit.name,
+        abbreviation: unit.abbreviation,
+        isActive: true,
+      })
+    );
+    await Promise.all(unitMeasurePromises);
+  } catch (error) {
+    // Re-lanzar el error para que sea manejado por el caller
+    throw error;
+  }
+};
+
+// CREATE
+export const createOrganization = async (
+  adminUserId: string,
+  organizationData: Omit<
+    Organization,
+    'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
+  >,
+  businessType?: 'liquor_store' | 'shoe_store' | null
+): Promise<ActionResponse<Organization | null>> => {
+  try {
+    const isAdmin = await checkAdminRole(adminUserId);
+    if (!isAdmin) return unauthorizedResponse();
+
+    // Verificar unicidad de NIT si se proporciona
+    if (organizationData.nit) {
+      const existingOrgByNit = await prisma.organization.findFirst({
+        where: {
+          nit: organizationData.nit,
+          isDeleted: false,
+        },
+      });
+
+      if (existingOrgByNit) {
+        return {
+          status: 409,
+          message: 'Ya existe una organización con ese NIT',
+          data: null,
+        };
+      }
+    }
+
+    const newOrganization = await prisma.organization.create({
+      data: organizationData,
+      include: organizationInclude,
+    });
+
+    // Guardar tipo de negocio en SystemConfig si se proporciona
+    if (businessType) {
+      try {
+        await setBusinessType(newOrganization.id, businessType);
+      } catch (error) {
+        console.error(
+          'Error setting business type for organization:',
+          newOrganization.id,
+          error
+        );
+      }
+    }
+
+    // Crear configuraciones iniciales (categorías, marcas, métodos de pago, etc.)
+    try {
+      await createInitialConfigurations(
+        newOrganization.id,
+        adminUserId,
+        businessType
+      );
+    } catch (error) {
+      console.error(
+        'Error creating initial configurations for organization:',
+        newOrganization.id,
+        error
+      );
+      // No fallar la creación de la organización si las configuraciones fallan
+      // El usuario puede crearlas manualmente después
+    }
+
+    return {
+      status: 201,
+      message: 'Organización creada exitosamente',
+      data: newOrganization,
+    };
+  } catch (error) {
+    console.error('Error creating organization:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        const target = error.meta?.target as string[];
+
+        if (target?.includes('nit')) {
+          return {
+            status: 409,
+            message: 'Ya existe una organización con ese NIT',
+            data: null,
+          };
+        }
+      }
+    }
+
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// GET ALL ORGANIZATIONS (for super admin)
+export const getAllOrganizations = async (
+  adminUserId: string,
+  filters?: {
+    isActive?: boolean;
+    city?: string;
+    department?: string;
+    search?: string;
+  },
+  includeDeleted: boolean = false
+): Promise<ActionResponse<Organization[] | null>> => {
+  try {
+    const isAdmin = await checkAdminRole(adminUserId);
+    if (!isAdmin) return unauthorizedResponse();
+
+    const whereClause: Prisma.OrganizationWhereInput = {
+      isDeleted: includeDeleted ? undefined : false,
+    };
+
+    if (filters?.isActive !== undefined) {
+      whereClause.isActive = filters.isActive;
+    }
+
+    if (filters?.city) {
+      whereClause.city = { contains: filters.city, mode: 'insensitive' };
+    }
+
+    if (filters?.department) {
+      whereClause.department = {
+        contains: filters.department,
+        mode: 'insensitive',
+      };
+    }
+
+    if (filters?.search) {
+      whereClause.OR = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { email: { contains: filters.search, mode: 'insensitive' } },
+        { nit: { contains: filters.search, mode: 'insensitive' } },
+        { taxId: { contains: filters.search, mode: 'insensitive' } },
+        { city: { contains: filters.search, mode: 'insensitive' } },
+        { department: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const organizations = await prisma.organization.findMany({
+      where: whereClause,
+      include: organizationInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      status: 200,
+      message: 'Organizaciones obtenidas exitosamente',
+      data: organizations,
+    };
+  } catch (error) {
+    console.error('Error fetching organizations:', error);
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// GET ONE
+export const getOrganizationById = async (
+  organizationId: string
+): Promise<ActionResponse<Organization | null>> => {
+  try {
+    if (!organizationId) {
+      return {
+        status: 400,
+        message: 'ID de la organización es requerido',
+        data: null,
+      };
+    }
+
+    const organization = await prisma.organization.findFirst({
+      where: { id: organizationId, isDeleted: false },
+      include: organizationInclude,
+    });
+
+    if (!organization) {
+      return { status: 404, message: 'Organización no encontrada', data: null };
+    }
+
+    return {
+      status: 200,
+      message: 'Organización obtenida exitosamente',
+      data: organization,
+    };
+  } catch (error) {
+    console.error('Error fetching organization:', error);
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// GET BY EMAIL
+export const getOrganizationByEmail = async (
+  email: string
+): Promise<ActionResponse<Organization | null>> => {
+  try {
+    if (!email) {
+      return {
+        status: 400,
+        message: 'Email es requerido',
+        data: null,
+      };
+    }
+
+    const organization = await prisma.organization.findFirst({
+      where: {
+        email,
+        isDeleted: false,
+        isActive: true,
+      },
+      include: organizationInclude,
+    });
+
+    if (!organization) {
+      return { status: 404, message: 'Organización no encontrada', data: null };
+    }
+
+    return {
+      status: 200,
+      message: 'Organización obtenida exitosamente',
+      data: organization,
+    };
+  } catch (error) {
+    console.error('Error fetching organization by email:', error);
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// GET BY NIT
+export const getOrganizationByNit = async (
+  nit: string
+): Promise<ActionResponse<Organization | null>> => {
+  try {
+    if (!nit) {
+      return {
+        status: 400,
+        message: 'NIT es requerido',
+        data: null,
+      };
+    }
+
+    const organization = await prisma.organization.findFirst({
+      where: {
+        nit,
+        isDeleted: false,
+        isActive: true,
+      },
+      include: organizationInclude,
+    });
+
+    if (!organization) {
+      return { status: 404, message: 'Organización no encontrada', data: null };
+    }
+
+    return {
+      status: 200,
+      message: 'Organización obtenida exitosamente',
+      data: organization,
+    };
+  } catch (error) {
+    console.error('Error fetching organization by NIT:', error);
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// GET ACTIVE ORGANIZATIONS
+export const getActiveOrganizations = async (): Promise<
+  ActionResponse<Organization[] | null>
+> => {
+  try {
+    const organizations = await prisma.organization.findMany({
+      where: {
+        isActive: true,
+        isDeleted: false,
+      },
+      include: organizationInclude,
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      status: 200,
+      message: 'Organizaciones activas obtenidas exitosamente',
+      data: organizations,
+    };
+  } catch (error) {
+    console.error('Error fetching active organizations:', error);
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// UPDATE
+export const updateOrganization = async (
+  organizationId: string,
+  adminUserId: string,
+  updateData: Partial<
+    Omit<
+      Organization,
+      'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
+    >
+  >
+): Promise<ActionResponse<Organization | null>> => {
+  try {
+    const isAdmin = await checkAdminRole(adminUserId);
+    if (!isAdmin) return unauthorizedResponse();
+
+    if (!organizationId) {
+      return {
+        status: 400,
+        message: 'ID de la organización es requerido',
+        data: null,
+      };
+    }
+
+    // Verificar que la organización exista y no esté eliminada
+    const existingOrganization = await prisma.organization.findFirst({
+      where: { id: organizationId, isDeleted: false },
+    });
+
+    if (!existingOrganization) {
+      return { status: 404, message: 'Organización no encontrada', data: null };
+    }
+
+    // Verificar unicidad de NIT si se está actualizando
+    if (updateData.nit && updateData.nit !== existingOrganization.nit) {
+      const duplicateOrgByNit = await prisma.organization.findFirst({
+        where: {
+          nit: updateData.nit,
+          isDeleted: false,
+          id: { not: organizationId },
+        },
+      });
+
+      if (duplicateOrgByNit) {
+        return {
+          status: 409,
+          message: 'Ya existe una organización con ese NIT',
+          data: null,
+        };
+      }
+    }
+
+    // Verificar unicidad de taxId si se está actualizando
+    if (updateData.taxId && updateData.taxId !== existingOrganization.taxId) {
+      const duplicateOrgByTaxId = await prisma.organization.findFirst({
+        where: {
+          taxId: updateData.taxId,
+          isDeleted: false,
+          id: { not: organizationId },
+        },
+      });
+
+      if (duplicateOrgByTaxId) {
+        return {
+          status: 409,
+          message: 'Ya existe una organización con ese Tax ID',
+          data: null,
+        };
+      }
+    }
+
+    const updatedOrganization = await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        ...updateData,
+        updatedAt: new Date(),
+      },
+      include: organizationInclude,
+    });
+
+    return {
+      status: 200,
+      message: 'Organización actualizada exitosamente',
+      data: updatedOrganization,
+    };
+  } catch (error) {
+    console.error('Error updating organization:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        const target = error.meta?.target as string[];
+
+        if (target?.includes('nit')) {
+          return {
+            status: 409,
+            message: 'Ya existe una organización con ese NIT',
+            data: null,
+          };
+        }
+        if (target?.includes('taxId')) {
+          return {
+            status: 409,
+            message: 'Ya existe una organización con ese Tax ID',
+            data: null,
+          };
+        }
+      }
+      if (error.code === 'P2025') {
+        return {
+          status: 404,
+          message: 'Organización no encontrada',
+          data: null,
+        };
+      }
+    }
+
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// ACTIVATE/DEACTIVATE ORGANIZATION
+export const toggleOrganizationStatus = async (
+  organizationId: string,
+  adminUserId: string,
+  isActive: boolean
+): Promise<ActionResponse<Organization | null>> => {
+  try {
+    const isAdminRole = await checkAdminRole(adminUserId);
+    if (!isAdminRole) return unauthorizedResponse();
+
+    if (!organizationId) {
+      return {
+        status: 400,
+        message: 'ID de la organización es requerido',
+        data: null,
+      };
+    }
+
+    const existingOrganization = await prisma.organization.findFirst({
+      where: { id: organizationId, isDeleted: false },
+    });
+
+    if (!existingOrganization) {
+      return { status: 404, message: 'Organización no encontrada', data: null };
+    }
+
+    // Si se está desactivando, verificar que no tenga usuarios activos
+    if (!isActive) {
+      const activeUsersCount = await prisma.user.count({
+        where: {
+          organizationId,
+          isActive: true,
+          isDeleted: false,
+        },
+      });
+
+      if (activeUsersCount > 0) {
+        return {
+          status: 409,
+          message: `No se puede desactivar la organización. Tiene ${activeUsersCount} usuario(s) activo(s)`,
+          data: null,
+        };
+      }
+    }
+
+    const updatedOrganization = await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        isActive,
+        updatedAt: new Date(),
+      },
+      include: organizationInclude,
+    });
+
+    return {
+      status: 200,
+      message: `Organización ${
+        isActive ? 'activada' : 'desactivada'
+      } exitosamente`,
+      data: updatedOrganization,
+    };
+  } catch (error) {
+    console.error('Error toggling organization status:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return {
+          status: 404,
+          message: 'Organización no encontrada',
+          data: null,
+        };
+      }
+    }
+
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// GET ORGANIZATIONS BY DEPARTMENT
+export const getOrganizationsByDepartment = async (
+  department: string
+): Promise<ActionResponse<Organization[] | null>> => {
+  try {
+    if (!department) {
+      return {
+        status: 400,
+        message: 'Departamento es requerido',
+        data: null,
+      };
+    }
+
+    const organizations = await prisma.organization.findMany({
+      where: {
+        department: { contains: department, mode: 'insensitive' },
+        isDeleted: false,
+        isActive: true,
+      },
+      include: organizationInclude,
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      status: 200,
+      message: `Organizaciones en ${department} obtenidas exitosamente`,
+      data: organizations,
+    };
+  } catch (error) {
+    console.error('Error fetching organizations by department:', error);
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// GET ORGANIZATIONS BY CITY
+export const getOrganizationsByCity = async (
+  city: string
+): Promise<ActionResponse<Organization[] | null>> => {
+  try {
+    if (!city) {
+      return {
+        status: 400,
+        message: 'Ciudad es requerida',
+        data: null,
+      };
+    }
+
+    const organizations = await prisma.organization.findMany({
+      where: {
+        city: { contains: city, mode: 'insensitive' },
+        isDeleted: false,
+        isActive: true,
+      },
+      include: organizationInclude,
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      status: 200,
+      message: `Organizaciones en ${city} obtenidas exitosamente`,
+      data: organizations,
+    };
+  } catch (error) {
+    console.error('Error fetching organizations by city:', error);
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// GET ORGANIZATION STATISTICS
+export const getOrganizationStatistics = async (
+  organizationId: string
+): Promise<ActionResponse<Record<string, unknown> | null>> => {
+  try {
+    if (!organizationId) {
+      return {
+        status: 400,
+        message: 'ID de la organización es requerido',
+        data: null,
+      };
+    }
+
+    const organization = await prisma.organization.findFirst({
+      where: { id: organizationId, isDeleted: false },
+    });
+
+    if (!organization) {
+      return { status: 404, message: 'Organización no encontrada', data: null };
+    }
+
+    const [
+      totalUsers,
+      activeUsers,
+      totalStores,
+      activeStores,
+      totalProducts,
+      activeProducts,
+      totalCustomers,
+      totalSuppliers,
+      totalBrands,
+      totalCategories,
+      recentStockMovements,
+    ] = await Promise.all([
+      prisma.user.count({
+        where: { organizationId, isDeleted: false },
+      }),
+      prisma.user.count({
+        where: { organizationId, isDeleted: false, isActive: true },
+      }),
+      prisma.store.count({
+        where: { organizationId, isDeleted: false },
+      }),
+      prisma.store.count({
+        where: { organizationId, isDeleted: false, isActive: true },
+      }),
+      prisma.product.count({
+        where: { organizationId, isDeleted: false },
+      }),
+      prisma.product.count({
+        where: { organizationId, isDeleted: false, isActive: true },
+      }),
+      prisma.customer.count({
+        where: { organizationId, isDeleted: false },
+      }),
+      prisma.supplier.count({
+        where: { organizationId, isDeleted: false },
+      }),
+      prisma.brand.count({
+        where: { organizationId, isDeleted: false },
+      }),
+      prisma.category.count({
+        where: { organizationId, isDeleted: false },
+      }),
+      prisma.stockMovement.count({
+        where: {
+          organizationId,
+          createdAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Últimos 30 días
+          },
+        },
+      }),
+    ]);
+
+    const statistics = {
+      users: {
+        total: totalUsers,
+        active: activeUsers,
+        inactive: totalUsers - activeUsers,
+      },
+      stores: {
+        total: totalStores,
+        active: activeStores,
+        inactive: totalStores - activeStores,
+      },
+      products: {
+        total: totalProducts,
+        active: activeProducts,
+        inactive: totalProducts - activeProducts,
+      },
+      customers: totalCustomers,
+      suppliers: totalSuppliers,
+      brands: totalBrands,
+      categories: totalCategories,
+      stockMovements: {
+        last30Days: recentStockMovements,
+      },
+    };
+
+    return {
+      status: 200,
+      message: 'Estadísticas de la organización obtenidas exitosamente',
+      data: statistics,
+    };
+  } catch (error) {
+    console.error('Error fetching organization statistics:', error);
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// SOFT DELETE
+export const softDeleteOrganization = async (
+  organizationId: string,
+  adminUserId: string
+): Promise<ActionResponse> => {
+  try {
+    const isAdmin = await checkAdminRole(adminUserId);
+    if (!isAdmin) return unauthorizedResponse();
+
+    if (!organizationId) {
+      return {
+        status: 400,
+        message: 'ID de la organización es requerido',
+        data: null,
+      };
+    }
+
+    // Verificar si hay usuarios asociados
+    const usersCount = await prisma.user.count({
+      where: { organizationId, isDeleted: false },
+    });
+
+    // Verificar si hay tiendas asociadas
+    const storesCount = await prisma.store.count({
+      where: { organizationId, isDeleted: false },
+    });
+
+    // Verificar si hay productos asociados
+    const productsCount = await prisma.product.count({
+      where: { organizationId, isDeleted: false },
+    });
+
+    if (usersCount > 0 || storesCount > 0 || productsCount > 0) {
+      return {
+        status: 409,
+        message: `No se puede eliminar la organización. Tiene ${
+          usersCount + storesCount + productsCount
+        } registro(s) asociado(s)`,
+        data: null,
+      };
+    }
+
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        isActive: false,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      status: 200,
+      message: 'Organización eliminada (soft) exitosamente',
+      data: null,
+    };
+  } catch (error) {
+    console.error('Error soft deleting organization:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return {
+          status: 404,
+          message: 'Organización no encontrada',
+          data: null,
+        };
+      }
+    }
+
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// RESTORE
+export const restoreOrganization = async (
+  organizationId: string,
+  adminUserId: string
+): Promise<ActionResponse<Organization | null>> => {
+  try {
+    const isAdmin = await checkAdminRole(adminUserId);
+    if (!isAdmin) return unauthorizedResponse();
+
+    if (!organizationId) {
+      return {
+        status: 400,
+        message: 'ID de la organización es requerido',
+        data: null,
+      };
+    }
+
+    const restoredOrganization = await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+        updatedAt: new Date(),
+      },
+      include: organizationInclude,
+    });
+
+    return {
+      status: 200,
+      message: 'Organización restaurada exitosamente',
+      data: restoredOrganization,
+    };
+  } catch (error) {
+    console.error('Error restoring organization:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return {
+          status: 404,
+          message: 'Organización no encontrada',
+          data: null,
+        };
+      }
+    }
+
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
+
+// HARD DELETE
+export const deleteOrganization = async (
+  organizationId: string,
+  adminUserId: string
+): Promise<ActionResponse> => {
+  try {
+    const isAdmin = await checkAdminRole(adminUserId);
+    if (!isAdmin) return unauthorizedResponse();
+
+    if (!organizationId) {
+      return {
+        status: 400,
+        message: 'ID de la organización es requerido',
+        data: null,
+      };
+    }
+
+    // Verificar si hay registros asociados
+    const [
+      usersCount,
+      storesCount,
+      productsCount,
+      customersCount,
+      suppliersCount,
+      stockMovementsCount,
+    ] = await Promise.all([
+      prisma.user.count({ where: { organizationId } }),
+      prisma.store.count({ where: { organizationId } }),
+      prisma.product.count({ where: { organizationId } }),
+      prisma.customer.count({ where: { organizationId } }),
+      prisma.supplier.count({ where: { organizationId } }),
+      prisma.stockMovement.count({ where: { organizationId } }),
+    ]);
+
+    const totalAssociatedRecords =
+      usersCount +
+      storesCount +
+      productsCount +
+      customersCount +
+      suppliersCount +
+      stockMovementsCount;
+
+    if (totalAssociatedRecords > 0) {
+      return {
+        status: 409,
+        message: `No se puede eliminar permanentemente la organización. Tiene registros asociados. Use eliminación suave en su lugar.`,
+        data: null,
+      };
+    }
+
+    await prisma.organization.delete({ where: { id: organizationId } });
+
+    return {
+      status: 200,
+      message: 'Organización eliminada permanentemente',
+      data: null,
+    };
+  } catch (error) {
+    console.error('Error hard deleting organization:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return {
+          status: 404,
+          message: 'Organización no encontrada',
+          data: null,
+        };
+      }
+      if (error.code === 'P2003') {
+        return {
+          status: 409,
+          message:
+            'No se puede eliminar la organización debido a relaciones existentes',
+          data: null,
+        };
+      }
+    }
+
+    return { status: 500, message: 'Error interno del servidor', data: null };
+  }
+};
