@@ -1,0 +1,38 @@
+# pos-system
+
+Sistema POS (Point of Sale) multi-tenant en migración de monolito a 3 proyectos.
+
+## Descripción
+
+Sistema de punto de venta multi-tenant (multi-organization) construido sobre Next.js 15, Prisma/PostgreSQL y autenticación JWT custom. Soporta gestión de productos, marcas, categorías, ventas, pagos, movimientos de stock, usuarios y tiendas con RBAC (Admin/Seller). Deploy self-hosted con PM2 + Nginx + Cloudflare sobre Oracle Cloud Infrastructure.
+
+El proyecto está en plena migración incremental (strangler-fig) desde un monolito Next.js hacia una arquitectura de 3 componentes:
+
+- **`pos-system-client/`** — Web POS (Next.js 15 App Router, React 19, Prisma, shadcn/ui, Zustand, TanStack Query). Contiene toda la lógica de negocio hoy.
+- **`pos-system-server/`** — API backend (Express 5 + TypeScript, Clean Architecture + SOLID). Scaffold listo, sin módulos de dominio todavía.
+- **`pos-system-app/`** — App móvil (Expo SDK 57 + React Native + expo-router). Scaffold listo, sin features de negocio todavía.
+- **`packages/`** — Paquetes compartidos: `dto-types`, `api-client`, `design-tokens` (scaffolds vacíos).
+
+## Stack
+
+- **Frontend**: Next.js 15, React 19, Tailwind CSS v4, shadcn/ui, TanStack Query + Table, Zustand, Recharts
+- **Backend**: Express 5, TypeScript, Vitest, Zod validation (destino: Node 22 LTS)
+- **Mobile**: Expo SDK 57, expo-router
+- **DB**: PostgreSQL (Supabase) + Prisma ORM 6
+- **Auth**: JWT custom con middleware Edge (jose), RBAC Admin/Seller
+- **Infra**: PM2, Nginx, Cloudflare, Oracle Cloud
+
+## Documentación
+
+Toda la documentación vive en `docs/`. Empezar por [`docs/STATUS.md`](docs/STATUS.md) — estado actual y próximo paso.
+
+- [`docs/planning/migracion-3-proyectos.md`](docs/planning/migracion-3-proyectos.md) — plan de migración detallado (fases, orden topológico)
+- [`docs/auth/`](docs/auth/) — autenticación JWT, RBAC, middleware
+- [`docs/deployment/`](docs/deployment/) — PM2, SSL, Cloudflare, DB remoto
+- [`docs/features/`](docs/features/) — planes de features (offline-mode, compras)
+
+## Estado
+
+Fase 0 completada — monorepo git, scaffolds de server/app/packages, repo remoto en GitHub. Próximo: Fase 1 (CI del monorepo + shared packages con contenido real + primer módulo de dominio del server).
+
+Ver [`docs/STATUS.md`](docs/STATUS.md) para el detalle y la deuda técnica conocida (Float→Decimal, cuid→UUID v7, RLS en Postgres).
