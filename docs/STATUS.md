@@ -36,13 +36,14 @@
 | 2026-08-11 | Plan de pruebas E2E (Playwright) — matriz de 180 escenarios (ver [`features/testing/playwright-test-plan.md`](./features/testing/playwright-test-plan.md)) |
 | 2026-08-11 | Suite E2E habilitada en `pos-system-client/`: seed Prisma idempotente (`prisma/seed.ts`), config Playwright + `globalSetup` que espera stack docker y resiembra, fixtures de auth, 2 specs P0 smoke (auth login + navegación RBAC seller), runbook en [`features/testing/RUNBOOK.md`](./features/testing/RUNBOOK.md). Pendiente probar `docker compose up` + correr smoke end-to-end e incrementar specs P1/P2 |
 | 2026-08-11 | **Plan E2E cerrado**: suposiciones abiertas (§8.5) verificadas contra el código — seller SÍ crea clientes inline, cancelar venta SÍ repone stock, unicidad de org por NIT, `/dashboard/purchases` existe, sin regla de fecha en compras, login público no redirige con sesión, onboarding auto-crea parametrización. Hallazgo canario: `generatePurchaseNumber` no filtra por `organizationId` (bug cross-tenant candidato). Limpieza de restos de `playwright init` en la raíz (tests/, config, package-lock npm) y `.mcp.json` apuntado a `pos-system-client/` |
+| 2026-08-11 | **Stack local probado end-to-end + smoke E2E verde (17/17, 2 corridas estables)**. Fixes: (1) migración de auth faltante generada (`20260811000000_migrate_auth_clerk_to_custom_jwt` — el schema Clerk→JWT se había aplicado con `db push` sin archivos; ⚠️ marcarla `migrate resolve --applied` antes del primer deploy contra Supabase), (2) label↔input roto en el login form (ids hardcodeados pisaban el de `FormControl`; password envuelto en div), (3) `globalSetup` inyecta `DATABASE_URL` default al seed, (4) `workers: 1` local (logins concurrentes + bcrypt = timeouts flaky), (5) selectores del fixture corregidos (`/^contraseña$/i`, `cookies()` sin argumento). Ver [`deployment/docker-local.md`](./deployment/docker-local.md) §Fixes y [`features/testing/RUNBOOK.md`](./features/testing/RUNBOOK.md) §Troubleshooting |
 
 ## Próximo paso
 
 **Pre-Fase 1 — dejar el despliegue operativo antes de migrar.**
 
-1. **Probar el stack local:** `cp .env.example .env`, `docker compose up --build` y validarlo end-to-end (client en :3000, server en :3001, DB migrada). Documentar cualquier fix en [`deployment/docker-local.md`](./deployment/docker-local.md).
-2. **Deployar el client en Vercel (testing) + Supabase:** seguir paso a paso [`deployment/deploy-vercel-monorepo.md`](./deployment/deploy-vercel-monorepo.md). Confirmar login y un flujo de smoke.
+1. ~~**Probar el stack local**~~ ✅ Hecho el 2026-08-11 (stack up + seed + smoke E2E 17/17; fixes documentados en [`deployment/docker-local.md`](./deployment/docker-local.md)).
+2. **Deployar el client en Vercel (testing) + Supabase:** seguir paso a paso [`deployment/deploy-vercel-monorepo.md`](./deployment/deploy-vercel-monorepo.md). Confirmar login y un flujo de smoke. ⚠️ Antes del primer `migrate deploy` contra Supabase: `prisma migrate resolve --applied 20260811000000_migrate_auth_clerk_to_custom_jwt` (Supabase ya tiene ese schema por `db push`).
 3. **Aprovisionar el VPS de producción + Coolify + Postgres** (sin migratear todavía — el schema actual es el legacy). Definir dominio, apuntar DNS.
 
 Una vez que esos tres estén verdes, arrancar la **Fase 1 del plan de migración** (`docs/planning/migracion-3-proyectos.md`) sobre la DB del VPS: mover el schema al server, aplicar los targets de la skill `postgresql-table-design` (Float→Decimal, cuid→UUIDv7, RLS, índices), y empezarla extracción strangler-fig.
@@ -73,7 +74,7 @@ Ver skill `postgresql-table-design` para el detalle y la justificación de cada 
 |---------|--------|-----|
 | Modo offline (PWA) | Plan listo, prioridad alta | [`features/offline-mode/`](./features/offline-mode/) |
 | Módulo de compras | Plan listo | [`features/purchase/`](./features/purchase/) |
-| **Suite de pruebas E2E (Playwright)** | 🟡 Plan cerrado y validado contra código + infraestructura lista (seed + config + specs P0). Falta probar stack docker + correr smoke, y generar specs P1/P2 por suite (usar subagentes generator/healer con el stack arriba) | [`features/testing/playwright-test-plan.md`](./features/testing/playwright-test-plan.md) · [`features/testing/RUNBOOK.md`](./features/testing/RUNBOOK.md) |
+| **Suite de pruebas E2E (Playwright)** | 🟢 Smoke P0 verde contra el stack docker (17/17 estable). Falta generar specs P1/P2 por suite (usar subagentes generator/healer con el stack arriba). Deuda a11y: patrón `<FormControl><div>` roto en register/onboarding/user-form (mismo fix que login) | [`features/testing/playwright-test-plan.md`](./features/testing/playwright-test-plan.md) · [`features/testing/RUNBOOK.md`](./features/testing/RUNBOOK.md) |
 | Programa de lealtad | Sin documentación | — |
 | Descuentos | Sin documentación | — |
 | Impuestos | Sin documentación | — |

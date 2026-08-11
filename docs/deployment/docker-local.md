@@ -4,7 +4,7 @@
 > Postgres 17, para validar el stack completo antes de avanzar fases de la
 > migración o antes de deployar a testing/producción.
 >
-> **Fecha:** 2026-08-10 · **Estado:** Operativo (archivos creados, sin probar end-to-end)
+> **Fecha:** 2026-08-10 · **Estado:** ✅ Probado end-to-end el 2026-08-11 (stack up + seed + suite E2E smoke 17/17)
 
 ## Qué levanta
 
@@ -82,6 +82,28 @@ URLs locales:
   llegue.
 - **El server no tiene DB todavía.** Arranca aunque `DATABASE_URL` esté vacío
   (`env.ts` lo marca opcional). Hasta Fase 1/2 no usa Prisma.
+
+## Fixes aplicados en la prueba end-to-end (2026-08-11)
+
+1. **Migración de auth faltante.** La migración Clerk→JWT custom se aplicó en su
+   momento directo a la DB (estilo `db push`) sin generar archivos de migración,
+   así que `prisma migrate deploy` dejaba la DB local en la era Clerk (`users`
+   con `clerkId`, sin `password`, y sin `sessions`/`email_verifications`/
+   `password_resets`/`audit_logs`). Se generó
+   `prisma/migrations/20260811000000_migrate_auth_clerk_to_custom_jwt/` vía
+   `prisma migrate diff --from-migrations --to-schema-datamodel` (la vía
+   no-interactiva; `migrate dev` requiere TTY).
+   - ⚠️ **Al conectar Vercel+Supabase:** la DB de Supabase ya tiene el schema
+     nuevo (aplicado por `db push`), y esta migración incluye
+     `ADD COLUMN "password" TEXT NOT NULL` sin default — fallaría sobre datos
+     existentes. Antes del primer `migrate deploy` contra Supabase, marcarla
+     como aplicada: `prisma migrate resolve --applied 20260811000000_migrate_auth_clerk_to_custom_jwt`.
+2. **Login form sin asociación label↔input.** Los `id` hardcodeados pisaban el
+   `id` que genera `FormControl` (shadcn), y en el password el `FormControl`
+   envolvía un `<div>` en vez del `<Input>`. Corregido en
+   `src/app/auth/login/login-form.tsx`. El mismo patrón (`<FormControl><div>`)
+   sigue pendiente en `register-form.tsx`, `create-organization.tsx` y
+   `user-form-sheet.tsx` — corregirlo al escribir los specs P1 de esas suites.
 
 ## Verificación post-up
 

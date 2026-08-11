@@ -4,7 +4,7 @@
 >
 > **Plan completo (180 escenarios E001–E180)**: ver [`playwright-test-plan.md`](./playwright-test-plan.md).
 >
-> **Fecha:** 2026-08-11 · **Estado:** Plan cerrado (suposiciones §8.5 verificadas contra el código) · Infraestructura lista · Specs P0 escritos · Resto por implementar incrementalmente cuando el stack docker esté disponible.
+> **Fecha:** 2026-08-11 · **Estado:** ✅ Smoke P0 verde end-to-end contra el stack docker (17/17, 2 corridas estables) · Specs P1/P2 por implementar incrementalmente.
 
 ## Requisitos
 
@@ -15,7 +15,7 @@
    corepack pnpm install
    corepack pnpm exec playwright install chromium
    ```
-4. El `.env` del client debe apuntar `DATABASE_URL` y `DIRECT_URL` a la DB local del compose (`postgresql://pos:pos@localhost:5432/pos`). Si el `.env` apunta a Supabase, sobreescribí temporalmente antes del seed:
+4. **No hace falta `.env` en el client para la suite**: `globalSetup` inyecta `DATABASE_URL`/`DIRECT_URL` con default a la DB del compose (`postgresql://pos:pos@localhost:5432/pos`) al correr el seed. Para apuntar a otra DB, exportá esas variables antes de `pnpm test:e2e`. Si corrés `pnpm db:seed` a mano (fuera de la suite), sí tenés que pasarlas inline:
    ```bash
    DATABASE_URL="postgresql://pos:pos@localhost:5432/pos" DIRECT_URL="postgresql://pos:pos@localhost:5432/pos" corepack pnpm db:seed
    ```
@@ -91,6 +91,10 @@ pos-system-client/
 - **El seed falla con drift de Prisma** (volumen persistente en otro schema): `docker compose down -v` y rehacé.
 - **`pnpm add` falla con `xlsx@^0.20.3`**: la versión no existe en npm (latest es `0.18.5`). El `pnpm install` funciona por el lockfile existente, pero `pnpm add`/`update` no. Pendiente de fix en el `package.json` del client (cambiar `xlsx` a `^0.18.5`).
 - **Lockout accidental de admin/seller durante tests**: los specs de lockout usan `lock@pos.test` dedicado. No dispare lockout con los creds reales admin/seller.
+- **El seed falla con `P2021 table does not exist` en tablas de auth**: la imagen del client aplica `migrate deploy` al arrancar; asegurate de tener la migración `20260811000000_migrate_auth_clerk_to_custom_jwt` (generada el 2026-08-11 — el schema de auth se había aplicado con `db push` sin archivos de migración). Rebuild + `docker compose down -v` + up.
+- **Timeouts flaky de login con tests en paralelo**: la config fija `workers: 1` en local a propósito — la app corre en un solo contenedor y los logins concurrentes (bcrypt cost 12) degradan hasta el timeout. No subir workers sin medir.
+- **`getByLabel(/contraseña/i)` matchea 2 elementos**: el botón de mostrar/ocultar tiene `aria-label="Mostrar contraseña"`. Usar el regex anclado `/^contraseña$/i` (así está en `fixtures/auth.ts`).
+- **`context().cookies(...)` recibe URLs, no nombres de cookie**: pedir todas con `cookies()` y filtrar por `c.name === 'auth-token'`.
 
 ## Convención de specs
 
