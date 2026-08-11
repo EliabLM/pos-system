@@ -34,16 +34,24 @@ async function waitForApp(timeoutMs = 120_000): Promise<void> {
   );
 }
 
+const LOCAL_COMPOSE_DB_URL = 'postgresql://pos:pos@localhost:5432/pos';
+
 async function runSeed(): Promise<void> {
   // El seed vive en pos-system-client/prisma/seed.ts y se ejecuta con tsx,
-  // desde el directorio del client. Usa process.env.DATABASE_URL del .env.
-  // Si el client apunta a Supabase, sobreescribir temporalmente con la DB
-  // local del compose.
+  // que NO carga .env — la conexión llega solo por variables de entorno.
+  // La suite E2E apunta por diseño a la DB del docker compose local, así que
+  // si DATABASE_URL no viene seteada se inyecta ese default (exportá
+  // DATABASE_URL/DIRECT_URL antes de `pnpm test:e2e` para apuntar a otra DB).
   const { spawnSync } = await import('node:child_process');
   const result = spawnSync('pnpm', ['db:seed'], {
     stdio: 'inherit',
     shell: process.platform === 'win32',
     cwd: process.cwd(),
+    env: {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_COMPOSE_DB_URL,
+      DIRECT_URL: process.env.DIRECT_URL ?? LOCAL_COMPOSE_DB_URL,
+    },
   });
   if (result.status !== 0) {
     throw new Error(`globalSetup: 'pnpm db:seed' falló con código ${result.status}`);

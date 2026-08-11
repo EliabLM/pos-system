@@ -12,7 +12,7 @@ test.describe('Auth — login smoke (P0)', () => {
     // Sin cookie auth-token presente y URL en /dashboard (no en /onboarding).
     await expect(page).toHaveURL(/\/dashboard(\?|$)/);
 
-    const cookies = await page.context().cookies('auth-token');
+    const cookies = await page.context().cookies();
     expect(cookies.some((c) => c.name === 'auth-token' && c.value.length > 0)).toBe(true);
   });
 
@@ -20,21 +20,21 @@ test.describe('Auth — login smoke (P0)', () => {
     await loginUI(page, SELLER);
     await expect(page).toHaveURL(/\/dashboard(\?|$)/);
 
-    const cookies = await page.context().cookies('auth-token');
+    const cookies = await page.context().cookies();
     expect(cookies.some((c) => c.name === 'auth-token' && c.value.length > 0)).toBe(true);
   });
 
   test('E006 — Credenciales inválidas no generan sesión', async ({ page }) => {
     await page.goto('/auth/login');
     await page.getByLabel(/correo electrónico/i).fill('nobody@pos.test');
-    await page.getByLabel(/contraseña/i).fill('Wrong123!');
+    await page.getByLabel(/^contraseña$/i).fill('Wrong123!');
     await page.getByRole('button', { name: /iniciar sesión/i }).click();
 
     // Esperar toast de error (sonner).
     await expect(page.getByText(/inválidos|incorrectas/i).first()).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/auth\/login/);
 
-    const cookies = await page.context().cookies('auth-token');
+    const cookies = await page.context().cookies();
     expect(cookies.some((c) => c.name === 'auth-token')).toBe(false);
   });
 

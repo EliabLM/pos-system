@@ -49,3 +49,7 @@ next-env.d.ts
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Playwright E2E artifacts
+e2e/.report/
+e2e/.results/

@@ -23,7 +23,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  // 1 worker: la app corre en un solo contenedor y el login (bcrypt cost 12)
+  // se degrada con logins concurrentes — más workers = timeouts flaky.
+  workers: process.env.CI ? 2 : 1,
+  timeout: 60_000,
   reporter: [
     ['html', { outputFolder: 'e2e/.report', open: 'never' }],
     ['list'],

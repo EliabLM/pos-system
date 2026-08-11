@@ -29,7 +29,8 @@ export async function loginUI(page: Page, creds: Credentials, expectedPath = '/d
   await page.goto('/auth/login');
 
   await page.getByLabel(/correo electrónico/i).fill(creds.email);
-  await page.getByLabel(/contraseña/i).fill(creds.password);
+  // Anclado (^...$) para no matchear el botón aria-label="Mostrar contraseña".
+  await page.getByLabel(/^contraseña$/i).fill(creds.password);
 
   await page.getByRole('button', { name: /iniciar sesión/i }).click();
 
@@ -48,8 +49,10 @@ export async function loginUI(page: Page, creds: Credentials, expectedPath = '/d
  * repite el login (rápido entre specs del mismo worker).
  */
 export async function loginAs(page: Page, creds: Credentials): Promise<void> {
-  // Verificar si ya hay sesión activa.
-  const existing = await page.context().cookies(AUTH_COOKIE);
+  // Verificar si ya hay sesión activa. cookies() recibe URLs, no nombres —
+  // se piden todas y se filtra por nombre.
+  const all = await page.context().cookies();
+  const existing = all.filter((c) => c.name === AUTH_COOKIE);
   if (existing.length > 0 && existing[0].value) {
     // Validar que la cookie sirva yendo a /dashboard.
     const res = await page.goto('/dashboard');
