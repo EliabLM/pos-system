@@ -29,13 +29,16 @@ docs/
 |-----------|-------------|--------|
 | [features/offline-mode/](./features/offline-mode/PLAN_IMPLEMENTACION_OFFLINE_MODE.md) | Plan en 5 fases para capacidad offline (PWA) | 📋 Pendiente — prioridad alta |
 | [features/purchase/](./features/purchase/PLAN_MODULO_COMPRAS.md) | Plan del módulo de compras | 📋 Pendiente |
+| [features/testing/playwright-test-plan.md](./features/testing/playwright-test-plan.md) | Plan de pruebas E2E (Playwright): matriz de 180 escenarios, suites, seed idempotente, RBAC dual-layer (middleware + server actions) | ✅ Plan cerrado (suposiciones verificadas contra código) — faltan probar stack + specs P1/P2 |
+| [features/testing/RUNBOOK.md](./features/testing/RUNBOOK.md) | Cómo correr la suite E2E: docker compose + seed + specs, credenciales sembradas, troubleshooting | ✅ Listo — pendiente primera corrida contra el stack |
 | `features/loyalty-program/`, `features/discounts/`, `features/taxes/` | — | Sin documentación |
 
 ### Autenticación y autorización
 
 | Documento | Descripción |
 |-----------|-------------|
-| [AUTH_DEVELOPER_GUIDE.md](./auth/AUTH_DEVELOPER_GUIDE.md) | Sistema de autenticación JWT para desarrolladores |
+| [AUTH_TARGET_SCHEMA.md](./auth/AUTH_TARGET_SCHEMA.md) | **Postura de target de auth** — decisiones D3, schema Prisma target, JWT claims, refresh rotation, gaps a cerrar. Fuente de verdad para Fase 1/2. |
+| [AUTH_DEVELOPER_GUIDE.md](./auth/AUTH_DEVELOPER_GUIDE.md) | Sistema de autenticación JWT para desarrolladores (legacy — se reescribe en Fase 2) |
 | [AUTHORIZATION_GUIDE.md](./auth/AUTHORIZATION_GUIDE.md) | Autorización y RBAC (Admin/Seller) |
 | [MIDDLEWARE_AUTH.md](./auth/MIDDLEWARE_AUTH.md) | Middleware de autenticación Next.js |
 | [LOGOUT_STATE_CLEANUP.md](./auth/LOGOUT_STATE_CLEANUP.md) | Limpieza de estado al cerrar sesión |
@@ -44,9 +47,12 @@ docs/
 
 | Documento | Descripción |
 |-----------|-------------|
-| [PM2_DEPLOYMENT_GUIDE.md](./deployment/PM2_DEPLOYMENT_GUIDE.md) | Deploy con PM2 en producción |
-| [SELF-HOST.MD](./deployment/SELF-HOST.MD) | Self-hosting |
-| [ssl-troubleshooting-nginx-cloudflare-oracle.md](./deployment/ssl-troubleshooting-nginx-cloudflare-oracle.md) | SSL con Nginx + Cloudflare + OCI |
+| [estrategia-despliegue.md](./deployment/estrategia-despliegue.md) | Estrategia global: local (docker-compose) + testing (Vercel+Supabase) + prod (VPS+Coolify+Postgres) |
+| [deploy-vercel-monorepo.md](./deployment/deploy-vercel-monorepo.md) | Paso a paso para deployar el client en Vercel desde el monorepo (testing con Supabase) |
+| [docker-local.md](./deployment/docker-local.md) | Levantar el stack completo local con `docker compose up` |
+| [PM2_DEPLOYMENT_GUIDE.md](./deployment/PM2_DEPLOYMENT_GUIDE.md) | Deploy con PM2 en producción (legacy) |
+| [SELF-HOST.MD](./deployment/SELF-HOST.MD) | Self-hosting (legacy) |
+| [ssl-troubleshooting-nginx-cloudflare-oracle.md](./deployment/ssl-troubleshooting-nginx-cloudflare-oracle.md) | SSL con Nginx + Cloudflare + OCI (legacy) |
 | [fix-database-ssl-production.md](./deployment/fix-database-ssl-production.md) | Fix de SSL de base de datos en producción |
 | [DATABASE_REMOTE_ACCESS.md](./deployment/DATABASE_REMOTE_ACCESS.md) | Acceso remoto a PostgreSQL |
 | [ROUTER_REDIRECT_FIX.md](./deployment/ROUTER_REDIRECT_FIX.md) | Fix de redirección en App Router |
