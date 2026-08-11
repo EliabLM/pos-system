@@ -172,7 +172,6 @@ export function LoginForm({
                           <FormLabel>Correo electrónico</FormLabel>
                           <FormControl>
                             <Input
-                              id="email"
                               type="email"
                               placeholder="m@example.com"
                               {...field}
@@ -198,32 +197,31 @@ export function LoginForm({
                               ¿Olvidaste tu contraseña?
                             </a>
                           </div>
-                          <FormControl>
-                            <div className="relative">
+                          <div className="relative">
+                            <FormControl>
                               <Input
-                                id="password"
                                 type={showPassword ? 'text' : 'password'}
                                 className="pr-10"
                                 {...field}
                               />
-                              <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                aria-label={
-                                  showPassword
-                                    ? 'Ocultar contraseña'
-                                    : 'Mostrar contraseña'
-                                }
-                              >
-                                {showPassword ? (
-                                  <IconEyeOff size={20} />
-                                ) : (
-                                  <IconEye size={20} />
-                                )}
-                              </button>
-                            </div>
-                          </FormControl>
+                            </FormControl>
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label={
+                                showPassword
+                                  ? 'Ocultar contraseña'
+                                  : 'Mostrar contraseña'
+                              }
+                            >
+                              {showPassword ? (
+                                <IconEyeOff size={20} />
+                              ) : (
+                                <IconEye size={20} />
+                              )}
+                            </button>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
