@@ -1,0 +1,10 @@
+{
+  "name": "pos-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema POS (Point of Sale) multi-tenant en migración de monolito a 3 proyectos.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EliabLM/pos-system.git"
+  }
+}

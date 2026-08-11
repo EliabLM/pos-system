@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "playwright-test": {
+      "command": "cmd",
+      "args": ["/c", "cd /d pos-system-client && npx playwright run-test-mcp-server"]
+    }
+  }
+}
