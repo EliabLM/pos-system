@@ -18,6 +18,18 @@ Tradeoff: un repo más grande y una sola historia git compartida. Alternativa (r
 
 Tradeoff: coexistencia temporal de server actions + API HTTP durante la transición (complejidad operacional). Alternativa (big-bang) requiere reescribir todo en paralelo y lanzar de golpe — más riesgo, ventana de downtime, sin rollback parcial.
 
+### D3 — Auth: custom JWT + gaps cerrados (vs IdP externo)
+
+**Decidido: mantener custom JWT y cerrar gaps.** Re-evaluar **Better Auth** en Fase 2 como abort-condition (trepar si aparece MFA regulatoria, passkey, SSO federado, multi-org federada o SCIM). Schema target ya alineado con Better Auth → migración barata si se dispara.
+
+Ver [`auth/AUTH_TARGET_SCHEMA.md`](../auth/AUTH_TARGET_SCHEMA.md) para el detalle: decisiones D3.1–D3.10, schema Prisma target, claim shape JWT, rotación de refresh + reuse detection, gaps pendientes.
+
+Descartados: Keycloak (multi-tenant natural es realm por org, no encaja), Clerk (ya migrado fuera, cloud), Auth0 (cloud, choca con self-hosted + offline mobile).
+
+Resumen de impacto:
+- **Fase 1**: crea `memberships`, `verifications`, `accounts` (skeleton), reestructura `users`, `sessions`, `audit_logs`; añade `slug` a `organizations` — ver Receta R6.
+- **Fase 2**: módulo auth con EdDSA, refresh rotation, stateful session check, jti/sid/ver, account lockout, flows unificados en `verifications`.
+
 ---
 
 ## Inventario actual (lo que hay que partir)
@@ -100,28 +112,48 @@ pos-system/  (repo git, monorepo pnpm workspaces)
 
 1. Mover `prisma/schema.prisma` del client al server. El client deja de ser dueño del schema.
 2. Aplicar los **targets de la skill `postgresql-table-design`**:
-   - IDs `cuid` → `UUID` v7 (ver Receta cuid→UUIDv7 abajo).
+   - IDs `cuid` → `UUID` v7 (ver Receta cuid→UUIDv7 abajo; mapeo bridge en `legacy_id_map`).
    - `Float` → `Decimal` en `subtotal`/`total`/`amount` (ver Receta Float→Decimal).
    - Identificadores snake_case vía `@map`.
    - Soft-delete uniqueness → índice único parcial `WHERE deleted_at IS NULL` (reemplazar `@@unique([…, deletedAt])`).
    - `updated_at` trigger `BEFORE UPDATE`.
    - **RLS** habilitado en toda tabla tenant-scoped + `FORCE ROW LEVEL SECURITY` + role non-owner para la API. Cross-tenant superadmin vía role/policy aparte.
    - Índices con `organization_id` como leading column; FK indexes explícitos.
-3. Migración de datos existentes (ver Recetas).
-4. Prisma client genera ahora en `pos-system-server/src/generated/prisma`.
-5. **Definition of done:** migración aplica limpia sobre un dump de prod; `prisma migrate deploy` verde; tests de RLS prueban que un tenant no ve filas de otro.
+3. Aplicar el **schema auth target** (ver [`auth/AUTH_TARGET_SCHEMA.md`](../auth/AUTH_TARGET_SCHEMA.md)):
+   - `users`: pierde `organizationId`, `storeId`, `username`, `firstName`, `lastName`, `password`; gana `name`, `image`, `passwordHash` (nullable), email unique parcial.
+   - Nueva `memberships` (user↔org + role + defaultStore + status + invitedBy).
+   - Mergear `password_resets` + `email_verifications` → `verifications` (ver Receta R6).
+   - Nueva `accounts` skeleton (OAuth/passkey/credential, sin datos todavía).
+   - `sessions`: añade `refreshTokenHash`, `rotatedFrom`.
+   - `audit_logs`: reestructura `actorUserId`, `targetType`, `targetId`, `storeId`, `correlationId`.
+   - `organizations`: añade `slug` único global (ver Receta R7 para slug generation).
+   - Migración de datos legacy → nuevo shape (ver Receta R6 paso a paso).
+4. Migración de datos existentes (ver Recetas R1, R2, R6, R7).
+5. Prisma client genera ahora en `pos-system-server/src/generated/prisma`.
+6. **Definition of done:** migración aplica limpia sobre un dump de prod; `prisma migrate deploy` verde; tests de RLS prueban que un tenant no ve filas de otro; schema auth target matchea [`auth/AUTH_TARGET_SCHEMA.md`](../auth/AUTH_TARGET_SCHEMA.md).
 
 ### Fase 2 — Auth + tenant surface (el primer módulo server)
 
 Primer módulo del server — define los patrones que copiarán los demás. Migrar `lib/auth/` + actions de `auth/`, `organization/`, `store/`, `user/`, `session/`.
 
+El schema auth target ya quedó en Fase 1 (ver [`auth/AUTH_TARGET_SCHEMA.md`](../auth/AUTH_TARGET_SCHEMA.md)). Esta fase cierra los gaps del custom JWT.
+
 1. `shared/domain/`: `DomainError` + subclases, `Result<T>`, value objects (`TenantId`, `UserId`).
-2. `modules/auth/`: dominio + usecases (login, logout, refresh, verify) + adapters (HTTP controller, `JwtAdapter`, `BcryptAdapter`, `PrismaUserRepository`).
+2. `modules/auth/`: dominio + usecases (login, logout, refresh, verify, request-password-reset, reset-password, verify-email) + adapters (HTTP controller, `JwtAdapter` EdDSA, `BcryptAdapter`, `PrismaUserRepository`, `PrismaSessionRepository`).
 3. Composition root en `server.ts`: wire ports→adapters, registar error-handling middleware, helmet, rate-limit, pino-http, req-id.
-4. Middleware Express: decodifica JWT → carga `AuthContext` → el adapter de persistencia hace `SET LOCAL app.tenant_id = <org>` dentro de la tx por request.
-5. Endpoints: `POST /api/v1/auth/login`, `POST /auth/logout`, `POST /auth/refresh`, `GET /auth/me`.
-6. El **cliente** cambia su auth para consumir la API: el middleware de Next.js sigue manejando la cookie, pero el login/refresh ahora llama la API. Server actions de auth se eliminan.
-7. **Definition of done:** login fluye client→API→DB con RLS; tests e2e de auth (supertest) verde; cliente hace login contra la API y la sesión persiste.
+4. **Cerrar gaps del custom JWT** (ver [`auth/AUTH_TARGET_SCHEMA.md`](../auth/AUTH_TARGET_SCHEMA.md) § gaps):
+   - Algoritmo **HS256 → EdDSA (Ed25519)** con par de claves rotable (`AUTH_PRIVATE_KEY`, `AUTH_PUBLIC_KEY`, `AUTH_KEY_ID`). Migración gradual: middleware acepta both HS256 y EdDSA por un período; ver Receta R8.
+   - Access token **15 min** + refresh token **30 días** con **rotación + reuse detection** (ver Receta R8).
+   - Claim shape con `jti`, `sid`, `ver` (bump invalida tokens viejos). `sid` habilita revocación stateful contra `sessions.isActive`.
+   - **Stateful session check** cacheado 30s en middleware (`lru-cache`). Cache invalidado en `/auth/logout` y `/auth/logout-all`.
+   - **Account lockout** enforced en login usecase (5 intentos → lock 15 min, exponencial).
+   - **Email verification + password reset** unificados en `verifications` (flows completos end-to-end).
+   - **Rate-limit** `/auth/login` y `/auth/refresh` con `express-rate-limit`.
+5. Middleware Express: decodifica JWT (EdDSA o HS256 legacy) → carga `AuthContext` → el adapter de persistencia hace `SET LOCAL app.tenant_id = <org>` dentro de la tx por request.
+6. Endpoints: `POST /api/v1/auth/login`, `POST /auth/logout`, `POST /auth/logout-all`, `POST /auth/refresh`, `GET /auth/me`, `POST /auth/request-password-reset`, `POST /auth/reset-password`, `POST /auth/verify-email`.
+7. El **cliente** cambia su auth para consumir la API: el middleware de Next.js sigue manejando la cookie, pero el login/refresh ahora llama la API. Server actions de auth se eliminan.
+8. **Abort-condition check:** si en este punto apareció MFA/passkey/SSO/SCIM/multi-org federada, **detener** y migrar a Better Auth (schema ya alineado → costo mínimo). Registrar la decisión en [`auth/AUTH_TARGET_SCHEMA.md`](../auth/AUTH_TARGET_SCHEMA.md).
+9. **Definition of done:** login fluye client→API→DB con RLS; refresh rotation con reuse detection verde; tests e2e de auth (supertest) verde; cliente hace login contra la API y la sesión persiste; lockout y rate-limit verificados.
 
 ### Fase 3 — Extracción módulo por módulo (strangler fig)
 
@@ -206,6 +238,72 @@ Los hooks TanStack Query ya manejan throw → error state. La migración de un h
 
 Respetar el orden de Fase 3. Migrar un módulo cuyas FKs apuntan a tablas aún no migradas genera doble-work (mapear IDs legacy dos veces). SystemConfig/UnitMeasure primero (sin deps); Product después de Category/Brand/UnitMeasure; Sale después de Product/Customer/PaymentMethod/Store.
 
+### R6 — Migración de datos auth legacy → schema target
+
+El schema target (ver [`auth/AUTH_TARGET_SCHEMA.md`](../auth/AUTH_TARGET_SCHEMA.md)) cambia el shape de `users`, `sessions`, `audit_logs` y crea `memberships`, `verifications`, `accounts`. La migración de datos existentes se corre como SQL idempotente sobre un dump de prod en staging antes de tocar prod.
+
+Pasos (correr en una sola transacción):
+
+1. **`users` reshape:**
+   - `password` → `passwordHash` (rename).
+   - `firstName` + `lastName` → `name` = `trim(firstName || ' ' || lastName)`.
+   - Drop `username`, `organizationId`, `storeId` (tras crear `memberships` y copiar referencias).
+   - `email` → unique parcial `WHERE deleted_at IS NULL` (drop unique viejo `@@unique([email, deletedAt])` zuerst, crear el índice parcial).
+2. **`memberships` (nueva):** poblar a partir de `users` legacy:
+   ```sql
+   INSERT INTO memberships (id, user_id, organization_id, role, default_store_id, status, accepted_at, created_at, updated_at)
+   SELECT gen_random_uuid(), u.id, u.organization_id, u.role::text::membershiprole,
+          u.store_id, 'ACTIVE', u.created_at, u.created_at, u.created_at
+   FROM users u
+   WHERE u.organization_id IS NOT NULL AND u.is_deleted = false;
+   ```
+   Para users con `organizationId IS NULL` (edge): `status = 'INVITED'`, sin org (caso raro, revisar dump).
+3. **`verifications` (nueva):** meergear `password_resets` + `email_verifications`:
+   ```sql
+   INSERT INTO verifications (id, identifier, value_hash, type, expires_at, used, used_at, ip_address, user_agent, created_at)
+   SELECT gen_random_uuid(), (SELECT email FROM users WHERE id = user_id), token, 'PASSWORD_RESET',
+          expires_at, used, used_at, ip_address, user_agent, created_at
+   FROM password_resets;
+
+   INSERT INTO verifications (id, identifier, value_hash, type, expires_at, used, used_at, ip_address, user_agent, created_at)
+   SELECT gen_random_uuid(), email, token, 'EMAIL_VERIFY', expires_at, verified, verified_at, ip_address, user_agent, created_at
+   FROM email_verifications;
+   ```
+   Drop `password_resets` y `email_verifications` al final.
+4. **`sessions`:** añadir `refresh_token_hash`, `rotated_from` como nullable; rename `token` → `token_hash`. Datos existentes quedan con `refresh_token_hash = NULL` (sesiones legacy sin refresh rotation; se invalidan al expirar).
+5. **`audit_logs` reestructure:** rename `userId` → `actor_user_id` (sin datos loss), `entity` → `target_type`, `entity_id` → `target_id` (con cast a uuid si era cuid-string-compatible). Añadir `store_id`, `correlation_id` como nullable. Reordenar índices.
+6. **`organizations` añade `slug`:** ver Receta R7.
+7. **`accounts`** se crea vacía (skeleton).
+8. **Verificación post-migración:**
+   - Mismos users, mismo count de memberships¹org.
+   - Tokens de reset/verify migrados con `type` correcto.
+   - Audit logs reproducen la misma trazabilidad.
+
+### R7 — `Organization.slug` generation
+
+`Organization.slug` es nuevo y único global. Generación durante la migración de datos existentes:
+
+1. **Slugify** `name` por cada organization: lowercase, trim, reemplazar espacios/acentos/specials por `-`, sin trailing/double `-`.
+   - Ejemplo: `"Mi Tienda S.A."` → `"mi-tienda-s-a"`.
+2. **Garantizar único:** si ya existe, appendar `-2`, `-3`, etc.
+3. **Constraint:** `slug TEXT UNIQUE NOT NULL`. Las nuevas organizaciones se crean con slug generado desde el name al insert (trigger o usecase del server).
+4. **Edge cases:**
+   - `name` vacío o solo specials → fallback `org-{id_prefix}`.
+   - Colisión masiva → batch update con窗口 `DISTINCT ON (slug)` después de generar.
+
+### R8 — JWT HS256 → EdDSA (Ed25519) coexistencia
+
+El algoritmo del JWT cambia en Fase 2. Los tokens HS256 futuros (aún válidos, expedidos por el client legacy) deben seguir aceptándose mientras rotan.
+
+1. **Server firma siempre EdDSA** (nuevos tokens).
+2. **Middleware verifica both** por un período (2 semanas = max TTL token legacy 7d + refresco):
+   - Intentar `jwt.verify(token, ed25519PublicKey, { algorithms: ['EdDSA'] })`.
+   - Si falla, fallback `jwt.verify(token, hs256Secret, { algorithms: ['HS256'] })` (legacy).
+   - Solo uno aceptado; nunca ambos en mismo request.
+3. **Rotación de refresh tokens:** nuevos refresh tokens se almacenan con `rotated_from`, los legacy se marcan `rotated_from = NULL` y se invalidan al primer refresh (fuerza nueva sesión EdDSA).
+4. **`ver` bump:** tokens legacy no tienen `ver`; middleware los trata como `ver: 0` y acepta solo si además son HS256. Tokens EdDSA llevan `ver: 1`. Bump futuro invalida家族.
+5. **Monitoreo:** loggear ratio HS256/EdDSA en el server. Cuando HS256 → 0, eliminar el fallback (un commit de cleanup).
+
 ---
 
 ## Cómo actualizar este plan
@@ -216,8 +314,9 @@ Respetar el orden de Fase 3. Migrar un módulo cuyas FKs apuntan a tablas aún n
 
 ## Estado del plan
 
-- [ ] D1 (monorepo) confirmada
-- [ ] D2 (strangler fig) confirmada
+- [x] D1 (monorepo) confirmada
+- [x] D2 (strangler fig) confirmada
+- [x] D3 (custom JWT + schema auth target) confirmada — ver [`auth/AUTH_TARGET_SCHEMA.md`](../auth/AUTH_TARGET_SCHEMA.md)
 - [ ] Fase 0
 - [ ] Fase 1
 - [ ] Fase 2
