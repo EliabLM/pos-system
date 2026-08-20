@@ -23,12 +23,12 @@ model Organization {
   address        String?
   city           String?
   department     String?
-  taxId          String?
-  isActive       Boolean         @default(true)
-  isDeleted      Boolean         @default(false)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  deletedAt      DateTime?
+  taxId          String?         @map("tax_id")
+  isActive       Boolean         @default(true) @map("is_active")
+  isDeleted      Boolean         @default(false) @map("is_deleted")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
   brands         Brand[]
   categories     Category[]
   customers      Customer[]
@@ -46,20 +46,20 @@ model Organization {
 
 model Store {
   id               String       @id @default(cuid())
-  organizationId   String
+  organizationId   String       @map("organization_id")
   name             String
   description      String?
   address          String
   city             String?
   department       String?
   phone            String?
-  saleNumberPrefix String       @default("")
-  lastSaleNumber   Int          @default(0)
-  isActive         Boolean      @default(true)
-  isDeleted        Boolean      @default(false)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  deletedAt        DateTime?
+  saleNumberPrefix String       @default("") @map("sale_number_prefix")
+  lastSaleNumber   Int          @default(0) @map("last_sale_number")
+  isActive         Boolean      @default(true) @map("is_active")
+  isDeleted        Boolean      @default(false) @map("is_deleted")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  deletedAt        DateTime?    @map("deleted_at")
   sales            Sale[]
   organization     Organization @relation(fields: [organizationId], references: [id])
   users            User[]
@@ -72,8 +72,8 @@ model User {
   id String @id @default(cuid())
 
   // Multi-tenancy
-  organizationId String?
-  storeId        String?
+  organizationId String? @map("organization_id")
+  storeId        String? @map("store_id")
 
   // Credenciales de autenticación
   email    String
@@ -81,27 +81,27 @@ model User {
   username String
 
   // Información personal
-  firstName String
-  lastName  String
+  firstName String @map("first_name")
+  lastName  String @map("last_name")
 
   // Control de acceso
   role          UserRole @default(SELLER)
-  emailVerified Boolean  @default(false)
+  emailVerified Boolean  @default(false) @map("email_verified")
 
   // Soft delete pattern
-  isActive  Boolean   @default(true)
-  isDeleted Boolean   @default(false)
-  deletedAt DateTime?
+  isActive  Boolean   @default(true) @map("is_active")
+  isDeleted Boolean   @default(false) @map("is_deleted")
+  deletedAt DateTime? @map("deleted_at")
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Campos de seguridad adicionales
-  lastLoginAt       DateTime?
-  passwordChangedAt DateTime? // Para invalidar tokens antiguos
-  loginAttempts     Int       @default(0)
-  lockedUntil       DateTime? // Account lockout por intentos fallidos
+  lastLoginAt       DateTime? @map("last_login_at")
+  passwordChangedAt DateTime? @map("password_changed_at") // Para invalidar tokens antiguos
+  loginAttempts     Int       @default(0) @map("login_attempts")
+  lockedUntil       DateTime? @map("locked_until") // Account lockout por intentos fallidos
 
   // Relaciones existentes
   sales          Sale[]
@@ -129,26 +129,26 @@ model User {
 // ============================================
 model Session {
   id     String @id @default(cuid())
-  userId String
+  userId String @map("user_id")
 
   // Token y seguridad
   token     String   @unique // Hash del JWT o session ID
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at")
 
   // Metadata de seguridad
-  ipAddress String? @db.VarChar(45) // IPv6 max length
-  userAgent String? @db.VarChar(500)
-  deviceId  String? // Fingerprint del dispositivo
+  ipAddress String? @map("ip_address") @db.VarChar(45) // IPv6 max length
+  userAgent String? @map("user_agent") @db.VarChar(500)
+  deviceId  String? @map("device_id") // Fingerprint del dispositivo
 
   // Control de sesión
-  isActive  Boolean   @default(true)
-  revokedAt DateTime? // Para invalidación explícita
-  revokedBy String? // userId que revocó (admin)
+  isActive  Boolean   @default(true) @map("is_active")
+  revokedAt DateTime? @map("revoked_at") // Para invalidación explícita
+  revokedBy String?   @map("revoked_by") // userId que revocó (admin)
 
   // Metadata adicional
-  lastActivityAt DateTime @default(now())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relación
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -166,22 +166,22 @@ model Session {
 // ============================================
 model PasswordReset {
   id     String @id @default(cuid())
-  userId String
+  userId String @map("user_id")
 
   // Token de reset
   token     String   @unique
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at")
 
   // Control de uso
   used   Boolean   @default(false)
-  usedAt DateTime?
+  usedAt DateTime? @map("used_at")
 
   // Metadata de seguridad
-  ipAddress String? @db.VarChar(45)
-  userAgent String? @db.VarChar(500)
+  ipAddress String? @map("ip_address") @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(500)
 
   // Timestamps
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relación
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -198,25 +198,25 @@ model PasswordReset {
 // ============================================
 model EmailVerification {
   id     String @id @default(cuid())
-  userId String
+  userId String @map("user_id")
 
   // Token de verificación
   token     String   @unique
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at")
 
   // Email a verificar (permite cambio de email)
   email String
 
   // Control de uso
   verified   Boolean   @default(false)
-  verifiedAt DateTime?
+  verifiedAt DateTime? @map("verified_at")
 
   // Metadata
-  ipAddress String? @db.VarChar(45)
-  userAgent String? @db.VarChar(500)
+  ipAddress String? @map("ip_address") @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(500)
 
   // Timestamps
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relación
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -234,27 +234,27 @@ model EmailVerification {
 // ============================================
 model AuditLog {
   id     String  @id @default(cuid())
-  userId String? // Nullable para acciones del sistema
+  userId String? @map("user_id") // Nullable para acciones del sistema
 
   // Información del evento
   action   AuditAction
   entity   String // Nombre de la tabla/entidad afectada
-  entityId String? // ID del registro afectado
+  entityId String?     @map("entity_id") // ID del registro afectado
 
   // Detalles del cambio
-  oldValues Json? // Estado anterior
-  newValues Json? // Estado nuevo
+  oldValues Json? @map("old_values") // Estado anterior
+  newValues Json? @map("new_values") // Estado nuevo
 
   // Metadata de seguridad
-  ipAddress String? @db.VarChar(45)
-  userAgent String? @db.VarChar(500)
+  ipAddress String? @map("ip_address") @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(500)
 
   // Contexto adicional
-  organizationId String? // Para filtrar por organización
+  organizationId String? @map("organization_id") // Para filtrar por organización
   metadata       Json? // Datos adicionales flexibles
 
   // Timestamp
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relación
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -270,14 +270,14 @@ model AuditLog {
 
 model Category {
   id             String       @id @default(cuid())
-  organizationId String
+  organizationId String       @map("organization_id")
   name           String
   description    String?
-  isActive       Boolean      @default(true)
-  isDeleted      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  deletedAt      DateTime?
+  isActive       Boolean      @default(true) @map("is_active")
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at")
   organization   Organization @relation(fields: [organizationId], references: [id])
   products       Product[]
 
@@ -287,15 +287,15 @@ model Category {
 
 model Brand {
   id             String       @id @default(cuid())
-  organizationId String
+  organizationId String       @map("organization_id")
   name           String
   logo           String?
   description    String?
-  isActive       Boolean      @default(true)
-  isDeleted      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  deletedAt      DateTime?
+  isActive       Boolean      @default(true) @map("is_active")
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at")
   organization   Organization @relation(fields: [organizationId], references: [id])
   products       Product[]
 
@@ -305,14 +305,14 @@ model Brand {
 
 model UnitMeasure {
   id             String       @id @default(cuid())
-  organizationId String
+  organizationId String       @map("organization_id")
   name           String
   abbreviation   String
-  isActive       Boolean      @default(true)
-  isDeleted      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  deletedAt      DateTime?
+  isActive       Boolean      @default(true) @map("is_active")
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at")
   products       Product[]
   saleItems      SaleItem[]
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -324,29 +324,29 @@ model UnitMeasure {
 
 model Product {
   id             String          @id @default(cuid())
-  organizationId String
+  organizationId String          @map("organization_id")
   name           String
   description    String?
   image          String?
   barcode        String?
   sku            String?
-  categoryId     String?
-  brandId        String?
-  unitMeasureId  String?
-  costPrice      Float
-  salePrice      Float
-  minStock       Int             @default(0)
-  currentStock   Int             @default(0)
-  alcoholGrade   Float?
+  categoryId     String?         @map("category_id")
+  brandId        String?         @map("brand_id")
+  unitMeasureId  String?         @map("unit_measure_id")
+  costPrice      Float           @map("cost_price")
+  salePrice      Float           @map("sale_price")
+  minStock       Int             @default(0) @map("min_stock")
+  currentStock   Int             @default(0) @map("current_stock")
+  alcoholGrade   Float?          @map("alcohol_grade")
   volume         Float?
   size           String?
   color          String?
   model          String?
-  isActive       Boolean         @default(true)
-  isDeleted      Boolean         @default(false)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  deletedAt      DateTime?
+  isActive       Boolean         @default(true) @map("is_active")
+  isDeleted      Boolean         @default(false) @map("is_deleted")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
   brand          Brand?          @relation(fields: [brandId], references: [id])
   category       Category?       @relation(fields: [categoryId], references: [id])
   organization   Organization    @relation(fields: [organizationId], references: [id])
@@ -362,21 +362,21 @@ model Product {
 
 model Customer {
   id             String       @id @default(cuid())
-  organizationId String
-  firstName      String
-  lastName       String
+  organizationId String       @map("organization_id")
+  firstName      String       @map("first_name")
+  lastName       String       @map("last_name")
   email          String?
   phone          String?
   address        String?
   city           String?
   department     String?
   document       String?
-  documentType   String?
-  isActive       Boolean      @default(true)
-  isDeleted      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  deletedAt      DateTime?
+  documentType   String?      @map("document_type")
+  isActive       Boolean      @default(true) @map("is_active")
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at")
   organization   Organization @relation(fields: [organizationId], references: [id])
   sales          Sale[]
 
@@ -387,20 +387,20 @@ model Customer {
 
 model Supplier {
   id             String       @id @default(cuid())
-  organizationId String
+  organizationId String       @map("organization_id")
   name           String
-  contactName    String?
+  contactName    String?      @map("contact_name")
   email          String?
   phone          String?
   address        String?
   city           String?
   department     String?
-  taxId          String?
-  isActive       Boolean      @default(true)
-  isDeleted      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  deletedAt      DateTime?
+  taxId          String?      @map("tax_id")
+  isActive       Boolean      @default(true) @map("is_active")
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at")
   purchases      Purchase[]
   organization   Organization @relation(fields: [organizationId], references: [id])
 
@@ -410,14 +410,14 @@ model Supplier {
 
 model PaymentMethod {
   id             String        @id @default(cuid())
-  organizationId String
+  organizationId String        @map("organization_id")
   name           String
   type           PaymentType
-  isActive       Boolean       @default(true)
-  isDeleted      Boolean       @default(false)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  deletedAt      DateTime?
+  isActive       Boolean       @default(true) @map("is_active")
+  isDeleted      Boolean       @default(false) @map("is_deleted")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
   organization   Organization  @relation(fields: [organizationId], references: [id])
   salePayments   SalePayment[]
 
@@ -427,22 +427,22 @@ model PaymentMethod {
 
 model Sale {
   id             String        @id @default(cuid())
-  organizationId String
-  storeId        String
-  saleNumber     String
-  customerId     String?
-  userId         String
+  organizationId String        @map("organization_id")
+  storeId        String        @map("store_id")
+  saleNumber     String        @map("sale_number")
+  customerId     String?       @map("customer_id")
+  userId         String        @map("user_id")
   subtotal       Float
   total          Float
   status         SaleStatus    @default(PAID)
-  saleDate       DateTime      @default(now())
-  dueDate        DateTime?
-  paidDate       DateTime?
+  saleDate       DateTime      @default(now()) @map("sale_date")
+  dueDate        DateTime?     @map("due_date")
+  paidDate       DateTime?     @map("paid_date")
   notes          String?
-  isDeleted      Boolean       @default(false)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  deletedAt      DateTime?
+  isDeleted      Boolean       @default(false) @map("is_deleted")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
   saleItems      SaleItem[]
   salePayments   SalePayment[]
   customer       Customer?     @relation(fields: [customerId], references: [id])
@@ -455,16 +455,16 @@ model Sale {
 
 model SaleItem {
   id            String       @id @default(cuid())
-  saleId        String
-  productId     String
-  unitMeasureId String?
+  saleId        String       @map("sale_id")
+  productId     String       @map("product_id")
+  unitMeasureId String?      @map("unit_measure_id")
   quantity      Int
-  unitPrice     Float
+  unitPrice     Float        @map("unit_price")
   subtotal      Float
-  isDeleted     Boolean      @default(false)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  deletedAt     DateTime?
+  isDeleted     Boolean      @default(false) @map("is_deleted")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  deletedAt     DateTime?    @map("deleted_at")
   product       Product      @relation(fields: [productId], references: [id])
   sale          Sale         @relation(fields: [saleId], references: [id])
   unitMeasure   UnitMeasure? @relation(fields: [unitMeasureId], references: [id])
@@ -474,16 +474,16 @@ model SaleItem {
 
 model SalePayment {
   id              String        @id @default(cuid())
-  saleId          String
-  paymentMethodId String
+  saleId          String        @map("sale_id")
+  paymentMethodId String        @map("payment_method_id")
   amount          Float
   reference       String?
   notes           String?
-  paymentDate     DateTime      @default(now())
-  isDeleted       Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
+  paymentDate     DateTime      @default(now()) @map("payment_date")
+  isDeleted       Boolean       @default(false) @map("is_deleted")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
   paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
   sale            Sale          @relation(fields: [saleId], references: [id])
 
@@ -492,18 +492,18 @@ model SalePayment {
 
 model Purchase {
   id             String         @id @default(cuid())
-  organizationId String
-  supplierId     String
-  purchaseNumber String
+  organizationId String         @map("organization_id")
+  supplierId     String         @map("supplier_id")
+  purchaseNumber String         @map("purchase_number")
   total          Float
   status         PurchaseStatus @default(PENDING)
-  purchaseDate   DateTime       @default(now())
-  receivedDate   DateTime?
+  purchaseDate   DateTime       @default(now()) @map("purchase_date")
+  receivedDate   DateTime?      @map("received_date")
   notes          String?
-  isDeleted      Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  deletedAt      DateTime?
+  isDeleted      Boolean        @default(false) @map("is_deleted")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  deletedAt      DateTime?      @map("deleted_at")
   purchaseItems  PurchaseItem[]
   supplier       Supplier       @relation(fields: [supplierId], references: [id])
 
@@ -512,15 +512,15 @@ model Purchase {
 
 model PurchaseItem {
   id         String    @id @default(cuid())
-  purchaseId String
-  productId  String
+  purchaseId String    @map("purchase_id")
+  productId  String    @map("product_id")
   quantity   Int
-  unitPrice  Float
+  unitPrice  Float     @map("unit_price")
   subtotal   Float
-  isDeleted  Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  isDeleted  Boolean   @default(false) @map("is_deleted")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
   product    Product   @relation(fields: [productId], references: [id])
   purchase   Purchase  @relation(fields: [purchaseId], references: [id])
 
@@ -529,17 +529,17 @@ model PurchaseItem {
 
 model StockMovement {
   id             String            @id @default(cuid())
-  organizationId String
-  productId      String
-  storeId        String?
+  organizationId String            @map("organization_id")
+  productId      String            @map("product_id")
+  storeId        String?           @map("store_id")
   type           StockMovementType
   quantity       Int
-  previousStock  Int
-  newStock       Int
+  previousStock  Int               @map("previous_stock")
+  newStock       Int               @map("new_stock")
   reason         String?
-  userId         String?
+  userId         String?           @map("user_id")
   reference      String?
-  createdAt      DateTime          @default(now())
+  createdAt      DateTime          @default(now()) @map("created_at")
   organization   Organization      @relation(fields: [organizationId], references: [id])
   product        Product           @relation(fields: [productId], references: [id])
   user           User?             @relation(fields: [userId], references: [id])
@@ -550,15 +550,15 @@ model StockMovement {
 
 model SystemConfig {
   id             String       @id @default(cuid())
-  organizationId String
+  organizationId String       @map("organization_id")
   key            String
   value          String
   type           String       @default("STRING")
   description    String?
-  isDeleted      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  deletedAt      DateTime?
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at")
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   @@unique([organizationId, key, deletedAt], name: "unique_system_config_per_org")
@@ -568,12 +568,16 @@ model SystemConfig {
 enum UserRole {
   ADMIN
   SELLER
+
+  @@map("user_role")
 }
 
 enum StockMovementType {
   IN
   OUT
   ADJUSTMENT
+
+  @@map("stock_movement_type")
 }
 
 enum PaymentType {
@@ -583,6 +587,8 @@ enum PaymentType {
   CREDIT
   CHECK
   OTHER
+
+  @@map("payment_type")
 }
 
 enum SaleStatus {
@@ -590,12 +596,16 @@ enum SaleStatus {
   PENDING
   OVERDUE
   CANCELLED
+
+  @@map("sale_status")
 }
 
 enum PurchaseStatus {
   PENDING
   RECEIVED
   CANCELLED
+
+  @@map("purchase_status")
 }
 
 // ============================================
@@ -624,4 +634,6 @@ enum AuditAction {
   ORGANIZATION_CHANGED
   STORE_CHANGED
   SESSION_REVOKED
+
+  @@map("audit_action")
 }
