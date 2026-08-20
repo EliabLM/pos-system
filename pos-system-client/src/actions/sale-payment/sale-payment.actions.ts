@@ -2,11 +2,12 @@ import {
   SalePayment,
   Prisma,
 } from '@/generated/prisma';
-import { ActionResponse } from '@/interfaces';
+import { ActionResponse, Serialized } from '@/interfaces';
 import {
   prisma,
   checkAdminRole,
   unauthorizedResponse,
+  serializeDecimals,
 } from '../utils';
 
 const salePaymentInclude: Prisma.SalePaymentInclude = {
@@ -31,10 +32,10 @@ export const addSalePayment = async (
   saleId: string,
   userId: string,
   paymentData: Omit<
-    SalePayment,
+    Serialized<SalePayment>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >
-): Promise<ActionResponse<SalePayment | null>> => {
+): Promise<ActionResponse<Serialized<SalePayment> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -71,10 +72,10 @@ export const addSalePayment = async (
 
     // Calcular monto pagado actual
     const currentPaidAmount = sale.salePayments.reduce(
-      (sum, payment) => sum + payment.amount,
+      (sum, payment) => sum + payment.amount.toNumber(),
       0
     );
-    const remainingAmount = sale.total - currentPaidAmount;
+    const remainingAmount = sale.total.toNumber() - currentPaidAmount;
 
     if (paymentData.amount > remainingAmount) {
       return {
@@ -115,7 +116,7 @@ export const addSalePayment = async (
 
       // Calcular nuevo monto pagado
       const newPaidAmount = currentPaidAmount + paymentData.amount;
-      const isFullyPaid = Math.abs(newPaidAmount - sale.total) < 0.01;
+      const isFullyPaid = Math.abs(newPaidAmount - sale.total.toNumber()) < 0.01;
 
       // Actualizar estado de la venta
       let newStatus = sale.status;
@@ -141,7 +142,7 @@ export const addSalePayment = async (
     return {
       status: 201,
       message: 'Pago agregado exitosamente',
-      data: newPayment,
+      data: serializeDecimals(newPayment),
     };
   } catch (error) {
     console.error('Error adding sale payment:', error);
@@ -170,7 +171,7 @@ export const updateSalePayment = async (
     notes: string;
     paymentDate: Date;
   }>
-): Promise<ActionResponse<SalePayment | null>> => {
+): Promise<ActionResponse<Serialized<SalePayment> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -222,12 +223,12 @@ export const updateSalePayment = async (
         (p) => p.id !== paymentId
       );
       const otherPaymentsTotal = otherPayments.reduce(
-        (sum, payment) => sum + payment.amount,
+        (sum, payment) => sum + payment.amount.toNumber(),
         0
       );
       const newTotal = otherPaymentsTotal + updateData.amount;
 
-      if (newTotal > existingPayment.sale.total) {
+      if (newTotal > existingPayment.sale.total.toNumber()) {
         return {
           status: 400,
           message: 'El nuevo monto excede el total de la venta',
@@ -248,7 +249,7 @@ export const updateSalePayment = async (
     return {
       status: 200,
       message: 'Pago actualizado exitosamente',
-      data: updatedPayment,
+      data: serializeDecimals(updatedPayment),
     };
   } catch (error) {
     console.error('Error updating sale payment:', error);
@@ -322,11 +323,11 @@ export const deleteSalePayment = async (
         (p) => p.id !== paymentId
       );
       const newPaidAmount = remainingPayments.reduce(
-        (sum, payment) => sum + payment.amount,
+        (sum, payment) => sum + payment.amount.toNumber(),
         0
       );
       const isFullyPaid =
-        Math.abs(newPaidAmount - existingPayment.sale.total) < 0.01;
+        Math.abs(newPaidAmount - existingPayment.sale.total.toNumber()) < 0.01;
 
       let newStatus = existingPayment.sale.status;
       let paidDate = existingPayment.sale.paidDate;
@@ -360,7 +361,7 @@ export const deleteSalePayment = async (
 // GET SALE PAYMENTS BY SALE ID
 export const getSalePaymentsBySaleId = async (
   saleId: string
-): Promise<ActionResponse<SalePayment[] | null>> => {
+): Promise<ActionResponse<Serialized<SalePayment>[] | null>> => {
   try {
     if (!saleId) {
       return {
@@ -379,7 +380,7 @@ export const getSalePaymentsBySaleId = async (
     return {
       status: 200,
       message: 'Pagos de venta obtenidos exitosamente',
-      data: payments,
+      data: serializeDecimals(payments),
     };
   } catch (error) {
     console.error('Error fetching sale payments:', error);

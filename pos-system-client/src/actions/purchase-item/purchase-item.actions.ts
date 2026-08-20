@@ -1,11 +1,12 @@
 'use server';
 
 import { PurchaseItem, Prisma } from '@/generated/prisma';
-import { ActionResponse } from '@/interfaces';
+import { ActionResponse, Serialized } from '@/interfaces';
 import {
   prisma,
   checkAdminRole,
   unauthorizedResponse,
+  serializeDecimals,
 } from '../utils';
 
 // PURCHASE ITEM INCLUDES
@@ -36,10 +37,10 @@ export const createPurchaseItem = async (
   purchaseId: string,
   userId: string,
   itemData: Omit<
-    PurchaseItem,
+    Serialized<PurchaseItem>,
     'id' | 'purchaseId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >
-): Promise<ActionResponse<PurchaseItem | null>> => {
+): Promise<ActionResponse<Serialized<PurchaseItem> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -105,7 +106,7 @@ export const createPurchaseItem = async (
       where: { purchaseId, isDeleted: false },
     });
 
-    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
 
     await prisma.purchase.update({
       where: { id: purchaseId },
@@ -118,7 +119,7 @@ export const createPurchaseItem = async (
     return {
       status: 201,
       message: 'Item de compra creado exitosamente',
-      data: newItem,
+      data: serializeDecimals(newItem),
     };
   } catch (error) {
     console.error('Error creating purchase item:', error);
@@ -140,7 +141,7 @@ export const createPurchaseItem = async (
 // GET PURCHASE ITEMS BY PURCHASE ID
 export const getPurchaseItemsByPurchaseId = async (
   purchaseId: string
-): Promise<ActionResponse<PurchaseItem[] | null>> => {
+): Promise<ActionResponse<Serialized<PurchaseItem>[] | null>> => {
   try {
     if (!purchaseId) {
       return {
@@ -162,7 +163,7 @@ export const getPurchaseItemsByPurchaseId = async (
     return {
       status: 200,
       message: 'Items de compra obtenidos exitosamente',
-      data: items,
+      data: serializeDecimals(items),
     };
   } catch (error) {
     console.error('Error fetching purchase items:', error);
@@ -178,7 +179,7 @@ export const updatePurchaseItem = async (
     quantity: number;
     unitPrice: number;
   }>
-): Promise<ActionResponse<PurchaseItem | null>> => {
+): Promise<ActionResponse<Serialized<PurchaseItem> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -227,7 +228,8 @@ export const updatePurchaseItem = async (
     }
 
     const newQuantity = updateData.quantity ?? existingItem.quantity;
-    const newUnitPrice = updateData.unitPrice ?? existingItem.unitPrice;
+    const newUnitPrice =
+      updateData.unitPrice ?? existingItem.unitPrice.toNumber();
     const newSubtotal = newQuantity * newUnitPrice;
 
     const updatedItem = await prisma.purchaseItem.update({
@@ -246,7 +248,7 @@ export const updatePurchaseItem = async (
       where: { purchaseId: existingItem.purchaseId, isDeleted: false },
     });
 
-    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
 
     await prisma.purchase.update({
       where: { id: existingItem.purchaseId },
@@ -259,7 +261,7 @@ export const updatePurchaseItem = async (
     return {
       status: 200,
       message: 'Item de compra actualizado exitosamente',
-      data: updatedItem,
+      data: serializeDecimals(updatedItem),
     };
   } catch (error) {
     console.error('Error updating purchase item:', error);
@@ -339,7 +341,7 @@ export const softDeletePurchaseItem = async (
       where: { purchaseId: existingItem.purchaseId, isDeleted: false },
     });
 
-    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
 
     await prisma.purchase.update({
       where: { id: existingItem.purchaseId },

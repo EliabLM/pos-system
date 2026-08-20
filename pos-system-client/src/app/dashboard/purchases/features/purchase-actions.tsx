@@ -12,11 +12,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { IconDots, IconEye, IconCheck, IconX } from "@tabler/icons-react"
 import { Purchase } from "@/generated/prisma"
+import type { Serialized } from "@/interfaces"
 import { useCancelPurchase } from "@/hooks/usePurchases"
 import PurchaseDetailDialog from "./purchase-detail-dialog"
 import ReceivePurchaseDialog from "./receive-purchase-dialog"
 
-type PurchaseWithRelations = Purchase & {
+type PurchaseWithRelations = Serialized<Purchase> & {
   supplier?: {
     id: string
     name: string

@@ -15,6 +15,7 @@ import {
 } from '@/actions/purchase';
 import { useStore } from '@/store';
 import { Purchase, PurchaseItem, PurchaseStatus } from '@/generated/prisma';
+import { Serialized } from '@/interfaces';
 
 // Tipos para los filtros de purchases
 interface PurchaseFilters {
@@ -34,7 +35,7 @@ interface PurchasePagination {
 
 interface CreatePurchaseParams {
   purchaseData: Omit<
-    Purchase,
+    Serialized<Purchase>,
     | 'id'
     | 'organizationId'
     | 'purchaseNumber'
@@ -44,7 +45,7 @@ interface CreatePurchaseParams {
     | 'deletedAt'
   >;
   purchaseItems: Omit<
-    PurchaseItem,
+    Serialized<PurchaseItem>,
     | 'id'
     | 'purchaseId'
     | 'createdAt'

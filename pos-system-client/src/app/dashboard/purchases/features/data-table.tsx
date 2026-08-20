@@ -35,9 +35,10 @@ import {
 } from "@/components/ui/table"
 import { IconChevronDown } from "@tabler/icons-react"
 import { Purchase, PurchaseStatus } from "@/generated/prisma"
+import type { Serialized } from "@/interfaces"
 import PurchaseActions from "./purchase-actions"
 
-type PurchaseWithRelations = Purchase & {
+type PurchaseWithRelations = Serialized<Purchase> & {
   supplier?: {
     id: string
     name: string

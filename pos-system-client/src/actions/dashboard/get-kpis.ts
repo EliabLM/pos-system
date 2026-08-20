@@ -77,14 +77,14 @@ export const getDashboardKPIs = async (
     ]);
 
     // Extract today's metrics
-    const totalSales = todayStats._sum.total || 0;
+    const totalSales = Number(todayStats._sum.total ?? 0);
     const totalTransactions = todayStats._count.id;
-    const averageTicket = todayStats._avg.total || 0;
+    const averageTicket = Number(todayStats._avg.total ?? 0);
 
     // Extract yesterday's metrics
-    const yesterdayTotalSales = yesterdayStats._sum.total || 0;
+    const yesterdayTotalSales = Number(yesterdayStats._sum.total ?? 0);
     const yesterdayTotalTransactions = yesterdayStats._count.id;
-    const yesterdayAverageTicket = yesterdayStats._avg.total || 0;
+    const yesterdayAverageTicket = Number(yesterdayStats._avg.total ?? 0);
 
     // Calculate percentage changes (handle division by zero)
     const salesChange = yesterdayTotalSales === 0

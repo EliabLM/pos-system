@@ -76,11 +76,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Sale } from '@/generated/prisma';
+import type { Serialized } from '@/interfaces';
 import { SaleActionComponent } from './action-component';
 import { useSales } from '@/hooks/useSales';
 
 // Tipo de venta con relaciones incluidas
-type SaleWithRelations = Sale & {
+type SaleWithRelations = Serialized<Sale> & {
   user?: {
     id: string;
     username?: string | null;

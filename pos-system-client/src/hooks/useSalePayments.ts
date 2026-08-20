@@ -7,12 +7,13 @@ import {
 } from '@/actions/sale-payment';
 import { useStore } from '@/store';
 import { SalePayment } from '@/generated/prisma';
+import { Serialized } from '@/interfaces';
 
 // Tipos para los parámetros de sale payments
 interface AddSalePaymentParams {
   saleId: string;
   paymentData: Omit<
-    SalePayment,
+    Serialized<SalePayment>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >;
 }

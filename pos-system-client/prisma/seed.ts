@@ -345,8 +345,8 @@ async function main() {
   const [customerJuan] = customers;
 
   const saleItems = [
-    { product: productA, quantity: 2, unitPrice: productA.salePrice },
-    { product: productB, quantity: 1, unitPrice: productB.salePrice },
+    { product: productA, quantity: 2, unitPrice: productA.salePrice.toNumber() },
+    { product: productB, quantity: 1, unitPrice: productB.salePrice.toNumber() },
   ];
   const subtotal = saleItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
   const total = subtotal;

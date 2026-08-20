@@ -2,13 +2,18 @@
 
 import { utapi } from '@/server/uploadThing';
 import { Product, Prisma } from '@/generated/prisma';
-import { ActionResponse, ProductWithIncludesNumberPrice } from '@/interfaces';
+import {
+  ActionResponse,
+  ProductWithIncludesNumberPrice,
+  Serialized,
+} from '@/interfaces';
 import {
   prisma,
   checkAdminRole,
   unauthorizedResponse,
   checkOrgId,
   emptyOrgIdResponse,
+  serializeDecimals,
 } from '../utils';
 
 const extractFileKeyFromUrl = (url: string): string | null => {
@@ -74,10 +79,10 @@ export const createProduct = async (
   orgId: string,
   userId: string,
   productData: Omit<
-    Product,
+    Serialized<Product>,
     'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >
-): Promise<ActionResponse<Product | null>> => {
+): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -186,7 +191,7 @@ export const createProduct = async (
     return {
       status: 201,
       message: 'Producto creado exitosamente',
-      data: newProduct,
+      data: serializeDecimals(newProduct),
     };
   } catch (error) {
     console.error('Error creating product:', error);
@@ -282,7 +287,7 @@ export const getProductsByOrgId = async (
     return {
       status: 200,
       message: 'Productos obtenidos exitosamente',
-      data: products.map(item => ({ ...item, salePrice: Number(item.salePrice), costPrice: Number(item.costPrice) })),
+      data: serializeDecimals(products),
     };
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -293,7 +298,7 @@ export const getProductsByOrgId = async (
 // GET ONE
 export const getProductById = async (
   productId: string
-): Promise<ActionResponse<Product | null>> => {
+): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
     if (!productId)
       return {
@@ -313,7 +318,7 @@ export const getProductById = async (
     return {
       status: 200,
       message: 'Producto obtenido exitosamente',
-      data: product,
+      data: serializeDecimals(product),
     };
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -325,7 +330,7 @@ export const getProductById = async (
 export const getProductByBarcode = async (
   orgId: string,
   barcode: string
-): Promise<ActionResponse<Product | null>> => {
+): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -352,7 +357,7 @@ export const getProductByBarcode = async (
     return {
       status: 200,
       message: 'Producto obtenido exitosamente',
-      data: product,
+      data: serializeDecimals(product),
     };
   } catch (error) {
     console.error('Error fetching product by barcode:', error);
@@ -364,7 +369,7 @@ export const getProductByBarcode = async (
 export const getProductBySku = async (
   orgId: string,
   sku: string
-): Promise<ActionResponse<Product | null>> => {
+): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -391,7 +396,7 @@ export const getProductBySku = async (
     return {
       status: 200,
       message: 'Producto obtenido exitosamente',
-      data: product,
+      data: serializeDecimals(product),
     };
   } catch (error) {
     console.error('Error fetching product by SKU:', error);
@@ -405,11 +410,11 @@ export const updateProduct = async (
   userId: string,
   updateData: Partial<
     Omit<
-      Product,
+      Serialized<Product>,
       'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
     >
   >
-): Promise<ActionResponse<Product | null>> => {
+): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -551,7 +556,7 @@ export const updateProduct = async (
     return {
       status: 200,
       message: 'Producto actualizado exitosamente',
-      data: updatedProduct,
+      data: serializeDecimals(updatedProduct),
     };
   } catch (error) {
     console.error('Error updating product:', error);
@@ -600,7 +605,7 @@ export const updateStock = async (
   userId: string,
   stockChange: number,
   type: 'SET' | 'INCREMENT' | 'DECREMENT'
-): Promise<ActionResponse<Product | null>> => {
+): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -659,7 +664,7 @@ export const updateStock = async (
     return {
       status: 200,
       message: 'Stock actualizado exitosamente',
-      data: updatedProduct,
+      data: serializeDecimals(updatedProduct),
     };
   } catch (error) {
     console.error('Error updating stock:', error);
@@ -677,7 +682,7 @@ export const updateStock = async (
 // GET LOW STOCK PRODUCTS
 export const getLowStockProducts = async (
   orgId: string
-): Promise<ActionResponse<Product[] | null>> => {
+): Promise<ActionResponse<Serialized<Product>[] | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -697,7 +702,7 @@ export const getLowStockProducts = async (
     return {
       status: 200,
       message: 'Productos con stock bajo obtenidos exitosamente',
-      data: products,
+      data: serializeDecimals(products),
     };
   } catch (error) {
     console.error('Error fetching low stock products:', error);
@@ -771,7 +776,7 @@ export const softDeleteProduct = async (
 export const restoreProduct = async (
   productId: string,
   userId: string
-): Promise<ActionResponse<Product | null>> => {
+): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -796,7 +801,7 @@ export const restoreProduct = async (
     return {
       status: 200,
       message: 'Producto restaurado exitosamente',
-      data: restoredProduct,
+      data: serializeDecimals(restoredProduct),
     };
   } catch (error) {
     console.error('Error restoring product:', error);

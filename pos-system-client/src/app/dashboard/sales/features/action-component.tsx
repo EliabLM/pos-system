@@ -8,6 +8,7 @@ import {
   IconBan,
 } from '@tabler/icons-react';
 import { Sale } from '@/generated/prisma';
+import type { Serialized } from '@/interfaces';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { useCancelSale } from '@/hooks/useSales';
@@ -26,7 +27,7 @@ import { SaleDetailDialog } from './sale-detail-dialog';
 import { EditSaleStatusDialog } from './edit-sale-status-dialog';
 
 // Tipo extendido para la venta con relaciones (debe coincidir con el tipo de la tabla)
-type SaleWithRelations = Sale & {
+type SaleWithRelations = Serialized<Sale> & {
   user?: {
     id: string;
     username?: string | null;

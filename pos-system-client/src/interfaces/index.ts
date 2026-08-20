@@ -1,5 +1,21 @@
 import { Prisma, Product } from "@/generated/prisma";
 
+/**
+ * Mapea recursivamente `Prisma.Decimal` → `number` en un tipo Prisma.
+ * Las server actions devuelven entidades pasadas por `serializeDecimals`
+ * (ver `@/actions/utils`), así que hooks y UI siempre ven `number` para
+ * los campos de dinero.
+ */
+export type Serialized<T> = T extends Prisma.Decimal
+  ? number
+  : T extends Date
+    ? T
+    : T extends Array<infer U>
+      ? Serialized<U>[]
+      : T extends object
+        ? { [K in keyof T]: Serialized<T[K]> }
+        : T;
+
 export interface TempUser {
   username: string;
   firstName: string;
@@ -109,13 +125,10 @@ export type ProductWithIncludes = Prisma.ProductGetPayload<{
   include: typeof productInclude;
 }>;
 
-export type ProductWithIncludesNumberPrice = Omit<
-  ProductWithIncludes,
-  'salePrice' | 'costPrice'
-> & {
-  salePrice: number;
-  costPrice: number;
-};
+// Producto (con includes) tal como lo devuelven las actions: todos los
+// Prisma.Decimal (precios propios y de saleItems/purchaseItems anidados)
+// ya convertidos a number por `serializeDecimals`.
+export type ProductWithIncludesNumberPrice = Serialized<ProductWithIncludes>;
 
 export type Metadata = {
   onboardingComplete: boolean

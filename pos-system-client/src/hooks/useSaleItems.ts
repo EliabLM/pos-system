@@ -7,12 +7,13 @@ import {
 } from '@/actions/sale-item';
 import { useStore } from '@/store';
 import { SaleItem } from '@/generated/prisma';
+import { Serialized } from '@/interfaces';
 
 // Tipos para los parámetros de SaleItem
 interface AddSaleItemParams {
   saleId: string;
   itemData: Omit<
-    SaleItem,
+    Serialized<SaleItem>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >;
 }
@@ -258,7 +259,7 @@ export const useAddMultipleSaleItems = () => {
       items,
     }: {
       saleId: string;
-      items: Array<Omit<SaleItem, 'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>>;
+      items: Array<Omit<Serialized<SaleItem>, 'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>>;
     }) => {
       const results = [];
 

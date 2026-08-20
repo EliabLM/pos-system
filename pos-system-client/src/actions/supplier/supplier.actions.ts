@@ -657,8 +657,8 @@ export const getSupplierStatistics = async (
       message: 'Estadísticas del proveedor obtenidas exitosamente',
       data: {
         totalPurchases: purchaseStats._count.id,
-        totalSpent: purchaseStats._sum.total || 0,
-        averagePurchase: purchaseStats._avg.total || 0,
+        totalSpent: Number(purchaseStats._sum.total ?? 0),
+        averagePurchase: Number(purchaseStats._avg.total ?? 0),
         lastPurchaseDate: lastPurchase?.purchaseDate || null,
       },
     };
@@ -717,7 +717,7 @@ export const getTopSuppliersByPurchases = async (
       supplierId: item.supplierId,
       supplierName: supplierMap.get(item.supplierId) || 'Proveedor desconocido',
       totalPurchases: item._count.id,
-      totalSpent: item._sum.total || 0,
+      totalSpent: Number(item._sum.total ?? 0),
     }));
 
     return {

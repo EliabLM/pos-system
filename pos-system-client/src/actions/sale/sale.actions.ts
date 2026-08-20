@@ -7,13 +7,14 @@ import {
   Prisma,
   SaleStatus,
 } from '@/generated/prisma';
-import { ActionResponse } from '@/interfaces';
+import { ActionResponse, Serialized } from '@/interfaces';
 import {
   prisma,
   checkAdminRole,
   unauthorizedResponse,
   checkOrgId,
   emptyOrgIdResponse,
+  serializeDecimals,
 } from '../utils';
 import { createStockMovement } from '../stock-movement';
 
@@ -70,7 +71,7 @@ const generateSaleNumber = async (storeId: string): Promise<string> => {
 
 const validateSaleItems = (
   items: Omit<
-    SaleItem,
+    Serialized<SaleItem>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >[]
 ) => {
@@ -107,7 +108,7 @@ export const createSale = async (
   orgId: string,
   userId: string,
   saleData: Omit<
-    Sale,
+    Serialized<Sale>,
     | 'id'
     | 'organizationId'
     | 'saleNumber'
@@ -117,14 +118,14 @@ export const createSale = async (
     | 'deletedAt'
   >,
   saleItems: Omit<
-    SaleItem,
+    Serialized<SaleItem>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >[],
   salePayments?: Omit<
-    SalePayment,
+    Serialized<SalePayment>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >[]
-): Promise<ActionResponse<Sale | null>> => {
+): Promise<ActionResponse<Serialized<Sale> | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -324,7 +325,7 @@ export const createSale = async (
     return {
       status: 201,
       message: 'Venta creada exitosamente',
-      data: newSale,
+      data: serializeDecimals(newSale),
     };
   } catch (error) {
     console.error('Error creating sale:', error);
@@ -380,7 +381,9 @@ export const getSalesByOrgId = async (
     page?: number;
     limit?: number;
   }
-): Promise<ActionResponse<{ sales: Sale[]; total: number } | null>> => {
+): Promise<
+  ActionResponse<{ sales: Serialized<Sale>[]; total: number } | null>
+> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -473,7 +476,7 @@ export const getSalesByOrgId = async (
     return {
       status: 200,
       message: 'Ventas obtenidas exitosamente',
-      data: { sales, total },
+      data: { sales: serializeDecimals(sales), total },
     };
   } catch (error) {
     console.error('Error fetching sales:', error);
@@ -520,7 +523,7 @@ export type SaleWithRelations = Prisma.SaleGetPayload<{
 // GET SALE BY ID
 export const getSaleById = async (
   saleId: string
-): Promise<ActionResponse<SaleWithRelations | null>> => {
+): Promise<ActionResponse<Serialized<SaleWithRelations> | null>> => {
   try {
     if (!saleId) {
       return {
@@ -542,7 +545,7 @@ export const getSaleById = async (
     return {
       status: 200,
       message: 'Venta obtenida exitosamente',
-      data: sale as unknown as SaleWithRelations,
+      data: serializeDecimals(sale) as unknown as Serialized<SaleWithRelations>,
     };
   } catch (error) {
     console.error('Error fetching sale:', error);
@@ -555,7 +558,7 @@ export const getSaleBySaleNumber = async (
   orgId: string,
   storeId: string,
   saleNumber: string
-): Promise<ActionResponse<SaleWithRelations | null>> => {
+): Promise<ActionResponse<Serialized<SaleWithRelations> | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -584,7 +587,7 @@ export const getSaleBySaleNumber = async (
     return {
       status: 200,
       message: 'Venta obtenida exitosamente',
-      data: sale as unknown as SaleWithRelations,
+      data: serializeDecimals(sale) as unknown as Serialized<SaleWithRelations>,
     };
   } catch (error) {
     console.error('Error fetching sale by number:', error);
@@ -603,7 +606,7 @@ export const updateSale = async (
     paidDate: Date;
     notes: string;
   }>
-): Promise<ActionResponse<Sale | null>> => {
+): Promise<ActionResponse<Serialized<Sale> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -658,7 +661,7 @@ export const updateSale = async (
     return {
       status: 200,
       message: 'Venta actualizada exitosamente',
-      data: updatedSale,
+      data: serializeDecimals(updatedSale),
     };
   } catch (error) {
     console.error('Error updating sale:', error);
@@ -685,7 +688,7 @@ export const cancelSale = async (
   saleId: string,
   userId: string,
   reason?: string
-): Promise<ActionResponse<Sale | null>> => {
+): Promise<ActionResponse<Serialized<Sale> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -757,7 +760,7 @@ export const cancelSale = async (
     return {
       status: 200,
       message: 'Venta cancelada exitosamente',
-      data: cancelledSale,
+      data: serializeDecimals(cancelledSale),
     };
   } catch (error) {
     console.error('Error cancelling sale:', error);
@@ -935,24 +938,24 @@ export const getSalesAnalytics = async (
       message: 'Analíticas de ventas obtenidas exitosamente',
       data: {
         totalSales: totalStats._count.id,
-        totalRevenue: totalStats._sum.total || 0,
-        averageSaleAmount: totalStats._avg.total || 0,
+        totalRevenue: Number(totalStats._sum.total ?? 0),
+        averageSaleAmount: Number(totalStats._avg.total ?? 0),
         salesByStatus: salesByStatus.map((item) => ({
           status: item.status,
           count: item._count.id,
-          total: item._sum.total || 0,
+          total: Number(item._sum.total ?? 0),
         })),
         salesByStore: salesByStore.map((item) => ({
           storeId: item.storeId,
           storeName: storeMap.get(item.storeId) || 'Tienda desconocida',
           count: item._count.id,
-          total: item._sum.total || 0,
+          total: Number(item._sum.total ?? 0),
         })),
         topProducts: topProducts.map((item) => ({
           productId: item.productId,
           productName: productMap.get(item.productId) || 'Producto desconocido',
           quantity: item._sum.quantity || 0,
-          revenue: item._sum.subtotal || 0,
+          revenue: Number(item._sum.subtotal ?? 0),
         })),
         dailySales: [], // Se puede implementar agregación por fecha si es necesario
       },
@@ -967,7 +970,7 @@ export const getSalesAnalytics = async (
 export const getPendingSales = async (
   orgId: string,
   storeId?: string
-): Promise<ActionResponse<Sale[] | null>> => {
+): Promise<ActionResponse<Serialized<Sale>[] | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -990,7 +993,7 @@ export const getPendingSales = async (
     return {
       status: 200,
       message: 'Ventas pendientes obtenidas exitosamente',
-      data: pendingSales,
+      data: serializeDecimals(pendingSales),
     };
   } catch (error) {
     console.error('Error fetching pending sales:', error);
@@ -1002,7 +1005,7 @@ export const getPendingSales = async (
 export const getOverdueSales = async (
   orgId: string,
   storeId?: string
-): Promise<ActionResponse<Sale[] | null>> => {
+): Promise<ActionResponse<Serialized<Sale>[] | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -1028,7 +1031,7 @@ export const getOverdueSales = async (
     return {
       status: 200,
       message: 'Ventas vencidas obtenidas exitosamente',
-      data: overdueSales,
+      data: serializeDecimals(overdueSales),
     };
   } catch (error) {
     console.error('Error fetching overdue sales:', error);

@@ -711,7 +711,7 @@ export const getCustomerStatistics = async (
       productId: item.productId,
       productName: productMap.get(item.productId) || 'Producto desconocido',
       totalQuantity: item._sum.quantity || 0,
-      totalSpent: item._sum.subtotal || 0,
+      totalSpent: Number(item._sum.subtotal ?? 0),
     }));
 
     return {
@@ -719,8 +719,8 @@ export const getCustomerStatistics = async (
       message: 'Estadísticas del cliente obtenidas exitosamente',
       data: {
         totalPurchases: salesStats._count.id,
-        totalSpent: salesStats._sum.total || 0,
-        averagePurchase: salesStats._avg.total || 0,
+        totalSpent: Number(salesStats._sum.total ?? 0),
+        averagePurchase: Number(salesStats._avg.total ?? 0),
         lastPurchaseDate: lastSale?.saleDate || null,
         favoriteProducts,
       },
@@ -785,7 +785,7 @@ export const getTopCustomersByPurchases = async (
       customerId: item.customerId || '',
       customerName: customerMap.get(item.customerId || '') || 'Cliente desconocido',
       totalPurchases: item._count.id,
-      totalSpent: item._sum.total || 0,
+      totalSpent: Number(item._sum.total ?? 0),
     }));
 
     return {

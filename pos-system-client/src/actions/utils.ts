@@ -1,8 +1,30 @@
-import { PrismaClient, UserRole } from '@/generated/prisma';
-import { ActionResponse } from '@/interfaces';
+import { Prisma, PrismaClient, UserRole } from '@/generated/prisma';
+import { ActionResponse, Serialized } from '@/interfaces';
 
 // Instancia única de Prisma Client para ser usada en todas las actions
 export const prisma = new PrismaClient();
+
+/**
+ * Convierte recursivamente los `Prisma.Decimal` (dinero: numeric(12,2) en la DB)
+ * a `number` en la frontera de las server actions. Los `Decimal` no sobreviven
+ * la serialización server→client de Next.js, y toda la UI opera con `number`.
+ */
+export const serializeDecimals = <T>(value: T): Serialized<T> => {
+  if (value instanceof Prisma.Decimal) {
+    return value.toNumber() as unknown as Serialized<T>;
+  }
+  if (value === null || value instanceof Date || typeof value !== 'object') {
+    return value as unknown as Serialized<T>;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeDecimals(item)) as unknown as Serialized<T>;
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    result[key] = serializeDecimals(entry);
+  }
+  return result as unknown as Serialized<T>;
+};
 
 /**
  * Verifica si un usuario tiene el rol de ADMIN.

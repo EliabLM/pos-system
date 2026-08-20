@@ -53,6 +53,7 @@ import { useActiveProducts } from '@/hooks/useProducts';
 import { useActivePaymentMethods } from '@/hooks/usePaymentMethods';
 import { useCreateSale } from '@/hooks/useSales';
 import type { Product, SaleStatus, UnitMeasure } from '@/generated/prisma';
+import type { Serialized } from '@/interfaces';
 import { isSeller } from '@/lib/rbac';
 import { useBusinessType } from '@/hooks/useSystemConfig';
 
@@ -60,7 +61,7 @@ import { CustomerCombobox } from './features/customer-combobox';
 import { CreateCustomerDialog } from './features/create-customer-dialog';
 
 // Tipo extendido de Product con relaciones
-type ProductWithRelations = Product & {
+type ProductWithRelations = Serialized<Product> & {
   unitMeasure?: UnitMeasure | null;
   brand?: { id: string; name: string } | null;
   category?: { id: string; name: string } | null;

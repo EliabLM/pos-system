@@ -6,13 +6,14 @@ import {
   Prisma,
   PurchaseStatus,
 } from '@/generated/prisma';
-import { ActionResponse } from '@/interfaces';
+import { ActionResponse, Serialized } from '@/interfaces';
 import {
   prisma,
   checkAdminRole,
   unauthorizedResponse,
   checkOrgId,
   emptyOrgIdResponse,
+  serializeDecimals,
 } from '../utils';
 import { createStockMovement } from '../stock-movement';
 
@@ -66,7 +67,7 @@ const generatePurchaseNumber = async (): Promise<string> => {
 // VALIDATE PURCHASE ITEMS
 const validatePurchaseItems = (
   items: Omit<
-    PurchaseItem,
+    Serialized<PurchaseItem>,
     'id' | 'purchaseId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >[]
 ) => {
@@ -104,7 +105,7 @@ export const createPurchase = async (
   orgId: string,
   userId: string,
   purchaseData: Omit<
-    Purchase,
+    Serialized<Purchase>,
     | 'id'
     | 'organizationId'
     | 'purchaseNumber'
@@ -114,10 +115,10 @@ export const createPurchase = async (
     | 'deletedAt'
   >,
   purchaseItems: Omit<
-    PurchaseItem,
+    Serialized<PurchaseItem>,
     'id' | 'purchaseId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >[]
-): Promise<ActionResponse<Purchase | null>> => {
+): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -206,7 +207,7 @@ export const createPurchase = async (
     return {
       status: 201,
       message: 'Compra creada exitosamente',
-      data: newPurchase,
+      data: serializeDecimals(newPurchase),
     };
   } catch (error) {
     console.error('Error creating purchase:', error);
@@ -257,7 +258,9 @@ export const getPurchasesByOrgId = async (
     page?: number;
     limit?: number;
   }
-): Promise<ActionResponse<{ purchases: Purchase[]; total: number } | null>> => {
+): Promise<
+  ActionResponse<{ purchases: Serialized<Purchase>[]; total: number } | null>
+> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -332,7 +335,7 @@ export const getPurchasesByOrgId = async (
     return {
       status: 200,
       message: 'Compras obtenidas exitosamente',
-      data: { purchases, total },
+      data: { purchases: serializeDecimals(purchases), total },
     };
   } catch (error) {
     console.error('Error fetching purchases:', error);
@@ -367,7 +370,7 @@ export type PurchaseWithRelations = Prisma.PurchaseGetPayload<{
 // GET PURCHASE BY ID
 export const getPurchaseById = async (
   purchaseId: string
-): Promise<ActionResponse<PurchaseWithRelations | null>> => {
+): Promise<ActionResponse<Serialized<PurchaseWithRelations> | null>> => {
   try {
     if (!purchaseId) {
       return {
@@ -389,7 +392,7 @@ export const getPurchaseById = async (
     return {
       status: 200,
       message: 'Compra obtenida exitosamente',
-      data: purchase as unknown as PurchaseWithRelations,
+      data: serializeDecimals(purchase) as unknown as Serialized<PurchaseWithRelations>,
     };
   } catch (error) {
     console.error('Error fetching purchase:', error);
@@ -401,7 +404,7 @@ export const getPurchaseById = async (
 export const getPurchaseByNumber = async (
   orgId: string,
   purchaseNumber: string
-): Promise<ActionResponse<PurchaseWithRelations | null>> => {
+): Promise<ActionResponse<Serialized<PurchaseWithRelations> | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -429,7 +432,7 @@ export const getPurchaseByNumber = async (
     return {
       status: 200,
       message: 'Compra obtenida exitosamente',
-      data: purchase as unknown as PurchaseWithRelations,
+      data: serializeDecimals(purchase) as unknown as Serialized<PurchaseWithRelations>,
     };
   } catch (error) {
     console.error('Error fetching purchase by number:', error);
@@ -444,7 +447,7 @@ export const updatePurchase = async (
   updateData: Partial<{
     notes: string;
   }>
-): Promise<ActionResponse<Purchase | null>> => {
+): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -477,7 +480,7 @@ export const updatePurchase = async (
     return {
       status: 200,
       message: 'Compra actualizada exitosamente',
-      data: updatedPurchase,
+      data: serializeDecimals(updatedPurchase),
     };
   } catch (error) {
     console.error('Error updating purchase:', error);
@@ -496,7 +499,7 @@ export const updatePurchase = async (
 export const receivePurchase = async (
   purchaseId: string,
   userId: string
-): Promise<ActionResponse<Purchase | null>> => {
+): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -594,7 +597,7 @@ export const receivePurchase = async (
     return {
       status: 200,
       message: 'Compra recibida exitosamente. El inventario ha sido actualizado.',
-      data: receivedPurchase,
+      data: serializeDecimals(receivedPurchase),
     };
   } catch (error) {
     console.error('Error receiving purchase:', error);
@@ -616,7 +619,7 @@ export const cancelPurchase = async (
   purchaseId: string,
   userId: string,
   reason?: string
-): Promise<ActionResponse<Purchase | null>> => {
+): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -661,7 +664,7 @@ export const cancelPurchase = async (
     return {
       status: 200,
       message: 'Compra cancelada exitosamente',
-      data: cancelledPurchase,
+      data: serializeDecimals(cancelledPurchase),
     };
   } catch (error) {
     console.error('Error cancelling purchase:', error);
@@ -785,12 +788,12 @@ export const getPurchasesAnalytics = async (
       message: 'Analíticas de compras obtenidas exitosamente',
       data: {
         totalPurchases: totalStats._count.id,
-        totalSpent: totalStats._sum.total || 0,
-        averagePurchaseAmount: totalStats._avg.total || 0,
+        totalSpent: Number(totalStats._sum.total ?? 0),
+        averagePurchaseAmount: Number(totalStats._avg.total ?? 0),
         purchasesByStatus: purchasesByStatus.map((item) => ({
           status: item.status,
           count: item._count.id,
-          total: item._sum.total || 0,
+          total: Number(item._sum.total ?? 0),
         })),
       },
     };
@@ -803,7 +806,7 @@ export const getPurchasesAnalytics = async (
 // GET PENDING PURCHASES
 export const getPendingPurchases = async (
   orgId: string
-): Promise<ActionResponse<Purchase[] | null>> => {
+): Promise<ActionResponse<Serialized<Purchase>[] | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -820,7 +823,7 @@ export const getPendingPurchases = async (
     return {
       status: 200,
       message: 'Compras pendientes obtenidas exitosamente',
-      data: pendingPurchases,
+      data: serializeDecimals(pendingPurchases),
     };
   } catch (error) {
     console.error('Error fetching pending purchases:', error);
@@ -831,7 +834,7 @@ export const getPendingPurchases = async (
 // GET RECEIVED PURCHASES
 export const getReceivedPurchases = async (
   orgId: string
-): Promise<ActionResponse<Purchase[] | null>> => {
+): Promise<ActionResponse<Serialized<Purchase>[] | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
@@ -848,7 +851,7 @@ export const getReceivedPurchases = async (
     return {
       status: 200,
       message: 'Compras recibidas obtenidas exitosamente',
-      data: receivedPurchases,
+      data: serializeDecimals(receivedPurchases),
     };
   } catch (error) {
     console.error('Error fetching received purchases:', error);

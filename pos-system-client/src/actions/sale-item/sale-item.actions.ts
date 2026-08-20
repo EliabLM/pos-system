@@ -2,11 +2,12 @@ import {
   SaleItem,
   Prisma,
 } from '@/generated/prisma';
-import { ActionResponse } from '@/interfaces';
+import { ActionResponse, Serialized } from '@/interfaces';
 import {
   prisma,
   checkAdminRole,
   unauthorizedResponse,
+  serializeDecimals,
 } from '../utils';
 import { calculateSaleTotals } from '../sale/sale.actions';
 
@@ -39,10 +40,10 @@ export const addSaleItem = async (
   saleId: string,
   userId: string,
   itemData: Omit<
-    SaleItem,
+    Serialized<SaleItem>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >
-): Promise<ActionResponse<SaleItem | null>> => {
+): Promise<ActionResponse<Serialized<SaleItem> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -115,7 +116,12 @@ export const addSaleItem = async (
         where: { saleId, isDeleted: false },
       });
 
-      const { subtotal, total } = await calculateSaleTotals(saleItems);
+      const { subtotal, total } = await calculateSaleTotals(
+        saleItems.map((i) => ({
+          quantity: i.quantity,
+          unitPrice: i.unitPrice.toNumber(),
+        }))
+      );
 
       await tx.sale.update({
         where: { id: saleId },
@@ -159,7 +165,7 @@ export const addSaleItem = async (
     return {
       status: 201,
       message: 'Item agregado a la venta exitosamente',
-      data: newItem,
+      data: serializeDecimals(newItem),
     };
   } catch (error) {
     console.error('Error adding sale item:', error);
@@ -175,7 +181,7 @@ export const updateSaleItem = async (
     quantity: number;
     unitPrice: number;
   }>
-): Promise<ActionResponse<SaleItem | null>> => {
+): Promise<ActionResponse<Serialized<SaleItem> | null>> => {
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -224,7 +230,8 @@ export const updateSaleItem = async (
     // Actualizar item en transacción
     const updatedItem = await prisma.$transaction(async (tx) => {
       const newQuantity = updateData.quantity ?? existingItem.quantity;
-      const newUnitPrice = updateData.unitPrice ?? existingItem.unitPrice;
+      const newUnitPrice =
+        updateData.unitPrice ?? existingItem.unitPrice.toNumber();
       const quantityDiff = newQuantity - existingItem.quantity;
 
       // Verificar stock si se aumenta la cantidad
@@ -283,7 +290,12 @@ export const updateSaleItem = async (
         where: { saleId: existingItem.saleId, isDeleted: false },
       });
 
-      const { subtotal, total } = await calculateSaleTotals(saleItems);
+      const { subtotal, total } = await calculateSaleTotals(
+        saleItems.map((i) => ({
+          quantity: i.quantity,
+          unitPrice: i.unitPrice.toNumber(),
+        }))
+      );
 
       await tx.sale.update({
         where: { id: existingItem.saleId },
@@ -300,7 +312,7 @@ export const updateSaleItem = async (
     return {
       status: 200,
       message: 'Item actualizado exitosamente',
-      data: updatedItem,
+      data: serializeDecimals(updatedItem),
     };
   } catch (error) {
     console.error('Error updating sale item:', error);
@@ -408,7 +420,12 @@ export const deleteSaleItem = async (
         where: { saleId: existingItem.saleId, isDeleted: false },
       });
 
-      const { subtotal, total } = await calculateSaleTotals(remainingSaleItems);
+      const { subtotal, total } = await calculateSaleTotals(
+        remainingSaleItems.map((i) => ({
+          quantity: i.quantity,
+          unitPrice: i.unitPrice.toNumber(),
+        }))
+      );
 
       await tx.sale.update({
         where: { id: existingItem.saleId },
@@ -434,7 +451,7 @@ export const deleteSaleItem = async (
 // GET SALE ITEMS BY SALE ID
 export const getSaleItemsBySaleId = async (
   saleId: string
-): Promise<ActionResponse<SaleItem[] | null>> => {
+): Promise<ActionResponse<Serialized<SaleItem>[] | null>> => {
   try {
     if (!saleId) {
       return {
@@ -453,7 +470,7 @@ export const getSaleItemsBySaleId = async (
     return {
       status: 200,
       message: 'Items de venta obtenidos exitosamente',
-      data: items,
+      data: serializeDecimals(items),
     };
   } catch (error) {
     console.error('Error fetching sale items:', error);

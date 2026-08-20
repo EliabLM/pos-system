@@ -14,6 +14,7 @@ import {
 } from '@/actions/product';
 import { useStore } from '@/store';
 import { Product } from '@/generated/prisma';
+import { Serialized } from '@/interfaces';
 import { deleteProductImage } from '@/actions/product';
 
 // Tipos para los filtros de productos
@@ -178,7 +179,7 @@ export const useCreateProduct = () => {
   return useMutation({
     mutationFn: async (
       productData: Omit<
-        Product,
+        Serialized<Product>,
         'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
       >
     ) => {
@@ -226,7 +227,7 @@ export const useUpdateProduct = () => {
       productId: string;
       updateData: Partial<
         Omit<
-          Product,
+          Serialized<Product>,
           'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
         >
       >;

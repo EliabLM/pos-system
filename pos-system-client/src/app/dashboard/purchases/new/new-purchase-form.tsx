@@ -43,13 +43,14 @@ import { useStore } from '@/store';
 import { useActiveProducts } from '@/hooks/useProducts';
 import { useCreatePurchase, useReceivePurchase } from '@/hooks/usePurchases';
 import type { Product } from '@/generated/prisma';
+import type { Serialized } from '@/interfaces';
 
 import SupplierCombobox from './features/supplier-combobox';
 import CreateSupplierDialog from './features/create-supplier-dialog';
 import CreateProductDialog from './features/create-product-dialog';
 
 // Tipo extendido de Product con relaciones
-type ProductWithRelations = Product & {
+type ProductWithRelations = Serialized<Product> & {
   unitMeasure?: { id: string; name: string; abbreviation: string } | null;
   brand?: { id: string; name: string } | null;
   category?: { id: string; name: string } | null;

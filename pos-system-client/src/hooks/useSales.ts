@@ -13,6 +13,7 @@ import {
 } from '@/actions/sale';
 import { useStore } from '@/store';
 import { Sale, SaleItem, SalePayment, SaleStatus } from '@/generated/prisma';
+import { Serialized } from '@/interfaces';
 
 // Tipos para los filtros de ventas
 interface SaleFilters {
@@ -34,7 +35,7 @@ interface SalePagination {
 
 interface CreateSaleParams {
   saleData: Omit<
-    Sale,
+    Serialized<Sale>,
     | 'id'
     | 'organizationId'
     | 'saleNumber'
@@ -44,11 +45,11 @@ interface CreateSaleParams {
     | 'deletedAt'
   >;
   saleItems: Omit<
-    SaleItem,
+    Serialized<SaleItem>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >[];
   salePayments?: Omit<
-    SalePayment,
+    Serialized<SalePayment>,
     'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >[];
 }
