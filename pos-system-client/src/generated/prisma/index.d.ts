@@ -29970,7 +29970,6 @@ export namespace Prisma {
 
   export type StoreWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_store_name_per_org?: StoreUnique_store_name_per_orgCompoundUniqueInput
     AND?: StoreWhereInput | StoreWhereInput[]
     OR?: StoreWhereInput[]
     NOT?: StoreWhereInput | StoreWhereInput[]
@@ -29991,7 +29990,7 @@ export namespace Prisma {
     sales?: SaleListRelationFilter
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
     users?: UserListRelationFilter
-  }, "id" | "unique_store_name_per_org">
+  }, "id">
 
   export type StoreOrderByWithAggregationInput = {
     id?: SortOrder
@@ -30102,8 +30101,6 @@ export namespace Prisma {
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_email_per_deletion?: UserUnique_email_per_deletionCompoundUniqueInput
-    unique_username_per_deletion?: UserUnique_username_per_deletionCompoundUniqueInput
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
@@ -30133,7 +30130,7 @@ export namespace Prisma {
     passwordResets?: PasswordResetListRelationFilter
     emailVerifications?: EmailVerificationListRelationFilter
     auditLogs?: AuditLogListRelationFilter
-  }, "id" | "unique_email_per_deletion" | "unique_username_per_deletion">
+  }, "id">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
@@ -30560,7 +30557,6 @@ export namespace Prisma {
 
   export type CategoryWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_category_name_per_org?: CategoryUnique_category_name_per_orgCompoundUniqueInput
     AND?: CategoryWhereInput | CategoryWhereInput[]
     OR?: CategoryWhereInput[]
     NOT?: CategoryWhereInput | CategoryWhereInput[]
@@ -30574,7 +30570,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"Category"> | Date | string | null
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
     products?: ProductListRelationFilter
-  }, "id" | "unique_category_name_per_org">
+  }, "id">
 
   export type CategoryOrderByWithAggregationInput = {
     id?: SortOrder
@@ -30641,7 +30637,6 @@ export namespace Prisma {
 
   export type BrandWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_brand_name_per_org?: BrandUnique_brand_name_per_orgCompoundUniqueInput
     AND?: BrandWhereInput | BrandWhereInput[]
     OR?: BrandWhereInput[]
     NOT?: BrandWhereInput | BrandWhereInput[]
@@ -30656,7 +30651,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"Brand"> | Date | string | null
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
     products?: ProductListRelationFilter
-  }, "id" | "unique_brand_name_per_org">
+  }, "id">
 
   export type BrandOrderByWithAggregationInput = {
     id?: SortOrder
@@ -30725,8 +30720,6 @@ export namespace Prisma {
 
   export type UnitMeasureWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_unit_name_per_org?: UnitMeasureUnique_unit_name_per_orgCompoundUniqueInput
-    unique_unit_abbrev_per_org?: UnitMeasureUnique_unit_abbrev_per_orgCompoundUniqueInput
     AND?: UnitMeasureWhereInput | UnitMeasureWhereInput[]
     OR?: UnitMeasureWhereInput[]
     NOT?: UnitMeasureWhereInput | UnitMeasureWhereInput[]
@@ -30741,7 +30734,7 @@ export namespace Prisma {
     products?: ProductListRelationFilter
     saleItems?: SaleItemListRelationFilter
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
-  }, "id" | "unique_unit_name_per_org" | "unique_unit_abbrev_per_org">
+  }, "id">
 
   export type UnitMeasureOrderByWithAggregationInput = {
     id?: SortOrder
@@ -30846,8 +30839,6 @@ export namespace Prisma {
 
   export type ProductWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_barcode_per_org?: ProductUnique_barcode_per_orgCompoundUniqueInput
-    unique_sku_per_org?: ProductUnique_sku_per_orgCompoundUniqueInput
     AND?: ProductWhereInput | ProductWhereInput[]
     OR?: ProductWhereInput[]
     NOT?: ProductWhereInput | ProductWhereInput[]
@@ -30881,7 +30872,7 @@ export namespace Prisma {
     purchaseItems?: PurchaseItemListRelationFilter
     saleItems?: SaleItemListRelationFilter
     stockMovements?: StockMovementListRelationFilter
-  }, "id" | "unique_barcode_per_org" | "unique_sku_per_org">
+  }, "id">
 
   export type ProductOrderByWithAggregationInput = {
     id?: SortOrder
@@ -30992,8 +30983,6 @@ export namespace Prisma {
 
   export type CustomerWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_customer_email_per_org?: CustomerUnique_customer_email_per_orgCompoundUniqueInput
-    unique_customer_document_per_org?: CustomerUnique_customer_document_per_orgCompoundUniqueInput
     AND?: CustomerWhereInput | CustomerWhereInput[]
     OR?: CustomerWhereInput[]
     NOT?: CustomerWhereInput | CustomerWhereInput[]
@@ -31014,7 +31003,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"Customer"> | Date | string | null
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
     sales?: SaleListRelationFilter
-  }, "id" | "unique_customer_email_per_org" | "unique_customer_document_per_org">
+  }, "id">
 
   export type CustomerOrderByWithAggregationInput = {
     id?: SortOrder
@@ -31105,7 +31094,6 @@ export namespace Prisma {
 
   export type SupplierWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_supplier_taxid_per_org?: SupplierUnique_supplier_taxid_per_orgCompoundUniqueInput
     AND?: SupplierWhereInput | SupplierWhereInput[]
     OR?: SupplierWhereInput[]
     NOT?: SupplierWhereInput | SupplierWhereInput[]
@@ -31125,7 +31113,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"Supplier"> | Date | string | null
     purchases?: PurchaseListRelationFilter
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
-  }, "id" | "unique_supplier_taxid_per_org">
+  }, "id">
 
   export type SupplierOrderByWithAggregationInput = {
     id?: SortOrder
@@ -31202,7 +31190,6 @@ export namespace Prisma {
 
   export type PaymentMethodWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_payment_method_per_org?: PaymentMethodUnique_payment_method_per_orgCompoundUniqueInput
     AND?: PaymentMethodWhereInput | PaymentMethodWhereInput[]
     OR?: PaymentMethodWhereInput[]
     NOT?: PaymentMethodWhereInput | PaymentMethodWhereInput[]
@@ -31216,7 +31203,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"PaymentMethod"> | Date | string | null
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
     salePayments?: SalePaymentListRelationFilter
-  }, "id" | "unique_payment_method_per_org">
+  }, "id">
 
   export type PaymentMethodOrderByWithAggregationInput = {
     id?: SortOrder
@@ -31303,7 +31290,6 @@ export namespace Prisma {
 
   export type SaleWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_sale_number_per_store?: SaleUnique_sale_number_per_storeCompoundUniqueInput
     AND?: SaleWhereInput | SaleWhereInput[]
     OR?: SaleWhereInput[]
     NOT?: SaleWhereInput | SaleWhereInput[]
@@ -31328,7 +31314,7 @@ export namespace Prisma {
     customer?: XOR<CustomerNullableScalarRelationFilter, CustomerWhereInput> | null
     store?: XOR<StoreScalarRelationFilter, StoreWhereInput>
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }, "id" | "unique_sale_number_per_store">
+  }, "id">
 
   export type SaleOrderByWithAggregationInput = {
     id?: SortOrder
@@ -31877,7 +31863,6 @@ export namespace Prisma {
 
   export type SystemConfigWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    unique_system_config_per_org?: SystemConfigUnique_system_config_per_orgCompoundUniqueInput
     AND?: SystemConfigWhereInput | SystemConfigWhereInput[]
     OR?: SystemConfigWhereInput[]
     NOT?: SystemConfigWhereInput | SystemConfigWhereInput[]
@@ -31891,7 +31876,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"SystemConfig"> | Date | string
     deletedAt?: DateTimeNullableFilter<"SystemConfig"> | Date | string | null
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
-  }, "id" | "unique_system_config_per_org">
+  }, "id">
 
   export type SystemConfigOrderByWithAggregationInput = {
     id?: SortOrder
@@ -34659,11 +34644,6 @@ export namespace Prisma {
     _count?: SortOrder
   }
 
-  export type StoreUnique_store_name_per_orgCompoundUniqueInput = {
-    organizationId: string
-    name: string
-  }
-
   export type StoreCountOrderByAggregateInput = {
     id?: SortOrder
     organizationId?: SortOrder
@@ -34797,16 +34777,6 @@ export namespace Prisma {
 
   export type AuditLogOrderByRelationAggregateInput = {
     _count?: SortOrder
-  }
-
-  export type UserUnique_email_per_deletionCompoundUniqueInput = {
-    email: string
-    deletedAt: Date | string
-  }
-
-  export type UserUnique_username_per_deletionCompoundUniqueInput = {
-    username: string
-    deletedAt: Date | string
   }
 
   export type UserCountOrderByAggregateInput = {
@@ -35131,12 +35101,6 @@ export namespace Prisma {
     _max?: NestedJsonNullableFilter<$PrismaModel>
   }
 
-  export type CategoryUnique_category_name_per_orgCompoundUniqueInput = {
-    organizationId: string
-    name: string
-    deletedAt: Date | string
-  }
-
   export type CategoryCountOrderByAggregateInput = {
     id?: SortOrder
     organizationId?: SortOrder
@@ -35171,12 +35135,6 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     deletedAt?: SortOrder
-  }
-
-  export type BrandUnique_brand_name_per_orgCompoundUniqueInput = {
-    organizationId: string
-    name: string
-    deletedAt: Date | string
   }
 
   export type BrandCountOrderByAggregateInput = {
@@ -35226,18 +35184,6 @@ export namespace Prisma {
 
   export type SaleItemOrderByRelationAggregateInput = {
     _count?: SortOrder
-  }
-
-  export type UnitMeasureUnique_unit_name_per_orgCompoundUniqueInput = {
-    organizationId: string
-    name: string
-    deletedAt: Date | string
-  }
-
-  export type UnitMeasureUnique_unit_abbrev_per_orgCompoundUniqueInput = {
-    organizationId: string
-    abbreviation: string
-    deletedAt: Date | string
   }
 
   export type UnitMeasureCountOrderByAggregateInput = {
@@ -35321,18 +35267,6 @@ export namespace Prisma {
 
   export type PurchaseItemOrderByRelationAggregateInput = {
     _count?: SortOrder
-  }
-
-  export type ProductUnique_barcode_per_orgCompoundUniqueInput = {
-    organizationId: string
-    barcode: string
-    deletedAt: Date | string
-  }
-
-  export type ProductUnique_sku_per_orgCompoundUniqueInput = {
-    organizationId: string
-    sku: string
-    deletedAt: Date | string
   }
 
   export type ProductCountOrderByAggregateInput = {
@@ -35466,18 +35400,6 @@ export namespace Prisma {
     _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
-  export type CustomerUnique_customer_email_per_orgCompoundUniqueInput = {
-    organizationId: string
-    email: string
-    deletedAt: Date | string
-  }
-
-  export type CustomerUnique_customer_document_per_orgCompoundUniqueInput = {
-    organizationId: string
-    document: string
-    deletedAt: Date | string
-  }
-
   export type CustomerCountOrderByAggregateInput = {
     id?: SortOrder
     organizationId?: SortOrder
@@ -35543,12 +35465,6 @@ export namespace Prisma {
 
   export type PurchaseOrderByRelationAggregateInput = {
     _count?: SortOrder
-  }
-
-  export type SupplierUnique_supplier_taxid_per_orgCompoundUniqueInput = {
-    organizationId: string
-    taxId: string
-    deletedAt: Date | string
   }
 
   export type SupplierCountOrderByAggregateInput = {
@@ -35622,12 +35538,6 @@ export namespace Prisma {
     _count?: SortOrder
   }
 
-  export type PaymentMethodUnique_payment_method_per_orgCompoundUniqueInput = {
-    organizationId: string
-    name: string
-    deletedAt: Date | string
-  }
-
   export type PaymentMethodCountOrderByAggregateInput = {
     id?: SortOrder
     organizationId?: SortOrder
@@ -35689,12 +35599,6 @@ export namespace Prisma {
   export type StoreScalarRelationFilter = {
     is?: StoreWhereInput
     isNot?: StoreWhereInput
-  }
-
-  export type SaleUnique_sale_number_per_storeCompoundUniqueInput = {
-    storeId: string
-    saleNumber: string
-    deletedAt: Date | string
   }
 
   export type SaleCountOrderByAggregateInput = {
@@ -36102,12 +36006,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumStockMovementTypeFilter<$PrismaModel>
     _max?: NestedEnumStockMovementTypeFilter<$PrismaModel>
-  }
-
-  export type SystemConfigUnique_system_config_per_orgCompoundUniqueInput = {
-    organizationId: string
-    key: string
-    deletedAt: Date | string
   }
 
   export type SystemConfigCountOrderByAggregateInput = {

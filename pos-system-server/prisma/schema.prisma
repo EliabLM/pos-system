@@ -2,6 +2,11 @@
 // client sigue consumiendo el cliente generado en su propio arbol via `@/generated/prisma`;
 // cuando el server incorpore Prisma en runtime (Fase 2) se agrega aca un segundo
 // generator con output local al server.
+//
+// Soft-delete uniqueness: enforced by PARTIAL unique indexes in SQL migrations
+// (`WHERE deleted_at IS NULL`) — Prisma cannot express them, so they are not
+// declared here (its diff engine ignores them). See migration
+// 20260820130000_soft_delete_partial_uniques. Duplicates still surface as P2002.
 generator client {
   provider      = "prisma-client-js"
   output        = "../../pos-system-client/src/generated/prisma"
@@ -26,9 +31,9 @@ model Organization {
   taxId          String?         @map("tax_id")
   isActive       Boolean         @default(true) @map("is_active")
   isDeleted      Boolean         @default(false) @map("is_deleted")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-  deletedAt      DateTime?       @map("deleted_at")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?       @map("deleted_at") @db.Timestamptz
   brands         Brand[]
   categories     Category[]
   customers      Customer[]
@@ -57,14 +62,15 @@ model Store {
   lastSaleNumber   Int          @default(0) @map("last_sale_number")
   isActive         Boolean      @default(true) @map("is_active")
   isDeleted        Boolean      @default(false) @map("is_deleted")
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
-  deletedAt        DateTime?    @map("deleted_at")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt        DateTime?    @map("deleted_at") @db.Timestamptz
   sales            Sale[]
   organization     Organization @relation(fields: [organizationId], references: [id])
   users            User[]
 
-  @@unique([organizationId, name], name: "unique_store_name_per_org")
+  // unique (organization_id, name) WHERE deleted_at IS NULL — partial index in SQL
+  @@index([organizationId, isDeleted])
   @@map("stores")
 }
 
@@ -91,17 +97,17 @@ model User {
   // Soft delete pattern
   isActive  Boolean   @default(true) @map("is_active")
   isDeleted Boolean   @default(false) @map("is_deleted")
-  deletedAt DateTime? @map("deleted_at")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
 
   // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Campos de seguridad adicionales
-  lastLoginAt       DateTime? @map("last_login_at")
-  passwordChangedAt DateTime? @map("password_changed_at") // Para invalidar tokens antiguos
+  lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz // Para invalidar tokens antiguos
   loginAttempts     Int       @default(0) @map("login_attempts")
-  lockedUntil       DateTime? @map("locked_until") // Account lockout por intentos fallidos
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz // Account lockout por intentos fallidos
 
   // Relaciones existentes
   sales          Sale[]
@@ -115,12 +121,11 @@ model User {
   emailVerifications EmailVerification[]
   auditLogs          AuditLog[]
 
-  // Índices compuestos para performance y seguridad
-  @@unique([email, deletedAt], name: "unique_email_per_deletion")
-  @@unique([username, deletedAt], name: "unique_username_per_deletion")
+  // unique (email) / (username) WHERE deleted_at IS NULL — partial indexes in SQL
   @@index([organizationId, isDeleted, isActive])
   @@index([email, isDeleted])
   @@index([lastLoginAt])
+  @@index([storeId])
   @@map("users")
 }
 
@@ -133,22 +138,22 @@ model Session {
 
   // Token y seguridad
   token     String   @unique // Hash del JWT o session ID
-  expiresAt DateTime @map("expires_at")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
 
   // Metadata de seguridad
-  ipAddress String? @map("ip_address") @db.VarChar(45) // IPv6 max length
-  userAgent String? @map("user_agent") @db.VarChar(500)
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
   deviceId  String? @map("device_id") // Fingerprint del dispositivo
 
   // Control de sesión
   isActive  Boolean   @default(true) @map("is_active")
-  revokedAt DateTime? @map("revoked_at") // Para invalidación explícita
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz // Para invalidación explícita
   revokedBy String?   @map("revoked_by") // userId que revocó (admin)
 
   // Metadata adicional
-  lastActivityAt DateTime @default(now()) @map("last_activity_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relación
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -170,18 +175,18 @@ model PasswordReset {
 
   // Token de reset
   token     String   @unique
-  expiresAt DateTime @map("expires_at")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
 
   // Control de uso
   used   Boolean   @default(false)
-  usedAt DateTime? @map("used_at")
+  usedAt DateTime? @map("used_at") @db.Timestamptz
 
   // Metadata de seguridad
-  ipAddress String? @map("ip_address") @db.VarChar(45)
-  userAgent String? @map("user_agent") @db.VarChar(500)
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
 
   // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relación
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -202,21 +207,21 @@ model EmailVerification {
 
   // Token de verificación
   token     String   @unique
-  expiresAt DateTime @map("expires_at")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
 
   // Email a verificar (permite cambio de email)
   email String
 
   // Control de uso
   verified   Boolean   @default(false)
-  verifiedAt DateTime? @map("verified_at")
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz
 
   // Metadata
-  ipAddress String? @map("ip_address") @db.VarChar(45)
-  userAgent String? @map("user_agent") @db.VarChar(500)
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
 
   // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relación
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -246,15 +251,15 @@ model AuditLog {
   newValues Json? @map("new_values") // Estado nuevo
 
   // Metadata de seguridad
-  ipAddress String? @map("ip_address") @db.VarChar(45)
-  userAgent String? @map("user_agent") @db.VarChar(500)
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
 
   // Contexto adicional
   organizationId String? @map("organization_id") // Para filtrar por organización
   metadata       Json? // Datos adicionales flexibles
 
   // Timestamp
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relación
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -275,13 +280,14 @@ model Category {
   description    String?
   isActive       Boolean      @default(true) @map("is_active")
   isDeleted      Boolean      @default(false) @map("is_deleted")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  deletedAt      DateTime?    @map("deleted_at")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id])
   products       Product[]
 
-  @@unique([organizationId, name, deletedAt], name: "unique_category_name_per_org")
+  // unique (organization_id, name) WHERE deleted_at IS NULL — partial index in SQL
+  @@index([organizationId, isDeleted])
   @@map("categories")
 }
 
@@ -293,13 +299,14 @@ model Brand {
   description    String?
   isActive       Boolean      @default(true) @map("is_active")
   isDeleted      Boolean      @default(false) @map("is_deleted")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  deletedAt      DateTime?    @map("deleted_at")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id])
   products       Product[]
 
-  @@unique([organizationId, name, deletedAt], name: "unique_brand_name_per_org")
+  // unique (organization_id, name) WHERE deleted_at IS NULL — partial index in SQL
+  @@index([organizationId, isDeleted])
   @@map("brands")
 }
 
@@ -310,15 +317,16 @@ model UnitMeasure {
   abbreviation   String
   isActive       Boolean      @default(true) @map("is_active")
   isDeleted      Boolean      @default(false) @map("is_deleted")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  deletedAt      DateTime?    @map("deleted_at")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz
   products       Product[]
   saleItems      SaleItem[]
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  @@unique([organizationId, name, deletedAt], name: "unique_unit_name_per_org")
-  @@unique([organizationId, abbreviation, deletedAt], name: "unique_unit_abbrev_per_org")
+  // unique (organization_id, name) / (organization_id, abbreviation)
+  // WHERE deleted_at IS NULL — partial indexes in SQL
+  @@index([organizationId, isDeleted])
   @@map("unit_measures")
 }
 
@@ -344,9 +352,9 @@ model Product {
   model          String?
   isActive       Boolean         @default(true) @map("is_active")
   isDeleted      Boolean         @default(false) @map("is_deleted")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-  deletedAt      DateTime?       @map("deleted_at")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?       @map("deleted_at") @db.Timestamptz
   brand          Brand?          @relation(fields: [brandId], references: [id])
   category       Category?       @relation(fields: [categoryId], references: [id])
   organization   Organization    @relation(fields: [organizationId], references: [id])
@@ -355,8 +363,12 @@ model Product {
   saleItems      SaleItem[]
   stockMovements StockMovement[]
 
-  @@unique([organizationId, barcode, deletedAt], name: "unique_barcode_per_org")
-  @@unique([organizationId, sku, deletedAt], name: "unique_sku_per_org")
+  // unique (organization_id, barcode) / (organization_id, sku)
+  // WHERE deleted_at IS NULL — partial indexes in SQL
+  @@index([organizationId, isDeleted])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([unitMeasureId])
   @@map("products")
 }
 
@@ -374,14 +386,15 @@ model Customer {
   documentType   String?      @map("document_type")
   isActive       Boolean      @default(true) @map("is_active")
   isDeleted      Boolean      @default(false) @map("is_deleted")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  deletedAt      DateTime?    @map("deleted_at")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id])
   sales          Sale[]
 
-  @@unique([organizationId, email, deletedAt], name: "unique_customer_email_per_org")
-  @@unique([organizationId, document, deletedAt], name: "unique_customer_document_per_org")
+  // unique (organization_id, email) / (organization_id, document)
+  // WHERE deleted_at IS NULL — partial indexes in SQL
+  @@index([organizationId, isDeleted])
   @@map("customers")
 }
 
@@ -398,13 +411,14 @@ model Supplier {
   taxId          String?      @map("tax_id")
   isActive       Boolean      @default(true) @map("is_active")
   isDeleted      Boolean      @default(false) @map("is_deleted")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  deletedAt      DateTime?    @map("deleted_at")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz
   purchases      Purchase[]
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  @@unique([organizationId, taxId, deletedAt], name: "unique_supplier_taxid_per_org")
+  // unique (organization_id, tax_id) WHERE deleted_at IS NULL — partial index in SQL
+  @@index([organizationId, isDeleted])
   @@map("suppliers")
 }
 
@@ -415,13 +429,14 @@ model PaymentMethod {
   type           PaymentType
   isActive       Boolean       @default(true) @map("is_active")
   isDeleted      Boolean       @default(false) @map("is_deleted")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  deletedAt      DateTime?     @map("deleted_at")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz
   organization   Organization  @relation(fields: [organizationId], references: [id])
   salePayments   SalePayment[]
 
-  @@unique([organizationId, name, deletedAt], name: "unique_payment_method_per_org")
+  // unique (organization_id, name) WHERE deleted_at IS NULL — partial index in SQL
+  @@index([organizationId, isDeleted])
   @@map("payment_methods")
 }
 
@@ -435,21 +450,25 @@ model Sale {
   subtotal       Float
   total          Float
   status         SaleStatus    @default(PAID)
-  saleDate       DateTime      @default(now()) @map("sale_date")
-  dueDate        DateTime?     @map("due_date")
-  paidDate       DateTime?     @map("paid_date")
+  saleDate       DateTime      @default(now()) @map("sale_date") @db.Timestamptz
+  dueDate        DateTime?     @map("due_date") @db.Timestamptz
+  paidDate       DateTime?     @map("paid_date") @db.Timestamptz
   notes          String?
   isDeleted      Boolean       @default(false) @map("is_deleted")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  deletedAt      DateTime?     @map("deleted_at")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz
   saleItems      SaleItem[]
   salePayments   SalePayment[]
   customer       Customer?     @relation(fields: [customerId], references: [id])
   store          Store         @relation(fields: [storeId], references: [id])
   user           User          @relation(fields: [userId], references: [id])
 
-  @@unique([storeId, saleNumber, deletedAt], name: "unique_sale_number_per_store")
+  // unique (store_id, sale_number) WHERE deleted_at IS NULL — partial index in SQL
+  @@index([organizationId, isDeleted, saleDate])
+  @@index([storeId])
+  @@index([customerId])
+  @@index([userId])
   @@map("sales")
 }
 
@@ -462,13 +481,16 @@ model SaleItem {
   unitPrice     Float        @map("unit_price")
   subtotal      Float
   isDeleted     Boolean      @default(false) @map("is_deleted")
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @updatedAt @map("updated_at")
-  deletedAt     DateTime?    @map("deleted_at")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime?    @map("deleted_at") @db.Timestamptz
   product       Product      @relation(fields: [productId], references: [id])
   sale          Sale         @relation(fields: [saleId], references: [id])
   unitMeasure   UnitMeasure? @relation(fields: [unitMeasureId], references: [id])
 
+  @@index([saleId])
+  @@index([productId])
+  @@index([unitMeasureId])
   @@map("sale_items")
 }
 
@@ -479,14 +501,16 @@ model SalePayment {
   amount          Float
   reference       String?
   notes           String?
-  paymentDate     DateTime      @default(now()) @map("payment_date")
+  paymentDate     DateTime      @default(now()) @map("payment_date") @db.Timestamptz
   isDeleted       Boolean       @default(false) @map("is_deleted")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  deletedAt       DateTime?     @map("deleted_at")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz
   paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
   sale            Sale          @relation(fields: [saleId], references: [id])
 
+  @@index([saleId])
+  @@index([paymentMethodId])
   @@map("sale_payments")
 }
 
@@ -497,16 +521,18 @@ model Purchase {
   purchaseNumber String         @map("purchase_number")
   total          Float
   status         PurchaseStatus @default(PENDING)
-  purchaseDate   DateTime       @default(now()) @map("purchase_date")
-  receivedDate   DateTime?      @map("received_date")
+  purchaseDate   DateTime       @default(now()) @map("purchase_date") @db.Timestamptz
+  receivedDate   DateTime?      @map("received_date") @db.Timestamptz
   notes          String?
   isDeleted      Boolean        @default(false) @map("is_deleted")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-  deletedAt      DateTime?      @map("deleted_at")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz
   purchaseItems  PurchaseItem[]
   supplier       Supplier       @relation(fields: [supplierId], references: [id])
 
+  @@index([organizationId, isDeleted, purchaseDate])
+  @@index([supplierId])
   @@map("purchases")
 }
 
@@ -518,12 +544,14 @@ model PurchaseItem {
   unitPrice  Float     @map("unit_price")
   subtotal   Float
   isDeleted  Boolean   @default(false) @map("is_deleted")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  deletedAt  DateTime? @map("deleted_at")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
   product    Product   @relation(fields: [productId], references: [id])
   purchase   Purchase  @relation(fields: [purchaseId], references: [id])
 
+  @@index([purchaseId])
+  @@index([productId])
   @@map("purchase_items")
 }
 
@@ -539,12 +567,15 @@ model StockMovement {
   reason         String?
   userId         String?           @map("user_id")
   reference      String?
-  createdAt      DateTime          @default(now()) @map("created_at")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz
   organization   Organization      @relation(fields: [organizationId], references: [id])
   product        Product           @relation(fields: [productId], references: [id])
   user           User?             @relation(fields: [userId], references: [id])
 
   @@index([organizationId, productId, createdAt])
+  @@index([productId])
+  @@index([userId])
+  @@index([storeId])
   @@map("stock_movements")
 }
 
@@ -556,12 +587,13 @@ model SystemConfig {
   type           String       @default("STRING")
   description    String?
   isDeleted      Boolean      @default(false) @map("is_deleted")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  deletedAt      DateTime?    @map("deleted_at")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  @@unique([organizationId, key, deletedAt], name: "unique_system_config_per_org")
+  // unique (organization_id, key) WHERE deleted_at IS NULL — partial index in SQL
+  @@index([organizationId, isDeleted])
   @@map("system_configs")
 }
 
