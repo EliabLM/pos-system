@@ -20,7 +20,7 @@ datasource db {
 }
 
 model Organization {
-  id             String          @id @default(cuid())
+  id             String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
   name           String
   email          String
   nit            String?
@@ -50,8 +50,8 @@ model Organization {
 }
 
 model Store {
-  id               String       @id @default(cuid())
-  organizationId   String       @map("organization_id")
+  id               String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
   name             String
   description      String?
   address          String
@@ -75,11 +75,11 @@ model Store {
 }
 
 model User {
-  id String @id @default(cuid())
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
 
   // Multi-tenancy
-  organizationId String? @map("organization_id")
-  storeId        String? @map("store_id")
+  organizationId String? @map("organization_id") @db.Uuid
+  storeId        String? @map("store_id") @db.Uuid
 
   // Credenciales de autenticación
   email    String
@@ -133,8 +133,8 @@ model User {
 // MODELO SESSION - MANEJO DE JWT/SESIONES
 // ============================================
 model Session {
-  id     String @id @default(cuid())
-  userId String @map("user_id")
+  id     String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId String @map("user_id") @db.Uuid
 
   // Token y seguridad
   token     String   @unique // Hash del JWT o session ID
@@ -148,7 +148,7 @@ model Session {
   // Control de sesión
   isActive  Boolean   @default(true) @map("is_active")
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz // Para invalidación explícita
-  revokedBy String?   @map("revoked_by") // userId que revocó (admin)
+  revokedBy String?   @map("revoked_by") @db.Uuid // userId que revocó (admin)
 
   // Metadata adicional
   lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz
@@ -170,8 +170,8 @@ model Session {
 // MODELO PASSWORD RESET - RECUPERACIÓN
 // ============================================
 model PasswordReset {
-  id     String @id @default(cuid())
-  userId String @map("user_id")
+  id     String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId String @map("user_id") @db.Uuid
 
   // Token de reset
   token     String   @unique
@@ -202,8 +202,8 @@ model PasswordReset {
 // MODELO EMAIL VERIFICATION - VERIFICACIÓN
 // ============================================
 model EmailVerification {
-  id     String @id @default(cuid())
-  userId String @map("user_id")
+  id     String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId String @map("user_id") @db.Uuid
 
   // Token de verificación
   token     String   @unique
@@ -238,8 +238,8 @@ model EmailVerification {
 // MODELO AUDIT LOG - TRAZABILIDAD
 // ============================================
 model AuditLog {
-  id     String  @id @default(cuid())
-  userId String? @map("user_id") // Nullable para acciones del sistema
+  id     String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId String? @map("user_id") @db.Uuid // Nullable para acciones del sistema
 
   // Información del evento
   action   AuditAction
@@ -255,7 +255,7 @@ model AuditLog {
   userAgent String? @map("user_agent")
 
   // Contexto adicional
-  organizationId String? @map("organization_id") // Para filtrar por organización
+  organizationId String? @map("organization_id") @db.Uuid // Para filtrar por organización
   metadata       Json? // Datos adicionales flexibles
 
   // Timestamp
@@ -274,8 +274,8 @@ model AuditLog {
 }
 
 model Category {
-  id             String       @id @default(cuid())
-  organizationId String       @map("organization_id")
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
   name           String
   description    String?
   isActive       Boolean      @default(true) @map("is_active")
@@ -292,8 +292,8 @@ model Category {
 }
 
 model Brand {
-  id             String       @id @default(cuid())
-  organizationId String       @map("organization_id")
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
   name           String
   logo           String?
   description    String?
@@ -311,8 +311,8 @@ model Brand {
 }
 
 model UnitMeasure {
-  id             String       @id @default(cuid())
-  organizationId String       @map("organization_id")
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
   name           String
   abbreviation   String
   isActive       Boolean      @default(true) @map("is_active")
@@ -331,16 +331,16 @@ model UnitMeasure {
 }
 
 model Product {
-  id             String          @id @default(cuid())
-  organizationId String          @map("organization_id")
+  id             String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
   name           String
   description    String?
   image          String?
   barcode        String?
   sku            String?
-  categoryId     String?         @map("category_id")
-  brandId        String?         @map("brand_id")
-  unitMeasureId  String?         @map("unit_measure_id")
+  categoryId     String?         @map("category_id") @db.Uuid
+  brandId        String?         @map("brand_id") @db.Uuid
+  unitMeasureId  String?         @map("unit_measure_id") @db.Uuid
   costPrice      Decimal         @map("cost_price") @db.Decimal(12, 2)
   salePrice      Decimal         @map("sale_price") @db.Decimal(12, 2)
   minStock       Int             @default(0) @map("min_stock")
@@ -373,8 +373,8 @@ model Product {
 }
 
 model Customer {
-  id             String       @id @default(cuid())
-  organizationId String       @map("organization_id")
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
   firstName      String       @map("first_name")
   lastName       String       @map("last_name")
   email          String?
@@ -399,8 +399,8 @@ model Customer {
 }
 
 model Supplier {
-  id             String       @id @default(cuid())
-  organizationId String       @map("organization_id")
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
   name           String
   contactName    String?      @map("contact_name")
   email          String?
@@ -423,8 +423,8 @@ model Supplier {
 }
 
 model PaymentMethod {
-  id             String        @id @default(cuid())
-  organizationId String        @map("organization_id")
+  id             String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
   name           String
   type           PaymentType
   isActive       Boolean       @default(true) @map("is_active")
@@ -441,12 +441,12 @@ model PaymentMethod {
 }
 
 model Sale {
-  id             String        @id @default(cuid())
-  organizationId String        @map("organization_id")
-  storeId        String        @map("store_id")
+  id             String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  storeId        String        @map("store_id") @db.Uuid
   saleNumber     String        @map("sale_number")
-  customerId     String?       @map("customer_id")
-  userId         String        @map("user_id")
+  customerId     String?       @map("customer_id") @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
   subtotal       Decimal       @db.Decimal(12, 2)
   total          Decimal       @db.Decimal(12, 2)
   status         SaleStatus    @default(PAID)
@@ -473,10 +473,10 @@ model Sale {
 }
 
 model SaleItem {
-  id            String       @id @default(cuid())
-  saleId        String       @map("sale_id")
-  productId     String       @map("product_id")
-  unitMeasureId String?      @map("unit_measure_id")
+  id            String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  saleId        String       @map("sale_id") @db.Uuid
+  productId     String       @map("product_id") @db.Uuid
+  unitMeasureId String?      @map("unit_measure_id") @db.Uuid
   quantity      Int
   unitPrice     Decimal      @map("unit_price") @db.Decimal(12, 2)
   subtotal      Decimal      @db.Decimal(12, 2)
@@ -495,9 +495,9 @@ model SaleItem {
 }
 
 model SalePayment {
-  id              String        @id @default(cuid())
-  saleId          String        @map("sale_id")
-  paymentMethodId String        @map("payment_method_id")
+  id              String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  saleId          String        @map("sale_id") @db.Uuid
+  paymentMethodId String        @map("payment_method_id") @db.Uuid
   amount          Decimal       @db.Decimal(12, 2)
   reference       String?
   notes           String?
@@ -515,9 +515,9 @@ model SalePayment {
 }
 
 model Purchase {
-  id             String         @id @default(cuid())
-  organizationId String         @map("organization_id")
-  supplierId     String         @map("supplier_id")
+  id             String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  supplierId     String         @map("supplier_id") @db.Uuid
   purchaseNumber String         @map("purchase_number")
   total          Decimal        @db.Decimal(12, 2)
   status         PurchaseStatus @default(PENDING)
@@ -537,9 +537,9 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id         String    @id @default(cuid())
-  purchaseId String    @map("purchase_id")
-  productId  String    @map("product_id")
+  id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  purchaseId String    @map("purchase_id") @db.Uuid
+  productId  String    @map("product_id") @db.Uuid
   quantity   Int
   unitPrice  Decimal   @map("unit_price") @db.Decimal(12, 2)
   subtotal   Decimal   @db.Decimal(12, 2)
@@ -556,16 +556,16 @@ model PurchaseItem {
 }
 
 model StockMovement {
-  id             String            @id @default(cuid())
-  organizationId String            @map("organization_id")
-  productId      String            @map("product_id")
-  storeId        String?           @map("store_id")
+  id             String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  productId      String            @map("product_id") @db.Uuid
+  storeId        String?           @map("store_id") @db.Uuid
   type           StockMovementType
   quantity       Int
   previousStock  Int               @map("previous_stock")
   newStock       Int               @map("new_stock")
   reason         String?
-  userId         String?           @map("user_id")
+  userId         String?           @map("user_id") @db.Uuid
   reference      String?
   createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz
   organization   Organization      @relation(fields: [organizationId], references: [id])
@@ -580,8 +580,8 @@ model StockMovement {
 }
 
 model SystemConfig {
-  id             String       @id @default(cuid())
-  organizationId String       @map("organization_id")
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
   key            String
   value          String
   type           String       @default("STRING")
@@ -595,6 +595,17 @@ model SystemConfig {
   // unique (organization_id, key) WHERE deleted_at IS NULL — partial index in SQL
   @@index([organizationId, isDeleted])
   @@map("system_configs")
+}
+
+// Puente cuid→UUIDv7 (Receta R1 de la migración). Durante la transición la API
+// acepta ids legacy via lookup en esta tabla; se elimina tras Fase 5.
+model LegacyIdMap {
+  entity   String
+  legacyId String @map("legacy_id")
+  newUuid  String @map("new_uuid") @db.Uuid
+
+  @@id([entity, legacyId])
+  @@map("legacy_id_map")
 }
 
 enum UserRole {

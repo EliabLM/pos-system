@@ -451,6 +451,12 @@ exports.Prisma.SystemConfigScalarFieldEnum = {
   deletedAt: 'deletedAt'
 };
 
+exports.Prisma.LegacyIdMapScalarFieldEnum = {
+  entity: 'entity',
+  legacyId: 'legacyId',
+  newUuid: 'newUuid'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -550,7 +556,8 @@ exports.Prisma.ModelName = {
   Purchase: 'Purchase',
   PurchaseItem: 'PurchaseItem',
   StockMovement: 'StockMovement',
-  SystemConfig: 'SystemConfig'
+  SystemConfig: 'SystemConfig',
+  LegacyIdMap: 'LegacyIdMap'
 };
 
 /**

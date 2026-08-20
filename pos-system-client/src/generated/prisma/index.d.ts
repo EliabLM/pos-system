@@ -118,6 +118,11 @@ export type StockMovement = $Result.DefaultSelection<Prisma.$StockMovementPayloa
  * 
  */
 export type SystemConfig = $Result.DefaultSelection<Prisma.$SystemConfigPayload>
+/**
+ * Model LegacyIdMap
+ * 
+ */
+export type LegacyIdMap = $Result.DefaultSelection<Prisma.$LegacyIdMapPayload>
 
 /**
  * Enums
@@ -546,6 +551,16 @@ export class PrismaClient<
     * ```
     */
   get systemConfig(): Prisma.SystemConfigDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.legacyIdMap`: Exposes CRUD operations for the **LegacyIdMap** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more LegacyIdMaps
+    * const legacyIdMaps = await prisma.legacyIdMap.findMany()
+    * ```
+    */
+  get legacyIdMap(): Prisma.LegacyIdMapDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -1006,7 +1021,8 @@ export namespace Prisma {
     Purchase: 'Purchase',
     PurchaseItem: 'PurchaseItem',
     StockMovement: 'StockMovement',
-    SystemConfig: 'SystemConfig'
+    SystemConfig: 'SystemConfig',
+    LegacyIdMap: 'LegacyIdMap'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1025,7 +1041,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "organization" | "store" | "user" | "session" | "passwordReset" | "emailVerification" | "auditLog" | "category" | "brand" | "unitMeasure" | "product" | "customer" | "supplier" | "paymentMethod" | "sale" | "saleItem" | "salePayment" | "purchase" | "purchaseItem" | "stockMovement" | "systemConfig"
+      modelProps: "organization" | "store" | "user" | "session" | "passwordReset" | "emailVerification" | "auditLog" | "category" | "brand" | "unitMeasure" | "product" | "customer" | "supplier" | "paymentMethod" | "sale" | "saleItem" | "salePayment" | "purchase" | "purchaseItem" | "stockMovement" | "systemConfig" | "legacyIdMap"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2583,6 +2599,80 @@ export namespace Prisma {
           }
         }
       }
+      LegacyIdMap: {
+        payload: Prisma.$LegacyIdMapPayload<ExtArgs>
+        fields: Prisma.LegacyIdMapFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.LegacyIdMapFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.LegacyIdMapFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>
+          }
+          findFirst: {
+            args: Prisma.LegacyIdMapFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.LegacyIdMapFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>
+          }
+          findMany: {
+            args: Prisma.LegacyIdMapFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>[]
+          }
+          create: {
+            args: Prisma.LegacyIdMapCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>
+          }
+          createMany: {
+            args: Prisma.LegacyIdMapCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.LegacyIdMapCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>[]
+          }
+          delete: {
+            args: Prisma.LegacyIdMapDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>
+          }
+          update: {
+            args: Prisma.LegacyIdMapUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>
+          }
+          deleteMany: {
+            args: Prisma.LegacyIdMapDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.LegacyIdMapUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.LegacyIdMapUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>[]
+          }
+          upsert: {
+            args: Prisma.LegacyIdMapUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LegacyIdMapPayload>
+          }
+          aggregate: {
+            args: Prisma.LegacyIdMapAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateLegacyIdMap>
+          }
+          groupBy: {
+            args: Prisma.LegacyIdMapGroupByArgs<ExtArgs>
+            result: $Utils.Optional<LegacyIdMapGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.LegacyIdMapCountArgs<ExtArgs>
+            result: $Utils.Optional<LegacyIdMapCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2696,6 +2786,7 @@ export namespace Prisma {
     purchaseItem?: PurchaseItemOmit
     stockMovement?: StockMovementOmit
     systemConfig?: SystemConfigOmit
+    legacyIdMap?: LegacyIdMapOmit
   }
 
   /* Types for Logging */
@@ -29176,6 +29267,975 @@ export namespace Prisma {
 
 
   /**
+   * Model LegacyIdMap
+   */
+
+  export type AggregateLegacyIdMap = {
+    _count: LegacyIdMapCountAggregateOutputType | null
+    _min: LegacyIdMapMinAggregateOutputType | null
+    _max: LegacyIdMapMaxAggregateOutputType | null
+  }
+
+  export type LegacyIdMapMinAggregateOutputType = {
+    entity: string | null
+    legacyId: string | null
+    newUuid: string | null
+  }
+
+  export type LegacyIdMapMaxAggregateOutputType = {
+    entity: string | null
+    legacyId: string | null
+    newUuid: string | null
+  }
+
+  export type LegacyIdMapCountAggregateOutputType = {
+    entity: number
+    legacyId: number
+    newUuid: number
+    _all: number
+  }
+
+
+  export type LegacyIdMapMinAggregateInputType = {
+    entity?: true
+    legacyId?: true
+    newUuid?: true
+  }
+
+  export type LegacyIdMapMaxAggregateInputType = {
+    entity?: true
+    legacyId?: true
+    newUuid?: true
+  }
+
+  export type LegacyIdMapCountAggregateInputType = {
+    entity?: true
+    legacyId?: true
+    newUuid?: true
+    _all?: true
+  }
+
+  export type LegacyIdMapAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which LegacyIdMap to aggregate.
+     */
+    where?: LegacyIdMapWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LegacyIdMaps to fetch.
+     */
+    orderBy?: LegacyIdMapOrderByWithRelationInput | LegacyIdMapOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: LegacyIdMapWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LegacyIdMaps from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LegacyIdMaps.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned LegacyIdMaps
+    **/
+    _count?: true | LegacyIdMapCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: LegacyIdMapMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: LegacyIdMapMaxAggregateInputType
+  }
+
+  export type GetLegacyIdMapAggregateType<T extends LegacyIdMapAggregateArgs> = {
+        [P in keyof T & keyof AggregateLegacyIdMap]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateLegacyIdMap[P]>
+      : GetScalarType<T[P], AggregateLegacyIdMap[P]>
+  }
+
+
+
+
+  export type LegacyIdMapGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: LegacyIdMapWhereInput
+    orderBy?: LegacyIdMapOrderByWithAggregationInput | LegacyIdMapOrderByWithAggregationInput[]
+    by: LegacyIdMapScalarFieldEnum[] | LegacyIdMapScalarFieldEnum
+    having?: LegacyIdMapScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: LegacyIdMapCountAggregateInputType | true
+    _min?: LegacyIdMapMinAggregateInputType
+    _max?: LegacyIdMapMaxAggregateInputType
+  }
+
+  export type LegacyIdMapGroupByOutputType = {
+    entity: string
+    legacyId: string
+    newUuid: string
+    _count: LegacyIdMapCountAggregateOutputType | null
+    _min: LegacyIdMapMinAggregateOutputType | null
+    _max: LegacyIdMapMaxAggregateOutputType | null
+  }
+
+  type GetLegacyIdMapGroupByPayload<T extends LegacyIdMapGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<LegacyIdMapGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof LegacyIdMapGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], LegacyIdMapGroupByOutputType[P]>
+            : GetScalarType<T[P], LegacyIdMapGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type LegacyIdMapSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    entity?: boolean
+    legacyId?: boolean
+    newUuid?: boolean
+  }, ExtArgs["result"]["legacyIdMap"]>
+
+  export type LegacyIdMapSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    entity?: boolean
+    legacyId?: boolean
+    newUuid?: boolean
+  }, ExtArgs["result"]["legacyIdMap"]>
+
+  export type LegacyIdMapSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    entity?: boolean
+    legacyId?: boolean
+    newUuid?: boolean
+  }, ExtArgs["result"]["legacyIdMap"]>
+
+  export type LegacyIdMapSelectScalar = {
+    entity?: boolean
+    legacyId?: boolean
+    newUuid?: boolean
+  }
+
+  export type LegacyIdMapOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"entity" | "legacyId" | "newUuid", ExtArgs["result"]["legacyIdMap"]>
+
+  export type $LegacyIdMapPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "LegacyIdMap"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      entity: string
+      legacyId: string
+      newUuid: string
+    }, ExtArgs["result"]["legacyIdMap"]>
+    composites: {}
+  }
+
+  type LegacyIdMapGetPayload<S extends boolean | null | undefined | LegacyIdMapDefaultArgs> = $Result.GetResult<Prisma.$LegacyIdMapPayload, S>
+
+  type LegacyIdMapCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<LegacyIdMapFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: LegacyIdMapCountAggregateInputType | true
+    }
+
+  export interface LegacyIdMapDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['LegacyIdMap'], meta: { name: 'LegacyIdMap' } }
+    /**
+     * Find zero or one LegacyIdMap that matches the filter.
+     * @param {LegacyIdMapFindUniqueArgs} args - Arguments to find a LegacyIdMap
+     * @example
+     * // Get one LegacyIdMap
+     * const legacyIdMap = await prisma.legacyIdMap.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends LegacyIdMapFindUniqueArgs>(args: SelectSubset<T, LegacyIdMapFindUniqueArgs<ExtArgs>>): Prisma__LegacyIdMapClient<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one LegacyIdMap that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {LegacyIdMapFindUniqueOrThrowArgs} args - Arguments to find a LegacyIdMap
+     * @example
+     * // Get one LegacyIdMap
+     * const legacyIdMap = await prisma.legacyIdMap.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends LegacyIdMapFindUniqueOrThrowArgs>(args: SelectSubset<T, LegacyIdMapFindUniqueOrThrowArgs<ExtArgs>>): Prisma__LegacyIdMapClient<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first LegacyIdMap that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LegacyIdMapFindFirstArgs} args - Arguments to find a LegacyIdMap
+     * @example
+     * // Get one LegacyIdMap
+     * const legacyIdMap = await prisma.legacyIdMap.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends LegacyIdMapFindFirstArgs>(args?: SelectSubset<T, LegacyIdMapFindFirstArgs<ExtArgs>>): Prisma__LegacyIdMapClient<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first LegacyIdMap that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LegacyIdMapFindFirstOrThrowArgs} args - Arguments to find a LegacyIdMap
+     * @example
+     * // Get one LegacyIdMap
+     * const legacyIdMap = await prisma.legacyIdMap.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends LegacyIdMapFindFirstOrThrowArgs>(args?: SelectSubset<T, LegacyIdMapFindFirstOrThrowArgs<ExtArgs>>): Prisma__LegacyIdMapClient<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more LegacyIdMaps that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LegacyIdMapFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all LegacyIdMaps
+     * const legacyIdMaps = await prisma.legacyIdMap.findMany()
+     * 
+     * // Get first 10 LegacyIdMaps
+     * const legacyIdMaps = await prisma.legacyIdMap.findMany({ take: 10 })
+     * 
+     * // Only select the `entity`
+     * const legacyIdMapWithEntityOnly = await prisma.legacyIdMap.findMany({ select: { entity: true } })
+     * 
+     */
+    findMany<T extends LegacyIdMapFindManyArgs>(args?: SelectSubset<T, LegacyIdMapFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a LegacyIdMap.
+     * @param {LegacyIdMapCreateArgs} args - Arguments to create a LegacyIdMap.
+     * @example
+     * // Create one LegacyIdMap
+     * const LegacyIdMap = await prisma.legacyIdMap.create({
+     *   data: {
+     *     // ... data to create a LegacyIdMap
+     *   }
+     * })
+     * 
+     */
+    create<T extends LegacyIdMapCreateArgs>(args: SelectSubset<T, LegacyIdMapCreateArgs<ExtArgs>>): Prisma__LegacyIdMapClient<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many LegacyIdMaps.
+     * @param {LegacyIdMapCreateManyArgs} args - Arguments to create many LegacyIdMaps.
+     * @example
+     * // Create many LegacyIdMaps
+     * const legacyIdMap = await prisma.legacyIdMap.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends LegacyIdMapCreateManyArgs>(args?: SelectSubset<T, LegacyIdMapCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many LegacyIdMaps and returns the data saved in the database.
+     * @param {LegacyIdMapCreateManyAndReturnArgs} args - Arguments to create many LegacyIdMaps.
+     * @example
+     * // Create many LegacyIdMaps
+     * const legacyIdMap = await prisma.legacyIdMap.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many LegacyIdMaps and only return the `entity`
+     * const legacyIdMapWithEntityOnly = await prisma.legacyIdMap.createManyAndReturn({
+     *   select: { entity: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends LegacyIdMapCreateManyAndReturnArgs>(args?: SelectSubset<T, LegacyIdMapCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a LegacyIdMap.
+     * @param {LegacyIdMapDeleteArgs} args - Arguments to delete one LegacyIdMap.
+     * @example
+     * // Delete one LegacyIdMap
+     * const LegacyIdMap = await prisma.legacyIdMap.delete({
+     *   where: {
+     *     // ... filter to delete one LegacyIdMap
+     *   }
+     * })
+     * 
+     */
+    delete<T extends LegacyIdMapDeleteArgs>(args: SelectSubset<T, LegacyIdMapDeleteArgs<ExtArgs>>): Prisma__LegacyIdMapClient<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one LegacyIdMap.
+     * @param {LegacyIdMapUpdateArgs} args - Arguments to update one LegacyIdMap.
+     * @example
+     * // Update one LegacyIdMap
+     * const legacyIdMap = await prisma.legacyIdMap.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends LegacyIdMapUpdateArgs>(args: SelectSubset<T, LegacyIdMapUpdateArgs<ExtArgs>>): Prisma__LegacyIdMapClient<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more LegacyIdMaps.
+     * @param {LegacyIdMapDeleteManyArgs} args - Arguments to filter LegacyIdMaps to delete.
+     * @example
+     * // Delete a few LegacyIdMaps
+     * const { count } = await prisma.legacyIdMap.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends LegacyIdMapDeleteManyArgs>(args?: SelectSubset<T, LegacyIdMapDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more LegacyIdMaps.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LegacyIdMapUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many LegacyIdMaps
+     * const legacyIdMap = await prisma.legacyIdMap.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends LegacyIdMapUpdateManyArgs>(args: SelectSubset<T, LegacyIdMapUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more LegacyIdMaps and returns the data updated in the database.
+     * @param {LegacyIdMapUpdateManyAndReturnArgs} args - Arguments to update many LegacyIdMaps.
+     * @example
+     * // Update many LegacyIdMaps
+     * const legacyIdMap = await prisma.legacyIdMap.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more LegacyIdMaps and only return the `entity`
+     * const legacyIdMapWithEntityOnly = await prisma.legacyIdMap.updateManyAndReturn({
+     *   select: { entity: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends LegacyIdMapUpdateManyAndReturnArgs>(args: SelectSubset<T, LegacyIdMapUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one LegacyIdMap.
+     * @param {LegacyIdMapUpsertArgs} args - Arguments to update or create a LegacyIdMap.
+     * @example
+     * // Update or create a LegacyIdMap
+     * const legacyIdMap = await prisma.legacyIdMap.upsert({
+     *   create: {
+     *     // ... data to create a LegacyIdMap
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the LegacyIdMap we want to update
+     *   }
+     * })
+     */
+    upsert<T extends LegacyIdMapUpsertArgs>(args: SelectSubset<T, LegacyIdMapUpsertArgs<ExtArgs>>): Prisma__LegacyIdMapClient<$Result.GetResult<Prisma.$LegacyIdMapPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of LegacyIdMaps.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LegacyIdMapCountArgs} args - Arguments to filter LegacyIdMaps to count.
+     * @example
+     * // Count the number of LegacyIdMaps
+     * const count = await prisma.legacyIdMap.count({
+     *   where: {
+     *     // ... the filter for the LegacyIdMaps we want to count
+     *   }
+     * })
+    **/
+    count<T extends LegacyIdMapCountArgs>(
+      args?: Subset<T, LegacyIdMapCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], LegacyIdMapCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a LegacyIdMap.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LegacyIdMapAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends LegacyIdMapAggregateArgs>(args: Subset<T, LegacyIdMapAggregateArgs>): Prisma.PrismaPromise<GetLegacyIdMapAggregateType<T>>
+
+    /**
+     * Group by LegacyIdMap.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LegacyIdMapGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends LegacyIdMapGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: LegacyIdMapGroupByArgs['orderBy'] }
+        : { orderBy?: LegacyIdMapGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, LegacyIdMapGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetLegacyIdMapGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the LegacyIdMap model
+   */
+  readonly fields: LegacyIdMapFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for LegacyIdMap.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__LegacyIdMapClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the LegacyIdMap model
+   */
+  interface LegacyIdMapFieldRefs {
+    readonly entity: FieldRef<"LegacyIdMap", 'String'>
+    readonly legacyId: FieldRef<"LegacyIdMap", 'String'>
+    readonly newUuid: FieldRef<"LegacyIdMap", 'String'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * LegacyIdMap findUnique
+   */
+  export type LegacyIdMapFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * Filter, which LegacyIdMap to fetch.
+     */
+    where: LegacyIdMapWhereUniqueInput
+  }
+
+  /**
+   * LegacyIdMap findUniqueOrThrow
+   */
+  export type LegacyIdMapFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * Filter, which LegacyIdMap to fetch.
+     */
+    where: LegacyIdMapWhereUniqueInput
+  }
+
+  /**
+   * LegacyIdMap findFirst
+   */
+  export type LegacyIdMapFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * Filter, which LegacyIdMap to fetch.
+     */
+    where?: LegacyIdMapWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LegacyIdMaps to fetch.
+     */
+    orderBy?: LegacyIdMapOrderByWithRelationInput | LegacyIdMapOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for LegacyIdMaps.
+     */
+    cursor?: LegacyIdMapWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LegacyIdMaps from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LegacyIdMaps.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of LegacyIdMaps.
+     */
+    distinct?: LegacyIdMapScalarFieldEnum | LegacyIdMapScalarFieldEnum[]
+  }
+
+  /**
+   * LegacyIdMap findFirstOrThrow
+   */
+  export type LegacyIdMapFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * Filter, which LegacyIdMap to fetch.
+     */
+    where?: LegacyIdMapWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LegacyIdMaps to fetch.
+     */
+    orderBy?: LegacyIdMapOrderByWithRelationInput | LegacyIdMapOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for LegacyIdMaps.
+     */
+    cursor?: LegacyIdMapWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LegacyIdMaps from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LegacyIdMaps.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of LegacyIdMaps.
+     */
+    distinct?: LegacyIdMapScalarFieldEnum | LegacyIdMapScalarFieldEnum[]
+  }
+
+  /**
+   * LegacyIdMap findMany
+   */
+  export type LegacyIdMapFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * Filter, which LegacyIdMaps to fetch.
+     */
+    where?: LegacyIdMapWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LegacyIdMaps to fetch.
+     */
+    orderBy?: LegacyIdMapOrderByWithRelationInput | LegacyIdMapOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing LegacyIdMaps.
+     */
+    cursor?: LegacyIdMapWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LegacyIdMaps from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LegacyIdMaps.
+     */
+    skip?: number
+    distinct?: LegacyIdMapScalarFieldEnum | LegacyIdMapScalarFieldEnum[]
+  }
+
+  /**
+   * LegacyIdMap create
+   */
+  export type LegacyIdMapCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * The data needed to create a LegacyIdMap.
+     */
+    data: XOR<LegacyIdMapCreateInput, LegacyIdMapUncheckedCreateInput>
+  }
+
+  /**
+   * LegacyIdMap createMany
+   */
+  export type LegacyIdMapCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many LegacyIdMaps.
+     */
+    data: LegacyIdMapCreateManyInput | LegacyIdMapCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * LegacyIdMap createManyAndReturn
+   */
+  export type LegacyIdMapCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * The data used to create many LegacyIdMaps.
+     */
+    data: LegacyIdMapCreateManyInput | LegacyIdMapCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * LegacyIdMap update
+   */
+  export type LegacyIdMapUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * The data needed to update a LegacyIdMap.
+     */
+    data: XOR<LegacyIdMapUpdateInput, LegacyIdMapUncheckedUpdateInput>
+    /**
+     * Choose, which LegacyIdMap to update.
+     */
+    where: LegacyIdMapWhereUniqueInput
+  }
+
+  /**
+   * LegacyIdMap updateMany
+   */
+  export type LegacyIdMapUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update LegacyIdMaps.
+     */
+    data: XOR<LegacyIdMapUpdateManyMutationInput, LegacyIdMapUncheckedUpdateManyInput>
+    /**
+     * Filter which LegacyIdMaps to update
+     */
+    where?: LegacyIdMapWhereInput
+    /**
+     * Limit how many LegacyIdMaps to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * LegacyIdMap updateManyAndReturn
+   */
+  export type LegacyIdMapUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * The data used to update LegacyIdMaps.
+     */
+    data: XOR<LegacyIdMapUpdateManyMutationInput, LegacyIdMapUncheckedUpdateManyInput>
+    /**
+     * Filter which LegacyIdMaps to update
+     */
+    where?: LegacyIdMapWhereInput
+    /**
+     * Limit how many LegacyIdMaps to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * LegacyIdMap upsert
+   */
+  export type LegacyIdMapUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * The filter to search for the LegacyIdMap to update in case it exists.
+     */
+    where: LegacyIdMapWhereUniqueInput
+    /**
+     * In case the LegacyIdMap found by the `where` argument doesn't exist, create a new LegacyIdMap with this data.
+     */
+    create: XOR<LegacyIdMapCreateInput, LegacyIdMapUncheckedCreateInput>
+    /**
+     * In case the LegacyIdMap was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<LegacyIdMapUpdateInput, LegacyIdMapUncheckedUpdateInput>
+  }
+
+  /**
+   * LegacyIdMap delete
+   */
+  export type LegacyIdMapDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+    /**
+     * Filter which LegacyIdMap to delete.
+     */
+    where: LegacyIdMapWhereUniqueInput
+  }
+
+  /**
+   * LegacyIdMap deleteMany
+   */
+  export type LegacyIdMapDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which LegacyIdMaps to delete
+     */
+    where?: LegacyIdMapWhereInput
+    /**
+     * Limit how many LegacyIdMaps to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * LegacyIdMap without action
+   */
+  export type LegacyIdMapDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LegacyIdMap
+     */
+    select?: LegacyIdMapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LegacyIdMap
+     */
+    omit?: LegacyIdMapOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -29583,6 +30643,15 @@ export namespace Prisma {
   export type SystemConfigScalarFieldEnum = (typeof SystemConfigScalarFieldEnum)[keyof typeof SystemConfigScalarFieldEnum]
 
 
+  export const LegacyIdMapScalarFieldEnum: {
+    entity: 'entity',
+    legacyId: 'legacyId',
+    newUuid: 'newUuid'
+  };
+
+  export type LegacyIdMapScalarFieldEnum = (typeof LegacyIdMapScalarFieldEnum)[keyof typeof LegacyIdMapScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -29811,7 +30880,7 @@ export namespace Prisma {
     AND?: OrganizationWhereInput | OrganizationWhereInput[]
     OR?: OrganizationWhereInput[]
     NOT?: OrganizationWhereInput | OrganizationWhereInput[]
-    id?: StringFilter<"Organization"> | string
+    id?: UuidFilter<"Organization"> | string
     name?: StringFilter<"Organization"> | string
     email?: StringFilter<"Organization"> | string
     nit?: StringNullableFilter<"Organization"> | string | null
@@ -29921,7 +30990,7 @@ export namespace Prisma {
     AND?: OrganizationScalarWhereWithAggregatesInput | OrganizationScalarWhereWithAggregatesInput[]
     OR?: OrganizationScalarWhereWithAggregatesInput[]
     NOT?: OrganizationScalarWhereWithAggregatesInput | OrganizationScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Organization"> | string
+    id?: UuidWithAggregatesFilter<"Organization"> | string
     name?: StringWithAggregatesFilter<"Organization"> | string
     email?: StringWithAggregatesFilter<"Organization"> | string
     nit?: StringNullableWithAggregatesFilter<"Organization"> | string | null
@@ -29941,8 +31010,8 @@ export namespace Prisma {
     AND?: StoreWhereInput | StoreWhereInput[]
     OR?: StoreWhereInput[]
     NOT?: StoreWhereInput | StoreWhereInput[]
-    id?: StringFilter<"Store"> | string
-    organizationId?: StringFilter<"Store"> | string
+    id?: UuidFilter<"Store"> | string
+    organizationId?: UuidFilter<"Store"> | string
     name?: StringFilter<"Store"> | string
     description?: StringNullableFilter<"Store"> | string | null
     address?: StringFilter<"Store"> | string
@@ -29987,7 +31056,7 @@ export namespace Prisma {
     AND?: StoreWhereInput | StoreWhereInput[]
     OR?: StoreWhereInput[]
     NOT?: StoreWhereInput | StoreWhereInput[]
-    organizationId?: StringFilter<"Store"> | string
+    organizationId?: UuidFilter<"Store"> | string
     name?: StringFilter<"Store"> | string
     description?: StringNullableFilter<"Store"> | string | null
     address?: StringFilter<"Store"> | string
@@ -30033,8 +31102,8 @@ export namespace Prisma {
     AND?: StoreScalarWhereWithAggregatesInput | StoreScalarWhereWithAggregatesInput[]
     OR?: StoreScalarWhereWithAggregatesInput[]
     NOT?: StoreScalarWhereWithAggregatesInput | StoreScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Store"> | string
-    organizationId?: StringWithAggregatesFilter<"Store"> | string
+    id?: UuidWithAggregatesFilter<"Store"> | string
+    organizationId?: UuidWithAggregatesFilter<"Store"> | string
     name?: StringWithAggregatesFilter<"Store"> | string
     description?: StringNullableWithAggregatesFilter<"Store"> | string | null
     address?: StringWithAggregatesFilter<"Store"> | string
@@ -30054,9 +31123,9 @@ export namespace Prisma {
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
-    id?: StringFilter<"User"> | string
-    organizationId?: StringNullableFilter<"User"> | string | null
-    storeId?: StringNullableFilter<"User"> | string | null
+    id?: UuidFilter<"User"> | string
+    organizationId?: UuidNullableFilter<"User"> | string | null
+    storeId?: UuidNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
     password?: StringFilter<"User"> | string
     username?: StringFilter<"User"> | string
@@ -30118,8 +31187,8 @@ export namespace Prisma {
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
-    organizationId?: StringNullableFilter<"User"> | string | null
-    storeId?: StringNullableFilter<"User"> | string | null
+    organizationId?: UuidNullableFilter<"User"> | string | null
+    storeId?: UuidNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
     password?: StringFilter<"User"> | string
     username?: StringFilter<"User"> | string
@@ -30177,9 +31246,9 @@ export namespace Prisma {
     AND?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     OR?: UserScalarWhereWithAggregatesInput[]
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"User"> | string
-    organizationId?: StringNullableWithAggregatesFilter<"User"> | string | null
-    storeId?: StringNullableWithAggregatesFilter<"User"> | string | null
+    id?: UuidWithAggregatesFilter<"User"> | string
+    organizationId?: UuidNullableWithAggregatesFilter<"User"> | string | null
+    storeId?: UuidNullableWithAggregatesFilter<"User"> | string | null
     email?: StringWithAggregatesFilter<"User"> | string
     password?: StringWithAggregatesFilter<"User"> | string
     username?: StringWithAggregatesFilter<"User"> | string
@@ -30202,8 +31271,8 @@ export namespace Prisma {
     AND?: SessionWhereInput | SessionWhereInput[]
     OR?: SessionWhereInput[]
     NOT?: SessionWhereInput | SessionWhereInput[]
-    id?: StringFilter<"Session"> | string
-    userId?: StringFilter<"Session"> | string
+    id?: UuidFilter<"Session"> | string
+    userId?: UuidFilter<"Session"> | string
     token?: StringFilter<"Session"> | string
     expiresAt?: DateTimeFilter<"Session"> | Date | string
     ipAddress?: StringNullableFilter<"Session"> | string | null
@@ -30211,7 +31280,7 @@ export namespace Prisma {
     deviceId?: StringNullableFilter<"Session"> | string | null
     isActive?: BoolFilter<"Session"> | boolean
     revokedAt?: DateTimeNullableFilter<"Session"> | Date | string | null
-    revokedBy?: StringNullableFilter<"Session"> | string | null
+    revokedBy?: UuidNullableFilter<"Session"> | string | null
     lastActivityAt?: DateTimeFilter<"Session"> | Date | string
     createdAt?: DateTimeFilter<"Session"> | Date | string
     updatedAt?: DateTimeFilter<"Session"> | Date | string
@@ -30241,14 +31310,14 @@ export namespace Prisma {
     AND?: SessionWhereInput | SessionWhereInput[]
     OR?: SessionWhereInput[]
     NOT?: SessionWhereInput | SessionWhereInput[]
-    userId?: StringFilter<"Session"> | string
+    userId?: UuidFilter<"Session"> | string
     expiresAt?: DateTimeFilter<"Session"> | Date | string
     ipAddress?: StringNullableFilter<"Session"> | string | null
     userAgent?: StringNullableFilter<"Session"> | string | null
     deviceId?: StringNullableFilter<"Session"> | string | null
     isActive?: BoolFilter<"Session"> | boolean
     revokedAt?: DateTimeNullableFilter<"Session"> | Date | string | null
-    revokedBy?: StringNullableFilter<"Session"> | string | null
+    revokedBy?: UuidNullableFilter<"Session"> | string | null
     lastActivityAt?: DateTimeFilter<"Session"> | Date | string
     createdAt?: DateTimeFilter<"Session"> | Date | string
     updatedAt?: DateTimeFilter<"Session"> | Date | string
@@ -30278,8 +31347,8 @@ export namespace Prisma {
     AND?: SessionScalarWhereWithAggregatesInput | SessionScalarWhereWithAggregatesInput[]
     OR?: SessionScalarWhereWithAggregatesInput[]
     NOT?: SessionScalarWhereWithAggregatesInput | SessionScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Session"> | string
-    userId?: StringWithAggregatesFilter<"Session"> | string
+    id?: UuidWithAggregatesFilter<"Session"> | string
+    userId?: UuidWithAggregatesFilter<"Session"> | string
     token?: StringWithAggregatesFilter<"Session"> | string
     expiresAt?: DateTimeWithAggregatesFilter<"Session"> | Date | string
     ipAddress?: StringNullableWithAggregatesFilter<"Session"> | string | null
@@ -30287,7 +31356,7 @@ export namespace Prisma {
     deviceId?: StringNullableWithAggregatesFilter<"Session"> | string | null
     isActive?: BoolWithAggregatesFilter<"Session"> | boolean
     revokedAt?: DateTimeNullableWithAggregatesFilter<"Session"> | Date | string | null
-    revokedBy?: StringNullableWithAggregatesFilter<"Session"> | string | null
+    revokedBy?: UuidNullableWithAggregatesFilter<"Session"> | string | null
     lastActivityAt?: DateTimeWithAggregatesFilter<"Session"> | Date | string
     createdAt?: DateTimeWithAggregatesFilter<"Session"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Session"> | Date | string
@@ -30297,8 +31366,8 @@ export namespace Prisma {
     AND?: PasswordResetWhereInput | PasswordResetWhereInput[]
     OR?: PasswordResetWhereInput[]
     NOT?: PasswordResetWhereInput | PasswordResetWhereInput[]
-    id?: StringFilter<"PasswordReset"> | string
-    userId?: StringFilter<"PasswordReset"> | string
+    id?: UuidFilter<"PasswordReset"> | string
+    userId?: UuidFilter<"PasswordReset"> | string
     token?: StringFilter<"PasswordReset"> | string
     expiresAt?: DateTimeFilter<"PasswordReset"> | Date | string
     used?: BoolFilter<"PasswordReset"> | boolean
@@ -30328,7 +31397,7 @@ export namespace Prisma {
     AND?: PasswordResetWhereInput | PasswordResetWhereInput[]
     OR?: PasswordResetWhereInput[]
     NOT?: PasswordResetWhereInput | PasswordResetWhereInput[]
-    userId?: StringFilter<"PasswordReset"> | string
+    userId?: UuidFilter<"PasswordReset"> | string
     expiresAt?: DateTimeFilter<"PasswordReset"> | Date | string
     used?: BoolFilter<"PasswordReset"> | boolean
     usedAt?: DateTimeNullableFilter<"PasswordReset"> | Date | string | null
@@ -30357,8 +31426,8 @@ export namespace Prisma {
     AND?: PasswordResetScalarWhereWithAggregatesInput | PasswordResetScalarWhereWithAggregatesInput[]
     OR?: PasswordResetScalarWhereWithAggregatesInput[]
     NOT?: PasswordResetScalarWhereWithAggregatesInput | PasswordResetScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"PasswordReset"> | string
-    userId?: StringWithAggregatesFilter<"PasswordReset"> | string
+    id?: UuidWithAggregatesFilter<"PasswordReset"> | string
+    userId?: UuidWithAggregatesFilter<"PasswordReset"> | string
     token?: StringWithAggregatesFilter<"PasswordReset"> | string
     expiresAt?: DateTimeWithAggregatesFilter<"PasswordReset"> | Date | string
     used?: BoolWithAggregatesFilter<"PasswordReset"> | boolean
@@ -30372,8 +31441,8 @@ export namespace Prisma {
     AND?: EmailVerificationWhereInput | EmailVerificationWhereInput[]
     OR?: EmailVerificationWhereInput[]
     NOT?: EmailVerificationWhereInput | EmailVerificationWhereInput[]
-    id?: StringFilter<"EmailVerification"> | string
-    userId?: StringFilter<"EmailVerification"> | string
+    id?: UuidFilter<"EmailVerification"> | string
+    userId?: UuidFilter<"EmailVerification"> | string
     token?: StringFilter<"EmailVerification"> | string
     expiresAt?: DateTimeFilter<"EmailVerification"> | Date | string
     email?: StringFilter<"EmailVerification"> | string
@@ -30405,7 +31474,7 @@ export namespace Prisma {
     AND?: EmailVerificationWhereInput | EmailVerificationWhereInput[]
     OR?: EmailVerificationWhereInput[]
     NOT?: EmailVerificationWhereInput | EmailVerificationWhereInput[]
-    userId?: StringFilter<"EmailVerification"> | string
+    userId?: UuidFilter<"EmailVerification"> | string
     expiresAt?: DateTimeFilter<"EmailVerification"> | Date | string
     email?: StringFilter<"EmailVerification"> | string
     verified?: BoolFilter<"EmailVerification"> | boolean
@@ -30436,8 +31505,8 @@ export namespace Prisma {
     AND?: EmailVerificationScalarWhereWithAggregatesInput | EmailVerificationScalarWhereWithAggregatesInput[]
     OR?: EmailVerificationScalarWhereWithAggregatesInput[]
     NOT?: EmailVerificationScalarWhereWithAggregatesInput | EmailVerificationScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"EmailVerification"> | string
-    userId?: StringWithAggregatesFilter<"EmailVerification"> | string
+    id?: UuidWithAggregatesFilter<"EmailVerification"> | string
+    userId?: UuidWithAggregatesFilter<"EmailVerification"> | string
     token?: StringWithAggregatesFilter<"EmailVerification"> | string
     expiresAt?: DateTimeWithAggregatesFilter<"EmailVerification"> | Date | string
     email?: StringWithAggregatesFilter<"EmailVerification"> | string
@@ -30452,8 +31521,8 @@ export namespace Prisma {
     AND?: AuditLogWhereInput | AuditLogWhereInput[]
     OR?: AuditLogWhereInput[]
     NOT?: AuditLogWhereInput | AuditLogWhereInput[]
-    id?: StringFilter<"AuditLog"> | string
-    userId?: StringNullableFilter<"AuditLog"> | string | null
+    id?: UuidFilter<"AuditLog"> | string
+    userId?: UuidNullableFilter<"AuditLog"> | string | null
     action?: EnumAuditActionFilter<"AuditLog"> | $Enums.AuditAction
     entity?: StringFilter<"AuditLog"> | string
     entityId?: StringNullableFilter<"AuditLog"> | string | null
@@ -30461,7 +31530,7 @@ export namespace Prisma {
     newValues?: JsonNullableFilter<"AuditLog">
     ipAddress?: StringNullableFilter<"AuditLog"> | string | null
     userAgent?: StringNullableFilter<"AuditLog"> | string | null
-    organizationId?: StringNullableFilter<"AuditLog"> | string | null
+    organizationId?: UuidNullableFilter<"AuditLog"> | string | null
     metadata?: JsonNullableFilter<"AuditLog">
     createdAt?: DateTimeFilter<"AuditLog"> | Date | string
     user?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
@@ -30488,7 +31557,7 @@ export namespace Prisma {
     AND?: AuditLogWhereInput | AuditLogWhereInput[]
     OR?: AuditLogWhereInput[]
     NOT?: AuditLogWhereInput | AuditLogWhereInput[]
-    userId?: StringNullableFilter<"AuditLog"> | string | null
+    userId?: UuidNullableFilter<"AuditLog"> | string | null
     action?: EnumAuditActionFilter<"AuditLog"> | $Enums.AuditAction
     entity?: StringFilter<"AuditLog"> | string
     entityId?: StringNullableFilter<"AuditLog"> | string | null
@@ -30496,7 +31565,7 @@ export namespace Prisma {
     newValues?: JsonNullableFilter<"AuditLog">
     ipAddress?: StringNullableFilter<"AuditLog"> | string | null
     userAgent?: StringNullableFilter<"AuditLog"> | string | null
-    organizationId?: StringNullableFilter<"AuditLog"> | string | null
+    organizationId?: UuidNullableFilter<"AuditLog"> | string | null
     metadata?: JsonNullableFilter<"AuditLog">
     createdAt?: DateTimeFilter<"AuditLog"> | Date | string
     user?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
@@ -30524,8 +31593,8 @@ export namespace Prisma {
     AND?: AuditLogScalarWhereWithAggregatesInput | AuditLogScalarWhereWithAggregatesInput[]
     OR?: AuditLogScalarWhereWithAggregatesInput[]
     NOT?: AuditLogScalarWhereWithAggregatesInput | AuditLogScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"AuditLog"> | string
-    userId?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
+    id?: UuidWithAggregatesFilter<"AuditLog"> | string
+    userId?: UuidNullableWithAggregatesFilter<"AuditLog"> | string | null
     action?: EnumAuditActionWithAggregatesFilter<"AuditLog"> | $Enums.AuditAction
     entity?: StringWithAggregatesFilter<"AuditLog"> | string
     entityId?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
@@ -30533,7 +31602,7 @@ export namespace Prisma {
     newValues?: JsonNullableWithAggregatesFilter<"AuditLog">
     ipAddress?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
     userAgent?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
-    organizationId?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
+    organizationId?: UuidNullableWithAggregatesFilter<"AuditLog"> | string | null
     metadata?: JsonNullableWithAggregatesFilter<"AuditLog">
     createdAt?: DateTimeWithAggregatesFilter<"AuditLog"> | Date | string
   }
@@ -30542,8 +31611,8 @@ export namespace Prisma {
     AND?: CategoryWhereInput | CategoryWhereInput[]
     OR?: CategoryWhereInput[]
     NOT?: CategoryWhereInput | CategoryWhereInput[]
-    id?: StringFilter<"Category"> | string
-    organizationId?: StringFilter<"Category"> | string
+    id?: UuidFilter<"Category"> | string
+    organizationId?: UuidFilter<"Category"> | string
     name?: StringFilter<"Category"> | string
     description?: StringNullableFilter<"Category"> | string | null
     isActive?: BoolFilter<"Category"> | boolean
@@ -30574,7 +31643,7 @@ export namespace Prisma {
     AND?: CategoryWhereInput | CategoryWhereInput[]
     OR?: CategoryWhereInput[]
     NOT?: CategoryWhereInput | CategoryWhereInput[]
-    organizationId?: StringFilter<"Category"> | string
+    organizationId?: UuidFilter<"Category"> | string
     name?: StringFilter<"Category"> | string
     description?: StringNullableFilter<"Category"> | string | null
     isActive?: BoolFilter<"Category"> | boolean
@@ -30605,8 +31674,8 @@ export namespace Prisma {
     AND?: CategoryScalarWhereWithAggregatesInput | CategoryScalarWhereWithAggregatesInput[]
     OR?: CategoryScalarWhereWithAggregatesInput[]
     NOT?: CategoryScalarWhereWithAggregatesInput | CategoryScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Category"> | string
-    organizationId?: StringWithAggregatesFilter<"Category"> | string
+    id?: UuidWithAggregatesFilter<"Category"> | string
+    organizationId?: UuidWithAggregatesFilter<"Category"> | string
     name?: StringWithAggregatesFilter<"Category"> | string
     description?: StringNullableWithAggregatesFilter<"Category"> | string | null
     isActive?: BoolWithAggregatesFilter<"Category"> | boolean
@@ -30620,8 +31689,8 @@ export namespace Prisma {
     AND?: BrandWhereInput | BrandWhereInput[]
     OR?: BrandWhereInput[]
     NOT?: BrandWhereInput | BrandWhereInput[]
-    id?: StringFilter<"Brand"> | string
-    organizationId?: StringFilter<"Brand"> | string
+    id?: UuidFilter<"Brand"> | string
+    organizationId?: UuidFilter<"Brand"> | string
     name?: StringFilter<"Brand"> | string
     logo?: StringNullableFilter<"Brand"> | string | null
     description?: StringNullableFilter<"Brand"> | string | null
@@ -30654,7 +31723,7 @@ export namespace Prisma {
     AND?: BrandWhereInput | BrandWhereInput[]
     OR?: BrandWhereInput[]
     NOT?: BrandWhereInput | BrandWhereInput[]
-    organizationId?: StringFilter<"Brand"> | string
+    organizationId?: UuidFilter<"Brand"> | string
     name?: StringFilter<"Brand"> | string
     logo?: StringNullableFilter<"Brand"> | string | null
     description?: StringNullableFilter<"Brand"> | string | null
@@ -30687,8 +31756,8 @@ export namespace Prisma {
     AND?: BrandScalarWhereWithAggregatesInput | BrandScalarWhereWithAggregatesInput[]
     OR?: BrandScalarWhereWithAggregatesInput[]
     NOT?: BrandScalarWhereWithAggregatesInput | BrandScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Brand"> | string
-    organizationId?: StringWithAggregatesFilter<"Brand"> | string
+    id?: UuidWithAggregatesFilter<"Brand"> | string
+    organizationId?: UuidWithAggregatesFilter<"Brand"> | string
     name?: StringWithAggregatesFilter<"Brand"> | string
     logo?: StringNullableWithAggregatesFilter<"Brand"> | string | null
     description?: StringNullableWithAggregatesFilter<"Brand"> | string | null
@@ -30703,8 +31772,8 @@ export namespace Prisma {
     AND?: UnitMeasureWhereInput | UnitMeasureWhereInput[]
     OR?: UnitMeasureWhereInput[]
     NOT?: UnitMeasureWhereInput | UnitMeasureWhereInput[]
-    id?: StringFilter<"UnitMeasure"> | string
-    organizationId?: StringFilter<"UnitMeasure"> | string
+    id?: UuidFilter<"UnitMeasure"> | string
+    organizationId?: UuidFilter<"UnitMeasure"> | string
     name?: StringFilter<"UnitMeasure"> | string
     abbreviation?: StringFilter<"UnitMeasure"> | string
     isActive?: BoolFilter<"UnitMeasure"> | boolean
@@ -30737,7 +31806,7 @@ export namespace Prisma {
     AND?: UnitMeasureWhereInput | UnitMeasureWhereInput[]
     OR?: UnitMeasureWhereInput[]
     NOT?: UnitMeasureWhereInput | UnitMeasureWhereInput[]
-    organizationId?: StringFilter<"UnitMeasure"> | string
+    organizationId?: UuidFilter<"UnitMeasure"> | string
     name?: StringFilter<"UnitMeasure"> | string
     abbreviation?: StringFilter<"UnitMeasure"> | string
     isActive?: BoolFilter<"UnitMeasure"> | boolean
@@ -30769,8 +31838,8 @@ export namespace Prisma {
     AND?: UnitMeasureScalarWhereWithAggregatesInput | UnitMeasureScalarWhereWithAggregatesInput[]
     OR?: UnitMeasureScalarWhereWithAggregatesInput[]
     NOT?: UnitMeasureScalarWhereWithAggregatesInput | UnitMeasureScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"UnitMeasure"> | string
-    organizationId?: StringWithAggregatesFilter<"UnitMeasure"> | string
+    id?: UuidWithAggregatesFilter<"UnitMeasure"> | string
+    organizationId?: UuidWithAggregatesFilter<"UnitMeasure"> | string
     name?: StringWithAggregatesFilter<"UnitMeasure"> | string
     abbreviation?: StringWithAggregatesFilter<"UnitMeasure"> | string
     isActive?: BoolWithAggregatesFilter<"UnitMeasure"> | boolean
@@ -30784,16 +31853,16 @@ export namespace Prisma {
     AND?: ProductWhereInput | ProductWhereInput[]
     OR?: ProductWhereInput[]
     NOT?: ProductWhereInput | ProductWhereInput[]
-    id?: StringFilter<"Product"> | string
-    organizationId?: StringFilter<"Product"> | string
+    id?: UuidFilter<"Product"> | string
+    organizationId?: UuidFilter<"Product"> | string
     name?: StringFilter<"Product"> | string
     description?: StringNullableFilter<"Product"> | string | null
     image?: StringNullableFilter<"Product"> | string | null
     barcode?: StringNullableFilter<"Product"> | string | null
     sku?: StringNullableFilter<"Product"> | string | null
-    categoryId?: StringNullableFilter<"Product"> | string | null
-    brandId?: StringNullableFilter<"Product"> | string | null
-    unitMeasureId?: StringNullableFilter<"Product"> | string | null
+    categoryId?: UuidNullableFilter<"Product"> | string | null
+    brandId?: UuidNullableFilter<"Product"> | string | null
+    unitMeasureId?: UuidNullableFilter<"Product"> | string | null
     costPrice?: DecimalFilter<"Product"> | Decimal | DecimalJsLike | number | string
     salePrice?: DecimalFilter<"Product"> | Decimal | DecimalJsLike | number | string
     minStock?: IntFilter<"Product"> | number
@@ -30856,15 +31925,15 @@ export namespace Prisma {
     AND?: ProductWhereInput | ProductWhereInput[]
     OR?: ProductWhereInput[]
     NOT?: ProductWhereInput | ProductWhereInput[]
-    organizationId?: StringFilter<"Product"> | string
+    organizationId?: UuidFilter<"Product"> | string
     name?: StringFilter<"Product"> | string
     description?: StringNullableFilter<"Product"> | string | null
     image?: StringNullableFilter<"Product"> | string | null
     barcode?: StringNullableFilter<"Product"> | string | null
     sku?: StringNullableFilter<"Product"> | string | null
-    categoryId?: StringNullableFilter<"Product"> | string | null
-    brandId?: StringNullableFilter<"Product"> | string | null
-    unitMeasureId?: StringNullableFilter<"Product"> | string | null
+    categoryId?: UuidNullableFilter<"Product"> | string | null
+    brandId?: UuidNullableFilter<"Product"> | string | null
+    unitMeasureId?: UuidNullableFilter<"Product"> | string | null
     costPrice?: DecimalFilter<"Product"> | Decimal | DecimalJsLike | number | string
     salePrice?: DecimalFilter<"Product"> | Decimal | DecimalJsLike | number | string
     minStock?: IntFilter<"Product"> | number
@@ -30924,16 +31993,16 @@ export namespace Prisma {
     AND?: ProductScalarWhereWithAggregatesInput | ProductScalarWhereWithAggregatesInput[]
     OR?: ProductScalarWhereWithAggregatesInput[]
     NOT?: ProductScalarWhereWithAggregatesInput | ProductScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Product"> | string
-    organizationId?: StringWithAggregatesFilter<"Product"> | string
+    id?: UuidWithAggregatesFilter<"Product"> | string
+    organizationId?: UuidWithAggregatesFilter<"Product"> | string
     name?: StringWithAggregatesFilter<"Product"> | string
     description?: StringNullableWithAggregatesFilter<"Product"> | string | null
     image?: StringNullableWithAggregatesFilter<"Product"> | string | null
     barcode?: StringNullableWithAggregatesFilter<"Product"> | string | null
     sku?: StringNullableWithAggregatesFilter<"Product"> | string | null
-    categoryId?: StringNullableWithAggregatesFilter<"Product"> | string | null
-    brandId?: StringNullableWithAggregatesFilter<"Product"> | string | null
-    unitMeasureId?: StringNullableWithAggregatesFilter<"Product"> | string | null
+    categoryId?: UuidNullableWithAggregatesFilter<"Product"> | string | null
+    brandId?: UuidNullableWithAggregatesFilter<"Product"> | string | null
+    unitMeasureId?: UuidNullableWithAggregatesFilter<"Product"> | string | null
     costPrice?: DecimalWithAggregatesFilter<"Product"> | Decimal | DecimalJsLike | number | string
     salePrice?: DecimalWithAggregatesFilter<"Product"> | Decimal | DecimalJsLike | number | string
     minStock?: IntWithAggregatesFilter<"Product"> | number
@@ -30954,8 +32023,8 @@ export namespace Prisma {
     AND?: CustomerWhereInput | CustomerWhereInput[]
     OR?: CustomerWhereInput[]
     NOT?: CustomerWhereInput | CustomerWhereInput[]
-    id?: StringFilter<"Customer"> | string
-    organizationId?: StringFilter<"Customer"> | string
+    id?: UuidFilter<"Customer"> | string
+    organizationId?: UuidFilter<"Customer"> | string
     firstName?: StringFilter<"Customer"> | string
     lastName?: StringFilter<"Customer"> | string
     email?: StringNullableFilter<"Customer"> | string | null
@@ -31000,7 +32069,7 @@ export namespace Prisma {
     AND?: CustomerWhereInput | CustomerWhereInput[]
     OR?: CustomerWhereInput[]
     NOT?: CustomerWhereInput | CustomerWhereInput[]
-    organizationId?: StringFilter<"Customer"> | string
+    organizationId?: UuidFilter<"Customer"> | string
     firstName?: StringFilter<"Customer"> | string
     lastName?: StringFilter<"Customer"> | string
     email?: StringNullableFilter<"Customer"> | string | null
@@ -31045,8 +32114,8 @@ export namespace Prisma {
     AND?: CustomerScalarWhereWithAggregatesInput | CustomerScalarWhereWithAggregatesInput[]
     OR?: CustomerScalarWhereWithAggregatesInput[]
     NOT?: CustomerScalarWhereWithAggregatesInput | CustomerScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Customer"> | string
-    organizationId?: StringWithAggregatesFilter<"Customer"> | string
+    id?: UuidWithAggregatesFilter<"Customer"> | string
+    organizationId?: UuidWithAggregatesFilter<"Customer"> | string
     firstName?: StringWithAggregatesFilter<"Customer"> | string
     lastName?: StringWithAggregatesFilter<"Customer"> | string
     email?: StringNullableWithAggregatesFilter<"Customer"> | string | null
@@ -31067,8 +32136,8 @@ export namespace Prisma {
     AND?: SupplierWhereInput | SupplierWhereInput[]
     OR?: SupplierWhereInput[]
     NOT?: SupplierWhereInput | SupplierWhereInput[]
-    id?: StringFilter<"Supplier"> | string
-    organizationId?: StringFilter<"Supplier"> | string
+    id?: UuidFilter<"Supplier"> | string
+    organizationId?: UuidFilter<"Supplier"> | string
     name?: StringFilter<"Supplier"> | string
     contactName?: StringNullableFilter<"Supplier"> | string | null
     email?: StringNullableFilter<"Supplier"> | string | null
@@ -31111,7 +32180,7 @@ export namespace Prisma {
     AND?: SupplierWhereInput | SupplierWhereInput[]
     OR?: SupplierWhereInput[]
     NOT?: SupplierWhereInput | SupplierWhereInput[]
-    organizationId?: StringFilter<"Supplier"> | string
+    organizationId?: UuidFilter<"Supplier"> | string
     name?: StringFilter<"Supplier"> | string
     contactName?: StringNullableFilter<"Supplier"> | string | null
     email?: StringNullableFilter<"Supplier"> | string | null
@@ -31154,8 +32223,8 @@ export namespace Prisma {
     AND?: SupplierScalarWhereWithAggregatesInput | SupplierScalarWhereWithAggregatesInput[]
     OR?: SupplierScalarWhereWithAggregatesInput[]
     NOT?: SupplierScalarWhereWithAggregatesInput | SupplierScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Supplier"> | string
-    organizationId?: StringWithAggregatesFilter<"Supplier"> | string
+    id?: UuidWithAggregatesFilter<"Supplier"> | string
+    organizationId?: UuidWithAggregatesFilter<"Supplier"> | string
     name?: StringWithAggregatesFilter<"Supplier"> | string
     contactName?: StringNullableWithAggregatesFilter<"Supplier"> | string | null
     email?: StringNullableWithAggregatesFilter<"Supplier"> | string | null
@@ -31175,8 +32244,8 @@ export namespace Prisma {
     AND?: PaymentMethodWhereInput | PaymentMethodWhereInput[]
     OR?: PaymentMethodWhereInput[]
     NOT?: PaymentMethodWhereInput | PaymentMethodWhereInput[]
-    id?: StringFilter<"PaymentMethod"> | string
-    organizationId?: StringFilter<"PaymentMethod"> | string
+    id?: UuidFilter<"PaymentMethod"> | string
+    organizationId?: UuidFilter<"PaymentMethod"> | string
     name?: StringFilter<"PaymentMethod"> | string
     type?: EnumPaymentTypeFilter<"PaymentMethod"> | $Enums.PaymentType
     isActive?: BoolFilter<"PaymentMethod"> | boolean
@@ -31207,7 +32276,7 @@ export namespace Prisma {
     AND?: PaymentMethodWhereInput | PaymentMethodWhereInput[]
     OR?: PaymentMethodWhereInput[]
     NOT?: PaymentMethodWhereInput | PaymentMethodWhereInput[]
-    organizationId?: StringFilter<"PaymentMethod"> | string
+    organizationId?: UuidFilter<"PaymentMethod"> | string
     name?: StringFilter<"PaymentMethod"> | string
     type?: EnumPaymentTypeFilter<"PaymentMethod"> | $Enums.PaymentType
     isActive?: BoolFilter<"PaymentMethod"> | boolean
@@ -31238,8 +32307,8 @@ export namespace Prisma {
     AND?: PaymentMethodScalarWhereWithAggregatesInput | PaymentMethodScalarWhereWithAggregatesInput[]
     OR?: PaymentMethodScalarWhereWithAggregatesInput[]
     NOT?: PaymentMethodScalarWhereWithAggregatesInput | PaymentMethodScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"PaymentMethod"> | string
-    organizationId?: StringWithAggregatesFilter<"PaymentMethod"> | string
+    id?: UuidWithAggregatesFilter<"PaymentMethod"> | string
+    organizationId?: UuidWithAggregatesFilter<"PaymentMethod"> | string
     name?: StringWithAggregatesFilter<"PaymentMethod"> | string
     type?: EnumPaymentTypeWithAggregatesFilter<"PaymentMethod"> | $Enums.PaymentType
     isActive?: BoolWithAggregatesFilter<"PaymentMethod"> | boolean
@@ -31253,12 +32322,12 @@ export namespace Prisma {
     AND?: SaleWhereInput | SaleWhereInput[]
     OR?: SaleWhereInput[]
     NOT?: SaleWhereInput | SaleWhereInput[]
-    id?: StringFilter<"Sale"> | string
-    organizationId?: StringFilter<"Sale"> | string
-    storeId?: StringFilter<"Sale"> | string
+    id?: UuidFilter<"Sale"> | string
+    organizationId?: UuidFilter<"Sale"> | string
+    storeId?: UuidFilter<"Sale"> | string
     saleNumber?: StringFilter<"Sale"> | string
-    customerId?: StringNullableFilter<"Sale"> | string | null
-    userId?: StringFilter<"Sale"> | string
+    customerId?: UuidNullableFilter<"Sale"> | string | null
+    userId?: UuidFilter<"Sale"> | string
     subtotal?: DecimalFilter<"Sale"> | Decimal | DecimalJsLike | number | string
     total?: DecimalFilter<"Sale"> | Decimal | DecimalJsLike | number | string
     status?: EnumSaleStatusFilter<"Sale"> | $Enums.SaleStatus
@@ -31307,11 +32376,11 @@ export namespace Prisma {
     AND?: SaleWhereInput | SaleWhereInput[]
     OR?: SaleWhereInput[]
     NOT?: SaleWhereInput | SaleWhereInput[]
-    organizationId?: StringFilter<"Sale"> | string
-    storeId?: StringFilter<"Sale"> | string
+    organizationId?: UuidFilter<"Sale"> | string
+    storeId?: UuidFilter<"Sale"> | string
     saleNumber?: StringFilter<"Sale"> | string
-    customerId?: StringNullableFilter<"Sale"> | string | null
-    userId?: StringFilter<"Sale"> | string
+    customerId?: UuidNullableFilter<"Sale"> | string | null
+    userId?: UuidFilter<"Sale"> | string
     subtotal?: DecimalFilter<"Sale"> | Decimal | DecimalJsLike | number | string
     total?: DecimalFilter<"Sale"> | Decimal | DecimalJsLike | number | string
     status?: EnumSaleStatusFilter<"Sale"> | $Enums.SaleStatus
@@ -31359,12 +32428,12 @@ export namespace Prisma {
     AND?: SaleScalarWhereWithAggregatesInput | SaleScalarWhereWithAggregatesInput[]
     OR?: SaleScalarWhereWithAggregatesInput[]
     NOT?: SaleScalarWhereWithAggregatesInput | SaleScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Sale"> | string
-    organizationId?: StringWithAggregatesFilter<"Sale"> | string
-    storeId?: StringWithAggregatesFilter<"Sale"> | string
+    id?: UuidWithAggregatesFilter<"Sale"> | string
+    organizationId?: UuidWithAggregatesFilter<"Sale"> | string
+    storeId?: UuidWithAggregatesFilter<"Sale"> | string
     saleNumber?: StringWithAggregatesFilter<"Sale"> | string
-    customerId?: StringNullableWithAggregatesFilter<"Sale"> | string | null
-    userId?: StringWithAggregatesFilter<"Sale"> | string
+    customerId?: UuidNullableWithAggregatesFilter<"Sale"> | string | null
+    userId?: UuidWithAggregatesFilter<"Sale"> | string
     subtotal?: DecimalWithAggregatesFilter<"Sale"> | Decimal | DecimalJsLike | number | string
     total?: DecimalWithAggregatesFilter<"Sale"> | Decimal | DecimalJsLike | number | string
     status?: EnumSaleStatusWithAggregatesFilter<"Sale"> | $Enums.SaleStatus
@@ -31382,10 +32451,10 @@ export namespace Prisma {
     AND?: SaleItemWhereInput | SaleItemWhereInput[]
     OR?: SaleItemWhereInput[]
     NOT?: SaleItemWhereInput | SaleItemWhereInput[]
-    id?: StringFilter<"SaleItem"> | string
-    saleId?: StringFilter<"SaleItem"> | string
-    productId?: StringFilter<"SaleItem"> | string
-    unitMeasureId?: StringNullableFilter<"SaleItem"> | string | null
+    id?: UuidFilter<"SaleItem"> | string
+    saleId?: UuidFilter<"SaleItem"> | string
+    productId?: UuidFilter<"SaleItem"> | string
+    unitMeasureId?: UuidNullableFilter<"SaleItem"> | string | null
     quantity?: IntFilter<"SaleItem"> | number
     unitPrice?: DecimalFilter<"SaleItem"> | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalFilter<"SaleItem"> | Decimal | DecimalJsLike | number | string
@@ -31420,9 +32489,9 @@ export namespace Prisma {
     AND?: SaleItemWhereInput | SaleItemWhereInput[]
     OR?: SaleItemWhereInput[]
     NOT?: SaleItemWhereInput | SaleItemWhereInput[]
-    saleId?: StringFilter<"SaleItem"> | string
-    productId?: StringFilter<"SaleItem"> | string
-    unitMeasureId?: StringNullableFilter<"SaleItem"> | string | null
+    saleId?: UuidFilter<"SaleItem"> | string
+    productId?: UuidFilter<"SaleItem"> | string
+    unitMeasureId?: UuidNullableFilter<"SaleItem"> | string | null
     quantity?: IntFilter<"SaleItem"> | number
     unitPrice?: DecimalFilter<"SaleItem"> | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalFilter<"SaleItem"> | Decimal | DecimalJsLike | number | string
@@ -31458,10 +32527,10 @@ export namespace Prisma {
     AND?: SaleItemScalarWhereWithAggregatesInput | SaleItemScalarWhereWithAggregatesInput[]
     OR?: SaleItemScalarWhereWithAggregatesInput[]
     NOT?: SaleItemScalarWhereWithAggregatesInput | SaleItemScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"SaleItem"> | string
-    saleId?: StringWithAggregatesFilter<"SaleItem"> | string
-    productId?: StringWithAggregatesFilter<"SaleItem"> | string
-    unitMeasureId?: StringNullableWithAggregatesFilter<"SaleItem"> | string | null
+    id?: UuidWithAggregatesFilter<"SaleItem"> | string
+    saleId?: UuidWithAggregatesFilter<"SaleItem"> | string
+    productId?: UuidWithAggregatesFilter<"SaleItem"> | string
+    unitMeasureId?: UuidNullableWithAggregatesFilter<"SaleItem"> | string | null
     quantity?: IntWithAggregatesFilter<"SaleItem"> | number
     unitPrice?: DecimalWithAggregatesFilter<"SaleItem"> | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalWithAggregatesFilter<"SaleItem"> | Decimal | DecimalJsLike | number | string
@@ -31475,9 +32544,9 @@ export namespace Prisma {
     AND?: SalePaymentWhereInput | SalePaymentWhereInput[]
     OR?: SalePaymentWhereInput[]
     NOT?: SalePaymentWhereInput | SalePaymentWhereInput[]
-    id?: StringFilter<"SalePayment"> | string
-    saleId?: StringFilter<"SalePayment"> | string
-    paymentMethodId?: StringFilter<"SalePayment"> | string
+    id?: UuidFilter<"SalePayment"> | string
+    saleId?: UuidFilter<"SalePayment"> | string
+    paymentMethodId?: UuidFilter<"SalePayment"> | string
     amount?: DecimalFilter<"SalePayment"> | Decimal | DecimalJsLike | number | string
     reference?: StringNullableFilter<"SalePayment"> | string | null
     notes?: StringNullableFilter<"SalePayment"> | string | null
@@ -31511,8 +32580,8 @@ export namespace Prisma {
     AND?: SalePaymentWhereInput | SalePaymentWhereInput[]
     OR?: SalePaymentWhereInput[]
     NOT?: SalePaymentWhereInput | SalePaymentWhereInput[]
-    saleId?: StringFilter<"SalePayment"> | string
-    paymentMethodId?: StringFilter<"SalePayment"> | string
+    saleId?: UuidFilter<"SalePayment"> | string
+    paymentMethodId?: UuidFilter<"SalePayment"> | string
     amount?: DecimalFilter<"SalePayment"> | Decimal | DecimalJsLike | number | string
     reference?: StringNullableFilter<"SalePayment"> | string | null
     notes?: StringNullableFilter<"SalePayment"> | string | null
@@ -31548,9 +32617,9 @@ export namespace Prisma {
     AND?: SalePaymentScalarWhereWithAggregatesInput | SalePaymentScalarWhereWithAggregatesInput[]
     OR?: SalePaymentScalarWhereWithAggregatesInput[]
     NOT?: SalePaymentScalarWhereWithAggregatesInput | SalePaymentScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"SalePayment"> | string
-    saleId?: StringWithAggregatesFilter<"SalePayment"> | string
-    paymentMethodId?: StringWithAggregatesFilter<"SalePayment"> | string
+    id?: UuidWithAggregatesFilter<"SalePayment"> | string
+    saleId?: UuidWithAggregatesFilter<"SalePayment"> | string
+    paymentMethodId?: UuidWithAggregatesFilter<"SalePayment"> | string
     amount?: DecimalWithAggregatesFilter<"SalePayment"> | Decimal | DecimalJsLike | number | string
     reference?: StringNullableWithAggregatesFilter<"SalePayment"> | string | null
     notes?: StringNullableWithAggregatesFilter<"SalePayment"> | string | null
@@ -31565,9 +32634,9 @@ export namespace Prisma {
     AND?: PurchaseWhereInput | PurchaseWhereInput[]
     OR?: PurchaseWhereInput[]
     NOT?: PurchaseWhereInput | PurchaseWhereInput[]
-    id?: StringFilter<"Purchase"> | string
-    organizationId?: StringFilter<"Purchase"> | string
-    supplierId?: StringFilter<"Purchase"> | string
+    id?: UuidFilter<"Purchase"> | string
+    organizationId?: UuidFilter<"Purchase"> | string
+    supplierId?: UuidFilter<"Purchase"> | string
     purchaseNumber?: StringFilter<"Purchase"> | string
     total?: DecimalFilter<"Purchase"> | Decimal | DecimalJsLike | number | string
     status?: EnumPurchaseStatusFilter<"Purchase"> | $Enums.PurchaseStatus
@@ -31605,8 +32674,8 @@ export namespace Prisma {
     AND?: PurchaseWhereInput | PurchaseWhereInput[]
     OR?: PurchaseWhereInput[]
     NOT?: PurchaseWhereInput | PurchaseWhereInput[]
-    organizationId?: StringFilter<"Purchase"> | string
-    supplierId?: StringFilter<"Purchase"> | string
+    organizationId?: UuidFilter<"Purchase"> | string
+    supplierId?: UuidFilter<"Purchase"> | string
     purchaseNumber?: StringFilter<"Purchase"> | string
     total?: DecimalFilter<"Purchase"> | Decimal | DecimalJsLike | number | string
     status?: EnumPurchaseStatusFilter<"Purchase"> | $Enums.PurchaseStatus
@@ -31646,9 +32715,9 @@ export namespace Prisma {
     AND?: PurchaseScalarWhereWithAggregatesInput | PurchaseScalarWhereWithAggregatesInput[]
     OR?: PurchaseScalarWhereWithAggregatesInput[]
     NOT?: PurchaseScalarWhereWithAggregatesInput | PurchaseScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Purchase"> | string
-    organizationId?: StringWithAggregatesFilter<"Purchase"> | string
-    supplierId?: StringWithAggregatesFilter<"Purchase"> | string
+    id?: UuidWithAggregatesFilter<"Purchase"> | string
+    organizationId?: UuidWithAggregatesFilter<"Purchase"> | string
+    supplierId?: UuidWithAggregatesFilter<"Purchase"> | string
     purchaseNumber?: StringWithAggregatesFilter<"Purchase"> | string
     total?: DecimalWithAggregatesFilter<"Purchase"> | Decimal | DecimalJsLike | number | string
     status?: EnumPurchaseStatusWithAggregatesFilter<"Purchase"> | $Enums.PurchaseStatus
@@ -31665,9 +32734,9 @@ export namespace Prisma {
     AND?: PurchaseItemWhereInput | PurchaseItemWhereInput[]
     OR?: PurchaseItemWhereInput[]
     NOT?: PurchaseItemWhereInput | PurchaseItemWhereInput[]
-    id?: StringFilter<"PurchaseItem"> | string
-    purchaseId?: StringFilter<"PurchaseItem"> | string
-    productId?: StringFilter<"PurchaseItem"> | string
+    id?: UuidFilter<"PurchaseItem"> | string
+    purchaseId?: UuidFilter<"PurchaseItem"> | string
+    productId?: UuidFilter<"PurchaseItem"> | string
     quantity?: IntFilter<"PurchaseItem"> | number
     unitPrice?: DecimalFilter<"PurchaseItem"> | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalFilter<"PurchaseItem"> | Decimal | DecimalJsLike | number | string
@@ -31699,8 +32768,8 @@ export namespace Prisma {
     AND?: PurchaseItemWhereInput | PurchaseItemWhereInput[]
     OR?: PurchaseItemWhereInput[]
     NOT?: PurchaseItemWhereInput | PurchaseItemWhereInput[]
-    purchaseId?: StringFilter<"PurchaseItem"> | string
-    productId?: StringFilter<"PurchaseItem"> | string
+    purchaseId?: UuidFilter<"PurchaseItem"> | string
+    productId?: UuidFilter<"PurchaseItem"> | string
     quantity?: IntFilter<"PurchaseItem"> | number
     unitPrice?: DecimalFilter<"PurchaseItem"> | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalFilter<"PurchaseItem"> | Decimal | DecimalJsLike | number | string
@@ -31734,9 +32803,9 @@ export namespace Prisma {
     AND?: PurchaseItemScalarWhereWithAggregatesInput | PurchaseItemScalarWhereWithAggregatesInput[]
     OR?: PurchaseItemScalarWhereWithAggregatesInput[]
     NOT?: PurchaseItemScalarWhereWithAggregatesInput | PurchaseItemScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"PurchaseItem"> | string
-    purchaseId?: StringWithAggregatesFilter<"PurchaseItem"> | string
-    productId?: StringWithAggregatesFilter<"PurchaseItem"> | string
+    id?: UuidWithAggregatesFilter<"PurchaseItem"> | string
+    purchaseId?: UuidWithAggregatesFilter<"PurchaseItem"> | string
+    productId?: UuidWithAggregatesFilter<"PurchaseItem"> | string
     quantity?: IntWithAggregatesFilter<"PurchaseItem"> | number
     unitPrice?: DecimalWithAggregatesFilter<"PurchaseItem"> | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalWithAggregatesFilter<"PurchaseItem"> | Decimal | DecimalJsLike | number | string
@@ -31750,16 +32819,16 @@ export namespace Prisma {
     AND?: StockMovementWhereInput | StockMovementWhereInput[]
     OR?: StockMovementWhereInput[]
     NOT?: StockMovementWhereInput | StockMovementWhereInput[]
-    id?: StringFilter<"StockMovement"> | string
-    organizationId?: StringFilter<"StockMovement"> | string
-    productId?: StringFilter<"StockMovement"> | string
-    storeId?: StringNullableFilter<"StockMovement"> | string | null
+    id?: UuidFilter<"StockMovement"> | string
+    organizationId?: UuidFilter<"StockMovement"> | string
+    productId?: UuidFilter<"StockMovement"> | string
+    storeId?: UuidNullableFilter<"StockMovement"> | string | null
     type?: EnumStockMovementTypeFilter<"StockMovement"> | $Enums.StockMovementType
     quantity?: IntFilter<"StockMovement"> | number
     previousStock?: IntFilter<"StockMovement"> | number
     newStock?: IntFilter<"StockMovement"> | number
     reason?: StringNullableFilter<"StockMovement"> | string | null
-    userId?: StringNullableFilter<"StockMovement"> | string | null
+    userId?: UuidNullableFilter<"StockMovement"> | string | null
     reference?: StringNullableFilter<"StockMovement"> | string | null
     createdAt?: DateTimeFilter<"StockMovement"> | Date | string
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
@@ -31790,15 +32859,15 @@ export namespace Prisma {
     AND?: StockMovementWhereInput | StockMovementWhereInput[]
     OR?: StockMovementWhereInput[]
     NOT?: StockMovementWhereInput | StockMovementWhereInput[]
-    organizationId?: StringFilter<"StockMovement"> | string
-    productId?: StringFilter<"StockMovement"> | string
-    storeId?: StringNullableFilter<"StockMovement"> | string | null
+    organizationId?: UuidFilter<"StockMovement"> | string
+    productId?: UuidFilter<"StockMovement"> | string
+    storeId?: UuidNullableFilter<"StockMovement"> | string | null
     type?: EnumStockMovementTypeFilter<"StockMovement"> | $Enums.StockMovementType
     quantity?: IntFilter<"StockMovement"> | number
     previousStock?: IntFilter<"StockMovement"> | number
     newStock?: IntFilter<"StockMovement"> | number
     reason?: StringNullableFilter<"StockMovement"> | string | null
-    userId?: StringNullableFilter<"StockMovement"> | string | null
+    userId?: UuidNullableFilter<"StockMovement"> | string | null
     reference?: StringNullableFilter<"StockMovement"> | string | null
     createdAt?: DateTimeFilter<"StockMovement"> | Date | string
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
@@ -31830,16 +32899,16 @@ export namespace Prisma {
     AND?: StockMovementScalarWhereWithAggregatesInput | StockMovementScalarWhereWithAggregatesInput[]
     OR?: StockMovementScalarWhereWithAggregatesInput[]
     NOT?: StockMovementScalarWhereWithAggregatesInput | StockMovementScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"StockMovement"> | string
-    organizationId?: StringWithAggregatesFilter<"StockMovement"> | string
-    productId?: StringWithAggregatesFilter<"StockMovement"> | string
-    storeId?: StringNullableWithAggregatesFilter<"StockMovement"> | string | null
+    id?: UuidWithAggregatesFilter<"StockMovement"> | string
+    organizationId?: UuidWithAggregatesFilter<"StockMovement"> | string
+    productId?: UuidWithAggregatesFilter<"StockMovement"> | string
+    storeId?: UuidNullableWithAggregatesFilter<"StockMovement"> | string | null
     type?: EnumStockMovementTypeWithAggregatesFilter<"StockMovement"> | $Enums.StockMovementType
     quantity?: IntWithAggregatesFilter<"StockMovement"> | number
     previousStock?: IntWithAggregatesFilter<"StockMovement"> | number
     newStock?: IntWithAggregatesFilter<"StockMovement"> | number
     reason?: StringNullableWithAggregatesFilter<"StockMovement"> | string | null
-    userId?: StringNullableWithAggregatesFilter<"StockMovement"> | string | null
+    userId?: UuidNullableWithAggregatesFilter<"StockMovement"> | string | null
     reference?: StringNullableWithAggregatesFilter<"StockMovement"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"StockMovement"> | Date | string
   }
@@ -31848,8 +32917,8 @@ export namespace Prisma {
     AND?: SystemConfigWhereInput | SystemConfigWhereInput[]
     OR?: SystemConfigWhereInput[]
     NOT?: SystemConfigWhereInput | SystemConfigWhereInput[]
-    id?: StringFilter<"SystemConfig"> | string
-    organizationId?: StringFilter<"SystemConfig"> | string
+    id?: UuidFilter<"SystemConfig"> | string
+    organizationId?: UuidFilter<"SystemConfig"> | string
     key?: StringFilter<"SystemConfig"> | string
     value?: StringFilter<"SystemConfig"> | string
     type?: StringFilter<"SystemConfig"> | string
@@ -31880,7 +32949,7 @@ export namespace Prisma {
     AND?: SystemConfigWhereInput | SystemConfigWhereInput[]
     OR?: SystemConfigWhereInput[]
     NOT?: SystemConfigWhereInput | SystemConfigWhereInput[]
-    organizationId?: StringFilter<"SystemConfig"> | string
+    organizationId?: UuidFilter<"SystemConfig"> | string
     key?: StringFilter<"SystemConfig"> | string
     value?: StringFilter<"SystemConfig"> | string
     type?: StringFilter<"SystemConfig"> | string
@@ -31912,8 +32981,8 @@ export namespace Prisma {
     AND?: SystemConfigScalarWhereWithAggregatesInput | SystemConfigScalarWhereWithAggregatesInput[]
     OR?: SystemConfigScalarWhereWithAggregatesInput[]
     NOT?: SystemConfigScalarWhereWithAggregatesInput | SystemConfigScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"SystemConfig"> | string
-    organizationId?: StringWithAggregatesFilter<"SystemConfig"> | string
+    id?: UuidWithAggregatesFilter<"SystemConfig"> | string
+    organizationId?: UuidWithAggregatesFilter<"SystemConfig"> | string
     key?: StringWithAggregatesFilter<"SystemConfig"> | string
     value?: StringWithAggregatesFilter<"SystemConfig"> | string
     type?: StringWithAggregatesFilter<"SystemConfig"> | string
@@ -31922,6 +32991,49 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"SystemConfig"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"SystemConfig"> | Date | string
     deletedAt?: DateTimeNullableWithAggregatesFilter<"SystemConfig"> | Date | string | null
+  }
+
+  export type LegacyIdMapWhereInput = {
+    AND?: LegacyIdMapWhereInput | LegacyIdMapWhereInput[]
+    OR?: LegacyIdMapWhereInput[]
+    NOT?: LegacyIdMapWhereInput | LegacyIdMapWhereInput[]
+    entity?: StringFilter<"LegacyIdMap"> | string
+    legacyId?: StringFilter<"LegacyIdMap"> | string
+    newUuid?: UuidFilter<"LegacyIdMap"> | string
+  }
+
+  export type LegacyIdMapOrderByWithRelationInput = {
+    entity?: SortOrder
+    legacyId?: SortOrder
+    newUuid?: SortOrder
+  }
+
+  export type LegacyIdMapWhereUniqueInput = Prisma.AtLeast<{
+    entity_legacyId?: LegacyIdMapEntityLegacyIdCompoundUniqueInput
+    AND?: LegacyIdMapWhereInput | LegacyIdMapWhereInput[]
+    OR?: LegacyIdMapWhereInput[]
+    NOT?: LegacyIdMapWhereInput | LegacyIdMapWhereInput[]
+    entity?: StringFilter<"LegacyIdMap"> | string
+    legacyId?: StringFilter<"LegacyIdMap"> | string
+    newUuid?: UuidFilter<"LegacyIdMap"> | string
+  }, "entity_legacyId">
+
+  export type LegacyIdMapOrderByWithAggregationInput = {
+    entity?: SortOrder
+    legacyId?: SortOrder
+    newUuid?: SortOrder
+    _count?: LegacyIdMapCountOrderByAggregateInput
+    _max?: LegacyIdMapMaxOrderByAggregateInput
+    _min?: LegacyIdMapMinOrderByAggregateInput
+  }
+
+  export type LegacyIdMapScalarWhereWithAggregatesInput = {
+    AND?: LegacyIdMapScalarWhereWithAggregatesInput | LegacyIdMapScalarWhereWithAggregatesInput[]
+    OR?: LegacyIdMapScalarWhereWithAggregatesInput[]
+    NOT?: LegacyIdMapScalarWhereWithAggregatesInput | LegacyIdMapScalarWhereWithAggregatesInput[]
+    entity?: StringWithAggregatesFilter<"LegacyIdMap"> | string
+    legacyId?: StringWithAggregatesFilter<"LegacyIdMap"> | string
+    newUuid?: UuidWithAggregatesFilter<"LegacyIdMap"> | string
   }
 
   export type OrganizationCreateInput = {
@@ -34337,6 +35449,60 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
+  export type LegacyIdMapCreateInput = {
+    entity: string
+    legacyId: string
+    newUuid: string
+  }
+
+  export type LegacyIdMapUncheckedCreateInput = {
+    entity: string
+    legacyId: string
+    newUuid: string
+  }
+
+  export type LegacyIdMapUpdateInput = {
+    entity?: StringFieldUpdateOperationsInput | string
+    legacyId?: StringFieldUpdateOperationsInput | string
+    newUuid?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type LegacyIdMapUncheckedUpdateInput = {
+    entity?: StringFieldUpdateOperationsInput | string
+    legacyId?: StringFieldUpdateOperationsInput | string
+    newUuid?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type LegacyIdMapCreateManyInput = {
+    entity: string
+    legacyId: string
+    newUuid: string
+  }
+
+  export type LegacyIdMapUpdateManyMutationInput = {
+    entity?: StringFieldUpdateOperationsInput | string
+    legacyId?: StringFieldUpdateOperationsInput | string
+    newUuid?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type LegacyIdMapUncheckedUpdateManyInput = {
+    entity?: StringFieldUpdateOperationsInput | string
+    legacyId?: StringFieldUpdateOperationsInput | string
+    newUuid?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type UuidFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel>
+    in?: string[] | ListStringFieldRefInput<$PrismaModel>
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedUuidFilter<$PrismaModel> | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -34560,6 +35726,21 @@ export namespace Prisma {
     deletedAt?: SortOrder
   }
 
+  export type UuidWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel>
+    in?: string[] | ListStringFieldRefInput<$PrismaModel>
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedUuidWithAggregatesFilter<$PrismaModel> | string
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedStringFilter<$PrismaModel>
+    _max?: NestedStringFilter<$PrismaModel>
+  }
+
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -34736,6 +35917,18 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
+  export type UuidNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedUuidNullableFilter<$PrismaModel> | string | null
+  }
+
   export type EnumUserRoleFilter<$PrismaModel = never> = {
     equals?: $Enums.UserRole | EnumUserRoleFieldRefInput<$PrismaModel>
     in?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
@@ -34865,6 +36058,21 @@ export namespace Prisma {
 
   export type UserSumOrderByAggregateInput = {
     loginAttempts?: SortOrder
+  }
+
+  export type UuidNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedUuidNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type EnumUserRoleWithAggregatesFilter<$PrismaModel = never> = {
@@ -36059,6 +37267,29 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     deletedAt?: SortOrder
+  }
+
+  export type LegacyIdMapEntityLegacyIdCompoundUniqueInput = {
+    entity: string
+    legacyId: string
+  }
+
+  export type LegacyIdMapCountOrderByAggregateInput = {
+    entity?: SortOrder
+    legacyId?: SortOrder
+    newUuid?: SortOrder
+  }
+
+  export type LegacyIdMapMaxOrderByAggregateInput = {
+    entity?: SortOrder
+    legacyId?: SortOrder
+    newUuid?: SortOrder
+  }
+
+  export type LegacyIdMapMinOrderByAggregateInput = {
+    entity?: SortOrder
+    legacyId?: SortOrder
+    newUuid?: SortOrder
   }
 
   export type BrandCreateNestedManyWithoutOrganizationInput = {
@@ -37939,6 +39170,17 @@ export namespace Prisma {
     update?: XOR<XOR<OrganizationUpdateToOneWithWhereWithoutSystemConfigsInput, OrganizationUpdateWithoutSystemConfigsInput>, OrganizationUncheckedUpdateWithoutSystemConfigsInput>
   }
 
+  export type NestedUuidFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel>
+    in?: string[] | ListStringFieldRefInput<$PrismaModel>
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedUuidFilter<$PrismaModel> | string
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -37994,6 +39236,31 @@ export namespace Prisma {
     not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
   }
 
+  export type NestedUuidWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel>
+    in?: string[] | ListStringFieldRefInput<$PrismaModel>
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedUuidWithAggregatesFilter<$PrismaModel> | string
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedStringFilter<$PrismaModel>
+    _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type NestedIntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -38009,17 +39276,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
-  }
-
-  export type NestedIntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
   }
 
   export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -38113,11 +39369,36 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
+  export type NestedUuidNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedUuidNullableFilter<$PrismaModel> | string | null
+  }
+
   export type NestedEnumUserRoleFilter<$PrismaModel = never> = {
     equals?: $Enums.UserRole | EnumUserRoleFieldRefInput<$PrismaModel>
     in?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
     notIn?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
     not?: NestedEnumUserRoleFilter<$PrismaModel> | $Enums.UserRole
+  }
+
+  export type NestedUuidNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedUuidNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type NestedEnumUserRoleWithAggregatesFilter<$PrismaModel = never> = {
@@ -38798,8 +40079,8 @@ export namespace Prisma {
     AND?: BrandScalarWhereInput | BrandScalarWhereInput[]
     OR?: BrandScalarWhereInput[]
     NOT?: BrandScalarWhereInput | BrandScalarWhereInput[]
-    id?: StringFilter<"Brand"> | string
-    organizationId?: StringFilter<"Brand"> | string
+    id?: UuidFilter<"Brand"> | string
+    organizationId?: UuidFilter<"Brand"> | string
     name?: StringFilter<"Brand"> | string
     logo?: StringNullableFilter<"Brand"> | string | null
     description?: StringNullableFilter<"Brand"> | string | null
@@ -38830,8 +40111,8 @@ export namespace Prisma {
     AND?: CategoryScalarWhereInput | CategoryScalarWhereInput[]
     OR?: CategoryScalarWhereInput[]
     NOT?: CategoryScalarWhereInput | CategoryScalarWhereInput[]
-    id?: StringFilter<"Category"> | string
-    organizationId?: StringFilter<"Category"> | string
+    id?: UuidFilter<"Category"> | string
+    organizationId?: UuidFilter<"Category"> | string
     name?: StringFilter<"Category"> | string
     description?: StringNullableFilter<"Category"> | string | null
     isActive?: BoolFilter<"Category"> | boolean
@@ -38861,8 +40142,8 @@ export namespace Prisma {
     AND?: CustomerScalarWhereInput | CustomerScalarWhereInput[]
     OR?: CustomerScalarWhereInput[]
     NOT?: CustomerScalarWhereInput | CustomerScalarWhereInput[]
-    id?: StringFilter<"Customer"> | string
-    organizationId?: StringFilter<"Customer"> | string
+    id?: UuidFilter<"Customer"> | string
+    organizationId?: UuidFilter<"Customer"> | string
     firstName?: StringFilter<"Customer"> | string
     lastName?: StringFilter<"Customer"> | string
     email?: StringNullableFilter<"Customer"> | string | null
@@ -38899,8 +40180,8 @@ export namespace Prisma {
     AND?: PaymentMethodScalarWhereInput | PaymentMethodScalarWhereInput[]
     OR?: PaymentMethodScalarWhereInput[]
     NOT?: PaymentMethodScalarWhereInput | PaymentMethodScalarWhereInput[]
-    id?: StringFilter<"PaymentMethod"> | string
-    organizationId?: StringFilter<"PaymentMethod"> | string
+    id?: UuidFilter<"PaymentMethod"> | string
+    organizationId?: UuidFilter<"PaymentMethod"> | string
     name?: StringFilter<"PaymentMethod"> | string
     type?: EnumPaymentTypeFilter<"PaymentMethod"> | $Enums.PaymentType
     isActive?: BoolFilter<"PaymentMethod"> | boolean
@@ -38930,16 +40211,16 @@ export namespace Prisma {
     AND?: ProductScalarWhereInput | ProductScalarWhereInput[]
     OR?: ProductScalarWhereInput[]
     NOT?: ProductScalarWhereInput | ProductScalarWhereInput[]
-    id?: StringFilter<"Product"> | string
-    organizationId?: StringFilter<"Product"> | string
+    id?: UuidFilter<"Product"> | string
+    organizationId?: UuidFilter<"Product"> | string
     name?: StringFilter<"Product"> | string
     description?: StringNullableFilter<"Product"> | string | null
     image?: StringNullableFilter<"Product"> | string | null
     barcode?: StringNullableFilter<"Product"> | string | null
     sku?: StringNullableFilter<"Product"> | string | null
-    categoryId?: StringNullableFilter<"Product"> | string | null
-    brandId?: StringNullableFilter<"Product"> | string | null
-    unitMeasureId?: StringNullableFilter<"Product"> | string | null
+    categoryId?: UuidNullableFilter<"Product"> | string | null
+    brandId?: UuidNullableFilter<"Product"> | string | null
+    unitMeasureId?: UuidNullableFilter<"Product"> | string | null
     costPrice?: DecimalFilter<"Product"> | Decimal | DecimalJsLike | number | string
     salePrice?: DecimalFilter<"Product"> | Decimal | DecimalJsLike | number | string
     minStock?: IntFilter<"Product"> | number
@@ -38976,16 +40257,16 @@ export namespace Prisma {
     AND?: StockMovementScalarWhereInput | StockMovementScalarWhereInput[]
     OR?: StockMovementScalarWhereInput[]
     NOT?: StockMovementScalarWhereInput | StockMovementScalarWhereInput[]
-    id?: StringFilter<"StockMovement"> | string
-    organizationId?: StringFilter<"StockMovement"> | string
-    productId?: StringFilter<"StockMovement"> | string
-    storeId?: StringNullableFilter<"StockMovement"> | string | null
+    id?: UuidFilter<"StockMovement"> | string
+    organizationId?: UuidFilter<"StockMovement"> | string
+    productId?: UuidFilter<"StockMovement"> | string
+    storeId?: UuidNullableFilter<"StockMovement"> | string | null
     type?: EnumStockMovementTypeFilter<"StockMovement"> | $Enums.StockMovementType
     quantity?: IntFilter<"StockMovement"> | number
     previousStock?: IntFilter<"StockMovement"> | number
     newStock?: IntFilter<"StockMovement"> | number
     reason?: StringNullableFilter<"StockMovement"> | string | null
-    userId?: StringNullableFilter<"StockMovement"> | string | null
+    userId?: UuidNullableFilter<"StockMovement"> | string | null
     reference?: StringNullableFilter<"StockMovement"> | string | null
     createdAt?: DateTimeFilter<"StockMovement"> | Date | string
   }
@@ -39010,8 +40291,8 @@ export namespace Prisma {
     AND?: StoreScalarWhereInput | StoreScalarWhereInput[]
     OR?: StoreScalarWhereInput[]
     NOT?: StoreScalarWhereInput | StoreScalarWhereInput[]
-    id?: StringFilter<"Store"> | string
-    organizationId?: StringFilter<"Store"> | string
+    id?: UuidFilter<"Store"> | string
+    organizationId?: UuidFilter<"Store"> | string
     name?: StringFilter<"Store"> | string
     description?: StringNullableFilter<"Store"> | string | null
     address?: StringFilter<"Store"> | string
@@ -39047,8 +40328,8 @@ export namespace Prisma {
     AND?: SupplierScalarWhereInput | SupplierScalarWhereInput[]
     OR?: SupplierScalarWhereInput[]
     NOT?: SupplierScalarWhereInput | SupplierScalarWhereInput[]
-    id?: StringFilter<"Supplier"> | string
-    organizationId?: StringFilter<"Supplier"> | string
+    id?: UuidFilter<"Supplier"> | string
+    organizationId?: UuidFilter<"Supplier"> | string
     name?: StringFilter<"Supplier"> | string
     contactName?: StringNullableFilter<"Supplier"> | string | null
     email?: StringNullableFilter<"Supplier"> | string | null
@@ -39084,8 +40365,8 @@ export namespace Prisma {
     AND?: SystemConfigScalarWhereInput | SystemConfigScalarWhereInput[]
     OR?: SystemConfigScalarWhereInput[]
     NOT?: SystemConfigScalarWhereInput | SystemConfigScalarWhereInput[]
-    id?: StringFilter<"SystemConfig"> | string
-    organizationId?: StringFilter<"SystemConfig"> | string
+    id?: UuidFilter<"SystemConfig"> | string
+    organizationId?: UuidFilter<"SystemConfig"> | string
     key?: StringFilter<"SystemConfig"> | string
     value?: StringFilter<"SystemConfig"> | string
     type?: StringFilter<"SystemConfig"> | string
@@ -39116,8 +40397,8 @@ export namespace Prisma {
     AND?: UnitMeasureScalarWhereInput | UnitMeasureScalarWhereInput[]
     OR?: UnitMeasureScalarWhereInput[]
     NOT?: UnitMeasureScalarWhereInput | UnitMeasureScalarWhereInput[]
-    id?: StringFilter<"UnitMeasure"> | string
-    organizationId?: StringFilter<"UnitMeasure"> | string
+    id?: UuidFilter<"UnitMeasure"> | string
+    organizationId?: UuidFilter<"UnitMeasure"> | string
     name?: StringFilter<"UnitMeasure"> | string
     abbreviation?: StringFilter<"UnitMeasure"> | string
     isActive?: BoolFilter<"UnitMeasure"> | boolean
@@ -39147,9 +40428,9 @@ export namespace Prisma {
     AND?: UserScalarWhereInput | UserScalarWhereInput[]
     OR?: UserScalarWhereInput[]
     NOT?: UserScalarWhereInput | UserScalarWhereInput[]
-    id?: StringFilter<"User"> | string
-    organizationId?: StringNullableFilter<"User"> | string | null
-    storeId?: StringNullableFilter<"User"> | string | null
+    id?: UuidFilter<"User"> | string
+    organizationId?: UuidNullableFilter<"User"> | string | null
+    storeId?: UuidNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
     password?: StringFilter<"User"> | string
     username?: StringFilter<"User"> | string
@@ -39363,12 +40644,12 @@ export namespace Prisma {
     AND?: SaleScalarWhereInput | SaleScalarWhereInput[]
     OR?: SaleScalarWhereInput[]
     NOT?: SaleScalarWhereInput | SaleScalarWhereInput[]
-    id?: StringFilter<"Sale"> | string
-    organizationId?: StringFilter<"Sale"> | string
-    storeId?: StringFilter<"Sale"> | string
+    id?: UuidFilter<"Sale"> | string
+    organizationId?: UuidFilter<"Sale"> | string
+    storeId?: UuidFilter<"Sale"> | string
     saleNumber?: StringFilter<"Sale"> | string
-    customerId?: StringNullableFilter<"Sale"> | string | null
-    userId?: StringFilter<"Sale"> | string
+    customerId?: UuidNullableFilter<"Sale"> | string | null
+    userId?: UuidFilter<"Sale"> | string
     subtotal?: DecimalFilter<"Sale"> | Decimal | DecimalJsLike | number | string
     total?: DecimalFilter<"Sale"> | Decimal | DecimalJsLike | number | string
     status?: EnumSaleStatusFilter<"Sale"> | $Enums.SaleStatus
@@ -39965,8 +41246,8 @@ export namespace Prisma {
     AND?: SessionScalarWhereInput | SessionScalarWhereInput[]
     OR?: SessionScalarWhereInput[]
     NOT?: SessionScalarWhereInput | SessionScalarWhereInput[]
-    id?: StringFilter<"Session"> | string
-    userId?: StringFilter<"Session"> | string
+    id?: UuidFilter<"Session"> | string
+    userId?: UuidFilter<"Session"> | string
     token?: StringFilter<"Session"> | string
     expiresAt?: DateTimeFilter<"Session"> | Date | string
     ipAddress?: StringNullableFilter<"Session"> | string | null
@@ -39974,7 +41255,7 @@ export namespace Prisma {
     deviceId?: StringNullableFilter<"Session"> | string | null
     isActive?: BoolFilter<"Session"> | boolean
     revokedAt?: DateTimeNullableFilter<"Session"> | Date | string | null
-    revokedBy?: StringNullableFilter<"Session"> | string | null
+    revokedBy?: UuidNullableFilter<"Session"> | string | null
     lastActivityAt?: DateTimeFilter<"Session"> | Date | string
     createdAt?: DateTimeFilter<"Session"> | Date | string
     updatedAt?: DateTimeFilter<"Session"> | Date | string
@@ -40000,8 +41281,8 @@ export namespace Prisma {
     AND?: PasswordResetScalarWhereInput | PasswordResetScalarWhereInput[]
     OR?: PasswordResetScalarWhereInput[]
     NOT?: PasswordResetScalarWhereInput | PasswordResetScalarWhereInput[]
-    id?: StringFilter<"PasswordReset"> | string
-    userId?: StringFilter<"PasswordReset"> | string
+    id?: UuidFilter<"PasswordReset"> | string
+    userId?: UuidFilter<"PasswordReset"> | string
     token?: StringFilter<"PasswordReset"> | string
     expiresAt?: DateTimeFilter<"PasswordReset"> | Date | string
     used?: BoolFilter<"PasswordReset"> | boolean
@@ -40031,8 +41312,8 @@ export namespace Prisma {
     AND?: EmailVerificationScalarWhereInput | EmailVerificationScalarWhereInput[]
     OR?: EmailVerificationScalarWhereInput[]
     NOT?: EmailVerificationScalarWhereInput | EmailVerificationScalarWhereInput[]
-    id?: StringFilter<"EmailVerification"> | string
-    userId?: StringFilter<"EmailVerification"> | string
+    id?: UuidFilter<"EmailVerification"> | string
+    userId?: UuidFilter<"EmailVerification"> | string
     token?: StringFilter<"EmailVerification"> | string
     expiresAt?: DateTimeFilter<"EmailVerification"> | Date | string
     email?: StringFilter<"EmailVerification"> | string
@@ -40063,8 +41344,8 @@ export namespace Prisma {
     AND?: AuditLogScalarWhereInput | AuditLogScalarWhereInput[]
     OR?: AuditLogScalarWhereInput[]
     NOT?: AuditLogScalarWhereInput | AuditLogScalarWhereInput[]
-    id?: StringFilter<"AuditLog"> | string
-    userId?: StringNullableFilter<"AuditLog"> | string | null
+    id?: UuidFilter<"AuditLog"> | string
+    userId?: UuidNullableFilter<"AuditLog"> | string | null
     action?: EnumAuditActionFilter<"AuditLog"> | $Enums.AuditAction
     entity?: StringFilter<"AuditLog"> | string
     entityId?: StringNullableFilter<"AuditLog"> | string | null
@@ -40072,7 +41353,7 @@ export namespace Prisma {
     newValues?: JsonNullableFilter<"AuditLog">
     ipAddress?: StringNullableFilter<"AuditLog"> | string | null
     userAgent?: StringNullableFilter<"AuditLog"> | string | null
-    organizationId?: StringNullableFilter<"AuditLog"> | string | null
+    organizationId?: UuidNullableFilter<"AuditLog"> | string | null
     metadata?: JsonNullableFilter<"AuditLog">
     createdAt?: DateTimeFilter<"AuditLog"> | Date | string
   }
@@ -41188,10 +42469,10 @@ export namespace Prisma {
     AND?: SaleItemScalarWhereInput | SaleItemScalarWhereInput[]
     OR?: SaleItemScalarWhereInput[]
     NOT?: SaleItemScalarWhereInput | SaleItemScalarWhereInput[]
-    id?: StringFilter<"SaleItem"> | string
-    saleId?: StringFilter<"SaleItem"> | string
-    productId?: StringFilter<"SaleItem"> | string
-    unitMeasureId?: StringNullableFilter<"SaleItem"> | string | null
+    id?: UuidFilter<"SaleItem"> | string
+    saleId?: UuidFilter<"SaleItem"> | string
+    productId?: UuidFilter<"SaleItem"> | string
+    unitMeasureId?: UuidNullableFilter<"SaleItem"> | string | null
     quantity?: IntFilter<"SaleItem"> | number
     unitPrice?: DecimalFilter<"SaleItem"> | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalFilter<"SaleItem"> | Decimal | DecimalJsLike | number | string
@@ -41718,9 +42999,9 @@ export namespace Prisma {
     AND?: PurchaseItemScalarWhereInput | PurchaseItemScalarWhereInput[]
     OR?: PurchaseItemScalarWhereInput[]
     NOT?: PurchaseItemScalarWhereInput | PurchaseItemScalarWhereInput[]
-    id?: StringFilter<"PurchaseItem"> | string
-    purchaseId?: StringFilter<"PurchaseItem"> | string
-    productId?: StringFilter<"PurchaseItem"> | string
+    id?: UuidFilter<"PurchaseItem"> | string
+    purchaseId?: UuidFilter<"PurchaseItem"> | string
+    productId?: UuidFilter<"PurchaseItem"> | string
     quantity?: IntFilter<"PurchaseItem"> | number
     unitPrice?: DecimalFilter<"PurchaseItem"> | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalFilter<"PurchaseItem"> | Decimal | DecimalJsLike | number | string
@@ -42075,9 +43356,9 @@ export namespace Prisma {
     AND?: PurchaseScalarWhereInput | PurchaseScalarWhereInput[]
     OR?: PurchaseScalarWhereInput[]
     NOT?: PurchaseScalarWhereInput | PurchaseScalarWhereInput[]
-    id?: StringFilter<"Purchase"> | string
-    organizationId?: StringFilter<"Purchase"> | string
-    supplierId?: StringFilter<"Purchase"> | string
+    id?: UuidFilter<"Purchase"> | string
+    organizationId?: UuidFilter<"Purchase"> | string
+    supplierId?: UuidFilter<"Purchase"> | string
     purchaseNumber?: StringFilter<"Purchase"> | string
     total?: DecimalFilter<"Purchase"> | Decimal | DecimalJsLike | number | string
     status?: EnumPurchaseStatusFilter<"Purchase"> | $Enums.PurchaseStatus
@@ -42335,9 +43616,9 @@ export namespace Prisma {
     AND?: SalePaymentScalarWhereInput | SalePaymentScalarWhereInput[]
     OR?: SalePaymentScalarWhereInput[]
     NOT?: SalePaymentScalarWhereInput | SalePaymentScalarWhereInput[]
-    id?: StringFilter<"SalePayment"> | string
-    saleId?: StringFilter<"SalePayment"> | string
-    paymentMethodId?: StringFilter<"SalePayment"> | string
+    id?: UuidFilter<"SalePayment"> | string
+    saleId?: UuidFilter<"SalePayment"> | string
+    paymentMethodId?: UuidFilter<"SalePayment"> | string
     amount?: DecimalFilter<"SalePayment"> | Decimal | DecimalJsLike | number | string
     reference?: StringNullableFilter<"SalePayment"> | string | null
     notes?: StringNullableFilter<"SalePayment"> | string | null
