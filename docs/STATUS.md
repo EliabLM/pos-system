@@ -4,7 +4,7 @@
 
 ## Estado actual
 
-**Fase: Migración de monolito a 3 proyectos — Fase 0 completada. Pre-Fase 1: dejar el despliegue operativo antes de migrar.**
+**Fase: Migración de monolito a 3 proyectos — Fase 0 y Pre-Fase 1 cerradas. Arrancando Fase 1 (DB foundation).**
 
 - Monorepo git con `pnpm-workspace.yaml` activo. Miembro `pos-system-client/` se gestiona con su propio `pnpm-lock.yaml` durante la migración strangler-fig; se absorbe al workspace en Fase 5.
 - `pos-system-client/` — Next.js 15 + Prisma/PostgreSQL + auth JWT custom (app POS operativa).
@@ -14,10 +14,10 @@
 - Repo remoto: `https://github.com/EliabLM/pos-system` (privado, branch `main`).
 - Decisiones estratégicas confirmadas: **D1 = monorepo pnpm workspaces**, **D2 = migración incremental strangler-fig**, **D3 = custom JWT + schema auth target** (ver [`auth/AUTH_TARGET_SCHEMA.md`](./auth/AUTH_TARGET_SCHEMA.md)).
 - Toda la documentación vive en `docs/` de este repo padre.
-- **Estrategia de despliegue definida** (ver [`deployment/estrategia-despliegue.md`](./deployment/estrategia-despliegue.md)):
-  - **Local:** `docker compose up` levanta db + server + client (+ app web opcional). Ver [`deployment/docker-local.md`](./deployment/docker-local.md).
-  - **Testing/staging:** Vercel + Supabase (solo el client; server y app sin deployar hasta tener dominio). Ver [`deployment/deploy-vercel-monorepo.md`](./deployment/deploy-vercel-monorepo.md).
-  - **Producción:** VPS + Coolify + Postgres en el mismo VPS (los 3 proyectos vía `docker-compose.yml`).
+- **Estrategia de despliegue definida** (ver [`deployment/estrategia-despliegue.md`](./deployment/estrategia-despliegue.md)), ajustada el 2026-08-20:
+  - **Local:** `docker compose up` levanta db + server + client (+ app web opcional). Ver [`deployment/docker-local.md`](./deployment/docker-local.md). **Es el único entorno de la migración hasta el deploy a VPS.**
+  - **Testing/staging (legacy, congelado):** el deploy Vercel + Supabase existente sigue apuntando al **repo anterior** (pre-monorepo) y no se toca. El monorepo NO se deploya a Vercel.
+  - **Producción:** VPS + Coolify + Postgres en el mismo VPS (los 3 proyectos vía `docker-compose.yml`). El VPS se aprovisiona **cuando la migración esté lista para deployar**, no antes.
 
 ## Completado
 
@@ -36,19 +36,22 @@
 | 2026-08-11 | Plan de pruebas E2E (Playwright) — matriz de 180 escenarios (ver [`features/testing/playwright-test-plan.md`](./features/testing/playwright-test-plan.md)) |
 | 2026-08-11 | Suite E2E habilitada en `pos-system-client/`: seed Prisma idempotente (`prisma/seed.ts`), config Playwright + `globalSetup` que espera stack docker y resiembra, fixtures de auth, 2 specs P0 smoke (auth login + navegación RBAC seller), runbook en [`features/testing/RUNBOOK.md`](./features/testing/RUNBOOK.md). Pendiente probar `docker compose up` + correr smoke end-to-end e incrementar specs P1/P2 |
 | 2026-08-11 | **Plan E2E cerrado**: suposiciones abiertas (§8.5) verificadas contra el código — seller SÍ crea clientes inline, cancelar venta SÍ repone stock, unicidad de org por NIT, `/dashboard/purchases` existe, sin regla de fecha en compras, login público no redirige con sesión, onboarding auto-crea parametrización. Hallazgo canario: `generatePurchaseNumber` no filtra por `organizationId` (bug cross-tenant candidato). Limpieza de restos de `playwright init` en la raíz (tests/, config, package-lock npm) y `.mcp.json` apuntado a `pos-system-client/` |
+| 2026-08-20 | **Decisión de despliegue (cierra Pre-Fase 1):** el deploy Vercel + Supabase queda congelado apuntando al repo anterior (pre-monorepo); el monorepo no se deploya a Vercel. El sistema migrado se deploya **directo al VPS + Coolify** cuando la migración lo amerite (VPS se aprovisiona en ese momento). La migración se desarrolla y verifica contra el stack docker local. Pasos 2 y 3 de Pre-Fase 1 descartados/diferidos. ⚠️ El caveat de `migrate resolve --applied 20260811000000_...` contra Supabase queda moot salvo que se retome ese deploy |
 | 2026-08-11 | **Stack local probado end-to-end + smoke E2E verde (17/17, 2 corridas estables)**. Fixes: (1) migración de auth faltante generada (`20260811000000_migrate_auth_clerk_to_custom_jwt` — el schema Clerk→JWT se había aplicado con `db push` sin archivos; ⚠️ marcarla `migrate resolve --applied` antes del primer deploy contra Supabase), (2) label↔input roto en el login form (ids hardcodeados pisaban el de `FormControl`; password envuelto en div), (3) `globalSetup` inyecta `DATABASE_URL` default al seed, (4) `workers: 1` local (logins concurrentes + bcrypt = timeouts flaky), (5) selectores del fixture corregidos (`/^contraseña$/i`, `cookies()` sin argumento). Ver [`deployment/docker-local.md`](./deployment/docker-local.md) §Fixes y [`features/testing/RUNBOOK.md`](./features/testing/RUNBOOK.md) §Troubleshooting |
 
 ## Próximo paso
 
-**Pre-Fase 1 — dejar el despliegue operativo antes de migrar.**
+**Fase 1 — DB foundation** (ver [`planning/migracion-3-proyectos.md`](./planning/migracion-3-proyectos.md) §Fase 1), desarrollada y verificada **contra el stack docker local** (no hay staging remoto; VPS se aprovisiona recién al deployar):
 
-1. ~~**Probar el stack local**~~ ✅ Hecho el 2026-08-11 (stack up + seed + smoke E2E 17/17; fixes documentados en [`deployment/docker-local.md`](./deployment/docker-local.md)).
-2. **Deployar el client en Vercel (testing) + Supabase:** seguir paso a paso [`deployment/deploy-vercel-monorepo.md`](./deployment/deploy-vercel-monorepo.md). Confirmar login y un flujo de smoke. ⚠️ Antes del primer `migrate deploy` contra Supabase: `prisma migrate resolve --applied 20260811000000_migrate_auth_clerk_to_custom_jwt` (Supabase ya tiene ese schema por `db push`).
-3. **Aprovisionar el VPS de producción + Coolify + Postgres** (sin migratear todavía — el schema actual es el legacy). Definir dominio, apuntar DNS.
+1. Mover `prisma/schema.prisma` del client al server (el client deja de ser dueño del schema).
+2. Aplicar targets de `postgresql-table-design`: cuid→UUIDv7 (Receta R1), Float→Decimal (R2), snake_case `@map`, unique parcial `WHERE deleted_at IS NULL`, trigger `updated_at`, RLS + `FORCE` + role non-owner (R3), índices con `organization_id` leading.
+3. Aplicar schema auth target (R6, R7): `memberships`, `verifications`, `accounts`, reshape de `users`/`sessions`/`audit_logs`, `slug` en `organizations`.
+4. Migración de datos legacy → nuevo shape, probada sobre un dump.
+5. Definition of done: `prisma migrate deploy` verde, tests RLS de aislamiento de tenant, schema matchea [`auth/AUTH_TARGET_SCHEMA.md`](./auth/AUTH_TARGET_SCHEMA.md).
 
-Una vez que esos tres estén verdes, arrancar la **Fase 1 del plan de migración** (`docs/planning/migracion-3-proyectos.md`) sobre la DB del VPS: mover el schema al server, aplicar los targets de la skill `postgresql-table-design` (Float→Decimal, cuid→UUIDv7, RLS, índices), y empezarla extracción strangler-fig.
+> Antes de ejecutar, confirmar el alcance exacto y el orden de sub-tareas de la fase (regla del plan).
 
-> Antes de avanzar a Fase 1, revisar el plan para confirmar el alcance exacto de la fase.
+**Diferido/descartado de Pre-Fase 1 (decisión 2026-08-20):** el deploy Vercel+Supabase del monorepo se descarta (el existente queda congelado en el repo anterior); el VPS se aprovisiona cuando la migración esté lista para deployar.
 
 ## Deuda técnica conocida (a resolver en la migración a `pos-system-server`)
 

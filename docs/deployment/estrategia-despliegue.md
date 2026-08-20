@@ -4,21 +4,27 @@
 > durante la migración y en producción, para que testing y producción estén
 > claramente separados y un `docker compose up` baste para probar todo local.
 >
-> **Fecha:** 2026-08-10 · **Estado:** En progreso (definición)
+> **Fecha:** 2026-08-10 · **Actualizado:** 2026-08-20 · **Estado:** Definida
+>
+> **Decisión 2026-08-20:** el deploy Vercel + Supabase existente queda **congelado
+> apuntando al repo anterior (pre-monorepo)** y no se toca. El monorepo NO se
+> deploya a Vercel. La migración se desarrolla contra el stack docker local y el
+> sistema migrado se deploya **directo al VPS + Coolify** cuando esté listo (el
+> VPS se aprovisiona en ese momento).
 
 ## Resumen ejecutivo
 
 | Entorno | Plataforma | DB | Qué corre | Cuándo |
 |---------|-----------|----|-----------|--------|
-| **Local** (dev/testing del monorepo) | `docker compose up` | Postgres 17 en el stack | `db` + `server` + `client` + (`app` web opcional) | Siempre que se quiera reproducir el stack |
-| **Testing / staging** | **Vercel** | **Supabase** (Postgres gestionado) | Solo `pos-system-client` (server actions → Supabase) | Desde ahora, hasta que el server HTTP exista en prod |
-| **Producción** | **VPS + Coolify** | **Postgres en el mismo VPS** | Los 3 proyectos (client + server + app web) vía `docker-compose.yml` | A partir de Fase 2 (server con auth) |
+| **Local** (dev/testing del monorepo) | `docker compose up` | Postgres 17 en el stack | `db` + `server` + `client` + (`app` web opcional) | Único entorno durante la migración (Fases 1–3) |
+| **Testing / staging (legacy, congelado)** | **Vercel** | **Supabase** (Postgres gestionado) | El client del **repo anterior** (pre-monorepo) | Sigue vivo tal cual; no recibe la migración |
+| **Producción** | **VPS + Coolify** | **Postgres en el mismo VPS** | Los 3 proyectos (client + server + app web) vía `docker-compose.yml` | Cuando la migración esté lista para deployar |
 
 ## Decisión: por qué estos stacks
 
-- **Test = Vercel + Supabase:** provisioning rápido y HTTPS/CI automáticos. El
-  client es Next.js puro, server actions conectan directo a Supabase y no se
-  necesita deployar el server todavía (no tiene dominio). Costo bajo para pruebas.
+- **Test = Vercel + Supabase (solo legacy):** provisioning rápido y HTTPS/CI
+  automáticos para el client pre-monorepo. Se mantiene congelado como entorno de
+  referencia mientras dura la migración; el monorepo no se deploya ahí.
 - **Prod = VPS + Coolify + Postgres local:** control total del runtime (Node 22,
   Postgres 17, RLS, roles non-owner, pooling del propio Postgres). Mismo
   `docker-compose.yml` del repo corre en el VPS vía Coolify → un solo artefacto
@@ -36,14 +42,13 @@ Cada fase del plan de migración
 ([`planning/migracion-3-proyectos.md`](../planning/migracion-3-proyectos.md))
 afecta qué se deploya:
 
-| Fase | Local | Testing (Vercel+Supabase) | Producción (VPS+Coolify+Postgres) |
-|------|-------|---------------------------|----------------------------------|
-| Pre-Fase 1 (ahora) | `docker compose up` listo | client en Vercel + Supabase | pendiente de VPS |
-| Fase 1 (DB foundation) | `docker compose up` | client sigue en Vercel + Supabase | migrar DB a Postgres del VPS (RLS, UUIDv7, Decimal) |
-| Fase 2 (auth surface) | `docker compose up` | client + server (server ya en VPS) | server corre en VPS; client aún en Vercel o ya en VPS |
-| Fase 3 (strangler fig) | `docker compose up` | client + server (Vercel + VPS server) o todo en VPS | todo en VPS |
-| Fase 4 (app móvil) | `pnpm start` fuera de docker (dispositivo) | EAS Build/Update (ver skill `react-native-expo`) | EAS → store / APK firmado |
-| Fase 5 (cleanup) | client UI-only | client UI-only consume API | idem |
+| Fase | Local | Legacy (Vercel+Supabase, congelado) | Producción (VPS+Coolify+Postgres) |
+|------|-------|-------------------------------------|----------------------------------|
+| Fase 1 (DB foundation) | `docker compose up` — schema nuevo (RLS, UUIDv7, Decimal) | repo anterior sigue tal cual | VPS aún no aprovisionado |
+| Fase 2 (auth surface) | `docker compose up` — client + server con auth vía API | idem | VPS aún no aprovisionado |
+| Fase 3 (strangler fig) | `docker compose up` — extracción módulo a módulo | idem | **Aprovisionar VPS + Coolify cuando el stack migrado esté listo para deployar**; primer deploy de los 3 proyectos + migración de datos |
+| Fase 4 (app móvil) | `pnpm start` fuera de docker (dispositivo) | idem (se apaga cuando prod esté estable) | EAS → store / APK firmado; API en VPS |
+| Fase 5 (cleanup) | client UI-only | **dar de baja el deploy legacy** | todo en VPS |
 
 ## Local — `docker compose up`
 
@@ -60,16 +65,17 @@ No es necesario para deployar en Vercel — es para probar el monorepo completo 
 de avanzar fases. Útil para validar que el `pos-system-server` y el `pos-system-app`
 siguen buildables.
 
-## Testing / staging — Vercel + Supabase
+## Testing / staging legacy — Vercel + Supabase (congelado 2026-08-20)
 
-Ver [`deploy-vercel-monorepo.md`](./deploy-vercel-monorepo.md). Resumen:
+El deploy existente en Vercel + Supabase corresponde al **repo anterior**
+(pre-monorepo) y queda congelado tal como funciona hoy: no se le apunta el
+monorepo ni se le aplican las migraciones nuevas. Se da de baja en Fase 5,
+cuando producción (VPS) esté estable.
 
-1. Repo `EliabLM/pos-system` → Vercel → Root Directory `pos-system-client`.
-2. Build: `pnpm vercel-build` (Prisma generate + migrate deploy + next build).
-3. Env vars: `DATABASE_URL` (pooler Supabase, `?pgbouncer=true&connection_limit=1`),
-   `DIRECT_URL` (session/direct Supabase), `JWT_SECRET`, `UPLOADTHING_TOKEN`,
-   `HTTPS_ENABLED`.
-4. `pos-system-server` y `pos-system-app` no se deployan todavía.
+> [`deploy-vercel-monorepo.md`](./deploy-vercel-monorepo.md) queda como
+> referencia histórica por si se retoma un deploy del monorepo en Vercel.
+> Su caveat de `prisma migrate resolve --applied 20260811000000_...` solo
+> aplica en ese escenario.
 
 ## Producción — VPS + Coolify + Postgres en el mismo VPS
 
