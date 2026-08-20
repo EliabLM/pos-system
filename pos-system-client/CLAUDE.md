@@ -18,13 +18,12 @@ pnpm start        # Start production server
 pnpm lint         # Run ESLint
 
 # Database Operations
-npx prisma generate       # Generate Prisma client (outputs to src/generated/prisma)
-npx prisma migrate dev    # Run migrations in development
-npx prisma studio         # Open Prisma Studio database GUI
-npx prisma db push        # Push schema changes without migration
-
-# Deployment
-pnpm vercel-build # Vercel build script (generate + migrate + build)
+# ⚠️ Fase 1: the Prisma schema lives in ../pos-system-server/prisma/schema.prisma
+# (the server owns it). This project only regenerates/consumes the client.
+pnpm db:generate          # Generate Prisma client (outputs to src/generated/prisma)
+# Migrations run from ../pos-system-server/:
+#   pnpm db:migrate -- --name <change>   (prisma migrate dev)
+#   pnpm db:deploy                       (prisma migrate deploy)
 ```
 
 ## Architecture Overview
@@ -165,7 +164,7 @@ This is a **STRICT** and **NON-NEGOTIABLE** rule that applies to:
 - ✅ All TypeScript interfaces for database models
 
 **Rules:**
-1. **ALWAYS** reference `prisma/schema.prisma` before working with any database model
+1. **ALWAYS** reference `../pos-system-server/prisma/schema.prisma` (schema owned by the server since Fase 1) before working with any database model
 2. **ONLY** use fields that are explicitly defined in the Prisma schema
 3. **NEVER** assume a field exists - verify it in the schema first
 4. **NEVER** create "helpful" or "logical" fields that seem to make sense
@@ -209,7 +208,7 @@ const productData = {
 ```
 
 **How to verify fields:**
-1. Open `prisma/schema.prisma`
+1. Open `../pos-system-server/prisma/schema.prisma`
 2. Find the model (e.g., `model Product`)
 3. Check ONLY the fields listed in that model
 4. If a field is not there, you CANNOT use it
@@ -693,7 +692,7 @@ Utility for cleaning up user session data on logout.
    - Import and use proper types from React Hook Form, Prisma, etc.
 
 5. **ONLY use Prisma schema fields:**
-   - NEVER invent fields that don't exist in `prisma/schema.prisma`
+   - NEVER invent fields that don't exist in `../pos-system-server/prisma/schema.prisma`
    - ALWAYS verify field existence in the Prisma schema before using
    - Type interfaces for database models must EXACTLY match Prisma schema
    - See "⛔ CRITICAL RESTRICTION: PRISMA SCHEMA FIELDS ONLY" section for details
@@ -934,9 +933,9 @@ const entities = await prisma.entity.findMany({
 ## Development Workflow
 
 1. **Database Changes**:
-   - Edit `prisma/schema.prisma`
-   - Run `npx prisma migrate dev --name description_of_change`
-   - Prisma client auto-regenerates to `src/generated/prisma`
+   - Edit `../pos-system-server/prisma/schema.prisma` (the server owns the schema)
+   - Run `pnpm db:migrate -- --name description_of_change` from `../pos-system-server/`
+   - Regenerate the client here with `pnpm db:generate` (outputs to `src/generated/prisma`)
 
 2. **Adding New Features**:
    - Create server actions in `src/actions/entity-name/`
@@ -951,7 +950,7 @@ const entities = await prisma.entity.findMany({
 
 4. **Building for Production**:
    - Run `pnpm build` (automatically runs `prisma generate`)
-   - For Vercel: Use `pnpm vercel-build` (includes migrations)
+   - (The `vercel-build` script was removed — the legacy Vercel deploy is frozen on the pre-monorepo repo; migrations are applied by `pos-system-server`)
 
 5. **Troubleshooting Charts (Recharts)**:
    - See `.claude/RECHARTS_CHARTS_TROUBLESHOOTING.md` for common chart issues

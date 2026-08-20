@@ -25,8 +25,8 @@ Package manager is **pnpm** everywhere (client pins 10.7.1). Do not use npm/yarn
 ```bash
 pnpm dev            # dev server (Turbopack)
 pnpm lint           # ESLint
-pnpm build          # prisma generate && next build — this is also the typecheck
-npx prisma migrate dev --name <change>   # after editing prisma/schema.prisma
+pnpm build          # prisma generate (against the server's schema) && next build — this is also the typecheck
+pnpm db:generate    # regenerate the Prisma client only
 pnpm db:seed        # idempotent Prisma seed (tsx prisma/seed.ts)
 ```
 No unit test framework in the client — verification = `pnpm lint` + `pnpm build`.
@@ -51,6 +51,8 @@ pnpm test           # vitest run (single test: pnpm test -- src/path/file.test.t
 pnpm test:watch
 pnpm typecheck      # tsc --noEmit
 pnpm lint / pnpm build / pnpm start
+pnpm db:migrate -- --name <change>   # prisma migrate dev — the SERVER owns prisma/schema.prisma since Fase 1
+pnpm db:deploy      # prisma migrate deploy
 ```
 
 ### pos-system-app (Expo)
@@ -60,12 +62,12 @@ pnpm lint           # expo lint
 ```
 
 ### Local full stack
-`docker compose up --build` from the root starts Postgres 17 + server + client (client applies Prisma migrations on start). The Expo web app is behind the `app` profile: `docker compose up db server client` omits it.
+`docker compose up --build` from the root starts Postgres 17 + server + client. The **server** applies Prisma migrations on start (schema owner since Fase 1); the client waits for the server's healthcheck. The client image builds with the repo root as docker context (it needs `pos-system-server/prisma/`). The Expo web app is behind the `app` profile: `docker compose up db server client` omits it.
 
 ## Hard rules (enforced in review, apply to all projects)
 
 1. **Strict TypeScript, zero tolerance**: never `any`, `@ts-ignore`, `@ts-expect-error`, or eslint-disable of type rules. Use `unknown` + narrowing or double assertion (`as unknown as T`).
-2. **Never invent Prisma fields.** Before touching any model, read `pos-system-client/prisma/schema.prisma` and use only fields that exist. If a field is missing, ask the user to add it to the schema — do not add it in code.
+2. **Never invent Prisma fields.** Before touching any model, read `pos-system-server/prisma/schema.prisma` (the server owns the schema since Fase 1; the client only consumes the generated client at `pos-system-client/src/generated/prisma`) and use only fields that exist. If a field is missing, ask the user to add it to the schema — do not add it in code.
 3. **UI copy, toasts, and docs are in Spanish; code, identifiers, and comments in English.**
 4. Client icons come from `@tabler/icons-react`, not `lucide-react`.
 

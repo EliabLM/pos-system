@@ -36,7 +36,7 @@ Resumen de impacto:
 
 | Capa | Cantidad | Ubicación |
 |------|----------|-----------|
-| Modelos Prisma | 21 | `pos-system-client/prisma/schema.prisma` |
+| Modelos Prisma | 21 | `pos-system-server/prisma/schema.prisma` (movido del client el 2026-08-20 — Fase 1 paso 1) |
 | Server actions | 21 (1:1 con modelos) | `pos-system-client/src/actions/<entity>/` |
 | Hooks TanStack Query | 23 | `pos-system-client/src/hooks/use*.ts` |
 | Rutas dashboard | 17 | `pos-system-client/src/app/dashboard/<entity>/` |

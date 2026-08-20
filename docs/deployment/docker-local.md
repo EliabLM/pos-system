@@ -4,15 +4,15 @@
 > Postgres 17, para validar el stack completo antes de avanzar fases de la
 > migración o antes de deployar a testing/producción.
 >
-> **Fecha:** 2026-08-10 · **Estado:** ✅ Probado end-to-end el 2026-08-11 (stack up + seed + suite E2E smoke 17/17)
+> **Fecha:** 2026-08-10 · **Estado:** ✅ Probado end-to-end el 2026-08-11 (stack up + seed + suite E2E smoke 17/17) · ✅ Reverificado el 2026-08-20 tras mover el schema Prisma al server (Fase 1 paso 1): migraciones aplicadas por el contenedor `server` desde volumen limpio + smoke 17/17
 
 ## Qué levanta
 
 | Servicio  | Imagen/Build              | Host:Container | Notas |
 |-----------|---------------------------|----------------|-------|
 | `db`      | `postgres:17-alpine`      | 5432:5432      | volumen `pgdata`, healthcheck `pg_isready` |
-| `server`  | build `pos-system-server` | 3001:3001      | Express (sin dominio todavía; arranca aunque no haya DB) |
-| `client`  | build `pos-system-client` | 3000:3000      | Next.js; entrypoint corre `prisma migrate deploy && next start` |
+| `server`  | build `pos-system-server` | 3001:3001      | Express; **dueño del schema (Fase 1)**: entrypoint corre `prisma migrate deploy && node dist/server.js`; healthcheck `GET /health` |
+| `client`  | build (contexto = raíz)   | 3000:3000      | Next.js; espera `server` healthy (migraciones ya aplicadas) y corre `next start` |
 | `app`     | build `pos-system-app`    | 8082:8082      | **profile `app`** — solo arranca con `--profile app` |
 
 > **Por qué la app tiene un profile:** Expo en docker solo sirve el bundle **web**.
@@ -24,11 +24,15 @@
 
 - `docker-compose.yml` (raíz del repo) — stack base.
 - `pos-system-client/Dockerfile` — multi-stage Next.js (non-standalone, su propio
-  `pnpm-lock.yaml`). Aplica migraciones al arrancar.
+  `pnpm-lock.yaml`). **Build context = raíz del repo** (necesita
+  `pos-system-server/prisma/` para `prisma generate`); la imagen replica el layout
+  del monorepo. No aplica migraciones.
 - `pos-system-server/Dockerfile` — multi-stage Express (`tsc` → `node dist/server.js`).
+  Incluye `prisma/` + CLI y aplica `migrate deploy` al arrancar (dueño del schema).
 - `pos-system-app/Dockerfile` — single-stage Expo `expo start --web`.
 - `.env.example` (raíz) — valores para el compose. `cp .env.example .env` y editar.
-- `**/.dockerignore` — excluyen `node_modules`, `.next`, `dist`, logs.
+- `.dockerignore` (raíz, para el contexto del client) y `**/.dockerignore` — excluyen
+  `node_modules`, `.next`, `dist`, logs, y el cliente Prisma generado del host.
 
 ## Cómo correrlo
 
@@ -47,7 +51,7 @@ docker compose --profile app up --build
 
 URLs locales:
 - Client: http://localhost:3000
-- Server (health): http://localhost:3001/health
+- Server (health): http://localhost:3001/api/v1/health
 - App web: http://localhost:8082
 - Postgres: `localhost:5432` (user/db `pos`/`pos` por defecto del `.env.example`)
 
@@ -63,25 +67,24 @@ URLs locales:
 
 ## Limitaciones conocidas
 
-- **`prisma migrate deploy` en el client:** el contenedor `client` aplica las
-  migraciones de `pos-system-client/prisma/migrations/` contra la `db` local al
-  arrancar. Si levantás `db` + `client` pero la DB ya estaba en un estado distinto
-  (volumen persistente de una corrida anterior con otro schema) `prisma migrate
-  deploy` puede fallar con drift. Solución: `docker compose down -v` para borrar
-  el volumen y volver a levantar limpio.
+- **`prisma migrate deploy` corre en el server (Fase 1):** el contenedor `server`
+  aplica las migraciones de `pos-system-server/prisma/migrations/` contra la `db`
+  local al arrancar; el `client` espera a que el server esté healthy. Si la DB ya
+  estaba en un estado distinto (volumen persistente de una corrida anterior con
+  otro schema) `prisma migrate deploy` puede fallar con drift. Solución:
+  `docker compose down -v` para borrar el volumen y volver a levantar limpio.
 - **App móvil en docker = web only.** Expo/device testing va fuera de docker.
 - **`pos-system-app` y `pos-system-server` usan `--ignore-workspace --no-frozen-lockfile`
-  dentro de su Dockerfile** porque el monorepo raíz no tiene `package.json` raíz y
-  el `pnpm-lock.yaml` raíz no tiene importer raíz (el workspace se generó sin él).
-  Por lo tanto estas dos imágenes no resuelven desde el lockfile del monorepo:
-  instalan la última versión dentro de los rangos del `package.json` de cada
-  proyecto. Esto es **aceptable para local**; en Fase 2 (cuando el server tenga
-  dependencias workspace como `@pos/dto-types`) se migrará a build context = raíz
-  con `pnpm install --filter @pos/server... --frozen-lockfile` — requiere agregar
-  un `package.json` raíz y regenerar el lockfile. Documentar esa migración cuando
-  llegue.
-- **El server no tiene DB todavía.** Arranca aunque `DATABASE_URL` esté vacío
-  (`env.ts` lo marca opcional). Hasta Fase 1/2 no usa Prisma.
+  dentro de su Dockerfile**: estas dos imágenes no resuelven desde el lockfile del
+  monorepo — instalan la última versión dentro de los rangos del `package.json` de
+  cada proyecto (Prisma está pineado exacto a `6.14.0`, así que no dryfta). Esto es
+  **aceptable para local**; en Fase 2 (cuando el server tenga dependencias workspace
+  como `@pos/dto-types`) se migrará a build context = raíz con
+  `pnpm install --filter @pos/server... --frozen-lockfile`.
+- **El server aún no usa Prisma en runtime.** Su entrypoint aplica las migraciones
+  (CLI) pero el proceso Express no abre conexiones a la DB hasta Fase 2. `JWT_SECRET`
+  sigue opcional en `env.ts`; `DATABASE_URL`/`DIRECT_URL` las inyecta el compose para
+  el `migrate deploy`.
 
 ## Fixes aplicados en la prueba end-to-end (2026-08-11)
 
@@ -115,7 +118,7 @@ docker compose ps
 docker compose logs client
 
 # Health del server
-curl -s http://localhost:3001/health
+curl -s http://localhost:3001/api/v1/health
 
 # Conexión a la DB desde el host
 docker compose exec db psql -U pos -d pos -c '\dt'   # deberías ver las tablas del schema

@@ -1,0 +1,36 @@
+# .dockerignore del contexto RAÍZ — usado por el build del client
+# (docker-compose.yml: context "." + dockerfile pos-system-client/Dockerfile).
+# Los builds de server y app usan sus propios contextos/subcarpetas y no leen este.
+
+.git
+.env
+docs
+.claude
+.opencode
+.codegraph
+.vercel
+
+# Proyectos que el build del client no necesita (solo usa pos-system-client/ y
+# pos-system-server/prisma/).
+pos-system-app
+packages
+pos-system-server/src
+pos-system-server/node_modules
+pos-system-server/dist
+
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/*.log
+**/.env
+**/.env.local
+**/.env*.local
+
+# Cliente Prisma generado en el host (Windows): la imagen lo regenera para su
+# propia plataforma en el stage de deps/build.
+pos-system-client/src/generated
+
+# Artefactos de Playwright
+pos-system-client/e2e/.report
+pos-system-client/e2e/.results

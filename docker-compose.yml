@@ -3,8 +3,8 @@
 #
 # Servicios y puertos (host:container):
 #   db       5432:5432   Postgres 17
-#   server   3001:3001   pos-system-server (Express)
-#   client   3000:3000   pos-system-client (Next.js)  — aplica migraciones Prisma al arrancar
+#   server   3001:3001   pos-system-server (Express)   — aplica migraciones Prisma al arrancar (dueño del schema desde Fase 1)
+#   client   3000:3000   pos-system-client (Next.js)   — espera al server healthy (migraciones ya aplicadas)
 #   app      8082:8082   pos-system-app (Expo web)     — opcional, ver nota
 #
 # Cómo correrlo:
@@ -48,27 +48,42 @@ services:
       NODE_ENV: production
       PORT: 3001
       LOG_LEVEL: info
-      # Sin dominio todavia (Fase 2). JWT_SECRET/DATABASE_URL quedan opcionales en el schema.
+      # Sin dominio todavia (Fase 2). JWT_SECRET queda opcional en el schema.
       JWT_SECRET: ${SERVER_JWT_SECRET:-}
-      DATABASE_URL: ${SERVER_DATABASE_URL:-}
-      DIRECT_URL: ${SERVER_DIRECT_URL:-}
+      # Fase 1: el server es dueño del schema Prisma y aplica `migrate deploy`
+      # en su entrypoint antes de levantar el proceso.
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-pos}:${POSTGRES_PASSWORD:-pos}@db:5432/${POSTGRES_DB:-pos}?schema=public"
+      DIRECT_URL: "postgresql://${POSTGRES_USER:-pos}:${POSTGRES_PASSWORD:-pos}@db:5432/${POSTGRES_DB:-pos}?schema=public"
     ports:
       - "3001:3001"
+    healthcheck:
+      # El healthcheck marca healthy recien cuando las migraciones ya corrieron
+      # (el proceso solo escucha despues de `migrate deploy`).
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/v1/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
 
   client:
     build:
-      context: ./pos-system-client
-      dockerfile: Dockerfile
+      # Contexto raíz: el Dockerfile necesita pos-system-client/ + el schema
+      # Prisma que ahora vive en pos-system-server/prisma/ (Fase 1).
+      context: .
+      dockerfile: pos-system-client/Dockerfile
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      # El server aplica las migraciones; el client arranca cuando ya corrieron.
+      server:
         condition: service_healthy
     environment:
       NODE_ENV: production
       # Next.js
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      # Prisma — mismo DB local, sin pooling. Migrations se aplican en el entrypoint.
+      # Prisma — mismo DB local, sin pooling. Migrations las aplica el server.
       DATABASE_URL: "postgresql://${POSTGRES_USER:-pos}:${POSTGRES_PASSWORD:-pos}@db:5432/${POSTGRES_DB:-pos}?schema=public"
       DIRECT_URL: "postgresql://${POSTGRES_USER:-pos}:${POSTGRES_PASSWORD:-pos}@db:5432/${POSTGRES_DB:-pos}?schema=public"
       # Auth

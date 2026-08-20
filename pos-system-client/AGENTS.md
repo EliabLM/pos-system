@@ -10,17 +10,18 @@ Package manager is **pnpm 10.7.1** (pinned in `package.json`). Do not use npm/ya
 ```bash
 pnpm dev            # dev server (Turbopack)
 pnpm lint           # ESLint (flat config; src/generated is ignored)
-pnpm build          # prisma generate && next build — this is also the typecheck
-npx prisma migrate dev --name <change>   # after editing prisma/schema.prisma
+pnpm build          # prisma generate (server schema) && next build — this is also the typecheck
+pnpm db:generate    # regenerate the Prisma client only
 ```
 
+- **The Prisma schema lives in `../pos-system-server/prisma/schema.prisma`** (the server owns it since Fase 1). Migrations run from `../pos-system-server/` (`pnpm db:migrate -- --name <change>`); this project only regenerates/consumes the client.
 - There is **no test framework**. Verification = `pnpm lint` + `pnpm build` (build runs `tsc` via Next and fails on type errors).
-- `postinstall` runs `prisma generate`, so a fresh `pnpm install` regenerates the client.
+- `postinstall` runs `prisma generate` against the server's schema, so a fresh `pnpm install` regenerates the client (requires the sibling `pos-system-server/` checkout).
 
 ## Hard rules (zero tolerance, enforced in review)
 
 1. **Never `any`, `@ts-ignore`, `@ts-expect-error`, or eslint-disable of type rules.** Use `unknown` + narrowing, or double assertion (`as unknown as T`). React Hook Form resolvers: `yupResolver(schema) as unknown as Resolver<FormData>`.
-2. **Never invent Prisma fields.** Before touching any model, open `prisma/schema.prisma` and use only fields that exist there. If a field is missing, ask the user to add it to the schema first — do not "helpfully" add it in code.
+2. **Never invent Prisma fields.** Before touching any model, open `../pos-system-server/prisma/schema.prisma` and use only fields that exist there. If a field is missing, ask the user to add it to the schema first — do not "helpfully" add it in code.
 3. **Icons come from `@tabler/icons-react`**, not `lucide-react` (lucide is only present because shadcn internals use it).
 
 ## Prisma gotchas
@@ -43,7 +44,7 @@ npx prisma migrate dev --name <change>   # after editing prisma/schema.prisma
 
 ## Environment
 
-`.env` requires: `DATABASE_URL` (pooled), `DIRECT_URL` (migrations), `JWT_SECRET`, `UPLOADTHING_TOKEN`, `HTTPS_ENABLED`. `vercel-build` also runs `prisma migrate deploy`.
+`.env` requires: `DATABASE_URL` (pooled), `DIRECT_URL` (migrations), `JWT_SECRET`, `UPLOADTHING_TOKEN`, `HTTPS_ENABLED`. (The `vercel-build` script was removed — the legacy Vercel deploy is frozen on the pre-monorepo repo; migrations are applied by `pos-system-server`.)
 
 ## Git workflow
 

@@ -1,6 +1,10 @@
+// El schema es propiedad del server (Fase 1). Mientras dure el strangler-fig el
+// client sigue consumiendo el cliente generado en su propio arbol via `@/generated/prisma`;
+// cuando el server incorpore Prisma en runtime (Fase 2) se agrega aca un segundo
+// generator con output local al server.
 generator client {
   provider      = "prisma-client-js"
-  output        = "../src/generated/prisma"
+  output        = "../../pos-system-client/src/generated/prisma"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 

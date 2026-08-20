@@ -5,3 +5,10 @@ packages:
   - 'pos-system-server'
   - 'pos-system-app'
   - 'packages/*'
+
+# Prisma necesita correr sus postinstall (descarga de engines) — sin esto el
+# CLI intentaría bajarlos on-demand en runtime (p. ej. `migrate deploy` al
+# arrancar el contenedor del server).
+onlyBuiltDependencies:
+  - prisma
+  - '@prisma/engines'
