@@ -228,7 +228,7 @@ export const useCreateOrganization = () => {
       userId: string;
       organizationData: Omit<
         Organization,
-        'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
+        'id' | 'slug' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
       >;
       businessType?: 'liquor_store' | 'shoe_store' | null;
     }) => {

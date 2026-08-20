@@ -21,6 +21,10 @@ datasource db {
 
 model Organization {
   id             String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  // D3.10: slug único global para URLs multi-tenant. DEFAULT '' + trigger
+  // organizations_slug_default lo generan desde name al insertar (Receta R7),
+  // así el client legacy puede seguir creando orgs sin enviarlo.
+  slug           String          @unique @default("")
   name           String
   email          String
   nit            String?
@@ -37,6 +41,7 @@ model Organization {
   brands         Brand[]
   categories     Category[]
   customers      Customer[]
+  memberships    Membership[]
   paymentMethods PaymentMethod[]
   products       Product[]
   stockMovements StockMovement[]
@@ -68,6 +73,7 @@ model Store {
   sales            Sale[]
   organization     Organization @relation(fields: [organizationId], references: [id])
   users            User[]
+  memberships      Membership[]
 
   // unique (organization_id, name) WHERE deleted_at IS NULL — partial index in SQL
   @@index([organizationId, isDeleted])
@@ -120,6 +126,8 @@ model User {
   passwordResets     PasswordReset[]
   emailVerifications EmailVerification[]
   auditLogs          AuditLog[]
+  memberships        Membership[]
+  accounts           Account[]
 
   // unique (email) / (username) WHERE deleted_at IS NULL — partial indexes in SQL
   @@index([organizationId, isDeleted, isActive])
@@ -137,7 +145,10 @@ model Session {
   userId String @map("user_id") @db.Uuid
 
   // Token y seguridad
-  token     String   @unique // Hash del JWT o session ID
+  token     String   @unique // Hash del JWT o session ID (rename a token_hash en 3b)
+  // Refresh rotation (D3/R8) — el módulo auth de Fase 2 los llena
+  refreshTokenHash String? @unique @map("refresh_token_hash")
+  rotatedFrom      String? @map("rotated_from") @db.Uuid // reuse-detection chain
   expiresAt DateTime @map("expires_at") @db.Timestamptz
 
   // Metadata de seguridad
@@ -597,6 +608,75 @@ model SystemConfig {
   @@map("system_configs")
 }
 
+// ============================================
+// AUTH TARGET (Fase 1 paso 3 — docs/auth/AUTH_TARGET_SCHEMA.md)
+// ============================================
+
+// D3.3 — desacopla user↔organization: member-roles, default store, invitaciones.
+// users conserva organizationId/storeId/role hasta el bloque 3c del paso 3.
+model Membership {
+  id             String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  role           MembershipRole   @default(SELLER)
+  defaultStoreId String?          @map("default_store_id") @db.Uuid
+  status         MembershipStatus @default(ACTIVE)
+  invitedBy      String?          @map("invited_by") @db.Uuid
+  acceptedAt     DateTime?        @map("accepted_at") @db.Timestamptz
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime?        @map("deleted_at") @db.Timestamptz
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  defaultStore Store?       @relation(fields: [defaultStoreId], references: [id])
+
+  // unique (user_id, organization_id) WHERE deleted_at IS NULL — partial index in SQL
+  @@index([organizationId, role])
+  @@index([userId])
+  @@index([defaultStoreId])
+  @@map("memberships")
+}
+
+// D3.7 — unifica password_resets + email_verifications (+ magic-link/change-email
+// futuros). Las tablas viejas se eliminan en el bloque 3b cuando el client migre.
+model Verification {
+  id         String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  identifier String // email (o userId para tipos futuros)
+  valueHash  String           @unique @map("value_hash") // hash del token (Fase 2; hoy se mueve tal cual)
+  type       VerificationType
+  expiresAt  DateTime         @map("expires_at") @db.Timestamptz
+  used       Boolean          @default(false)
+  usedAt     DateTime?        @map("used_at") @db.Timestamptz
+  ipAddress  String?          @map("ip_address")
+  userAgent  String?          @map("user_agent")
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([identifier, type, used])
+  @@index([expiresAt])
+  @@map("verifications")
+}
+
+// D3.9 — skeleton OAuth/passkey/credential por user. Schema ahora; datos en Fase 2+.
+model Account {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  providerId   String    @map("provider_id") // "google" | "apple" | "passkey" | "credential" | "totp"
+  accountId    String    @map("account_id") // id externo (sub, credentialId)
+  accessToken  String?   @map("access_token") // encrypted at rest (Fase 2)
+  refreshToken String?   @map("refresh_token")
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz
+  metadata     Json?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
 // Puente cuid→UUIDv7 (Receta R1 de la migración). Durante la transición la API
 // acepta ids legacy via lookup en esta tabla; se elimina tras Fase 5.
 model LegacyIdMap {
@@ -613,6 +693,30 @@ enum UserRole {
   SELLER
 
   @@map("user_role")
+}
+
+enum MembershipRole {
+  ADMIN
+  SELLER
+
+  @@map("membership_role")
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  REVOKED
+
+  @@map("membership_status")
+}
+
+enum VerificationType {
+  PASSWORD_RESET
+  EMAIL_VERIFY
+  MAGIC_LINK
+  CHANGE_EMAIL
+
+  @@map("verification_type")
 }
 
 enum StockMovementType {

@@ -254,9 +254,10 @@ const createInitialConfigurations = async (
 // CREATE
 export const createOrganization = async (
   adminUserId: string,
+  // slug excluido: lo genera la DB (trigger organizations_slug_default, Receta R7)
   organizationData: Omit<
     Organization,
-    'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
+    'id' | 'slug' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
   >,
   businessType?: 'liquor_store' | 'shoe_store' | null
 ): Promise<ActionResponse<Organization | null>> => {

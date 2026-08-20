@@ -122,6 +122,7 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 
 exports.Prisma.OrganizationScalarFieldEnum = {
   id: 'id',
+  slug: 'slug',
   name: 'name',
   email: 'email',
   nit: 'nit',
@@ -181,6 +182,8 @@ exports.Prisma.SessionScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   token: 'token',
+  refreshTokenHash: 'refreshTokenHash',
+  rotatedFrom: 'rotatedFrom',
   expiresAt: 'expiresAt',
   ipAddress: 'ipAddress',
   userAgent: 'userAgent',
@@ -451,6 +454,46 @@ exports.Prisma.SystemConfigScalarFieldEnum = {
   deletedAt: 'deletedAt'
 };
 
+exports.Prisma.MembershipScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  organizationId: 'organizationId',
+  role: 'role',
+  defaultStoreId: 'defaultStoreId',
+  status: 'status',
+  invitedBy: 'invitedBy',
+  acceptedAt: 'acceptedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt'
+};
+
+exports.Prisma.VerificationScalarFieldEnum = {
+  id: 'id',
+  identifier: 'identifier',
+  valueHash: 'valueHash',
+  type: 'type',
+  expiresAt: 'expiresAt',
+  used: 'used',
+  usedAt: 'usedAt',
+  ipAddress: 'ipAddress',
+  userAgent: 'userAgent',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AccountScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  providerId: 'providerId',
+  accountId: 'accountId',
+  accessToken: 'accessToken',
+  refreshToken: 'refreshToken',
+  expiresAt: 'expiresAt',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.LegacyIdMapScalarFieldEnum = {
   entity: 'entity',
   legacyId: 'legacyId',
@@ -535,6 +578,24 @@ exports.StockMovementType = exports.$Enums.StockMovementType = {
   ADJUSTMENT: 'ADJUSTMENT'
 };
 
+exports.MembershipRole = exports.$Enums.MembershipRole = {
+  ADMIN: 'ADMIN',
+  SELLER: 'SELLER'
+};
+
+exports.MembershipStatus = exports.$Enums.MembershipStatus = {
+  INVITED: 'INVITED',
+  ACTIVE: 'ACTIVE',
+  REVOKED: 'REVOKED'
+};
+
+exports.VerificationType = exports.$Enums.VerificationType = {
+  PASSWORD_RESET: 'PASSWORD_RESET',
+  EMAIL_VERIFY: 'EMAIL_VERIFY',
+  MAGIC_LINK: 'MAGIC_LINK',
+  CHANGE_EMAIL: 'CHANGE_EMAIL'
+};
+
 exports.Prisma.ModelName = {
   Organization: 'Organization',
   Store: 'Store',
@@ -557,6 +618,9 @@ exports.Prisma.ModelName = {
   PurchaseItem: 'PurchaseItem',
   StockMovement: 'StockMovement',
   SystemConfig: 'SystemConfig',
+  Membership: 'Membership',
+  Verification: 'Verification',
+  Account: 'Account',
   LegacyIdMap: 'LegacyIdMap'
 };
 
