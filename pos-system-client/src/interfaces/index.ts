@@ -26,22 +26,20 @@ export interface TempUser {
   organizationId: string;
 }
 
+// Vista compuesta que devuelven las auth actions: identidad global + tenancy
+// del membership ACTIVO (D3.3). organizationId null = usuario en onboarding.
 export interface User {
   id: string;
-  organizationId: string;
+  organizationId: string | null;
   storeId: string | null;
-  clerkId: string;
   email: string;
-  username: string;
-  firstName: string;
-  lastName: string;
+  name: string;
+  image?: string | null;
   role: string;
   emailVerified: boolean;
   isActive: boolean;
-  isDeleted: boolean;
   createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
+  updatedAt?: Date;
   organization: Organization | null;
   store: Store | null;
 }

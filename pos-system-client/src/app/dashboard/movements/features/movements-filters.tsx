@@ -149,7 +149,7 @@ export function MovementsFilters({
               <SelectItem value="all">Todos los usuarios</SelectItem>
               {users.data?.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
-                  {user.firstName} {user.lastName}
+                  {user.name}
                 </SelectItem>
               ))}
             </SelectContent>

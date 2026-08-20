@@ -6,7 +6,6 @@ import { es } from 'date-fns/locale';
 import {
   IconUser,
   IconMail,
-  IconAt,
   IconShieldCheck,
   IconBuilding,
   IconBuildingStore,
@@ -41,10 +40,11 @@ export function UserProfileModal({
 
   // Get user initials for avatar
   const getUserInitials = (): string => {
-    if (!user?.firstName && !user?.lastName) return 'U';
-    const firstInitial = user.firstName?.charAt(0).toUpperCase() || '';
-    const lastInitial = user.lastName?.charAt(0).toUpperCase() || '';
-    return `${firstInitial}${lastInitial}`;
+    if (!user?.name) return 'U';
+    const parts = user.name.trim().split(/\s+/);
+    const firstInitial = parts[0]?.charAt(0).toUpperCase() || '';
+    const lastInitial = parts[1]?.charAt(0).toUpperCase() || '';
+    return `${firstInitial}${lastInitial}` || 'U';
   };
 
   // Format date for display
@@ -94,15 +94,11 @@ export function UserProfileModal({
               </Avatar>
               <div className="flex-1 space-y-1">
                 <h3 className="text-lg font-semibold">
-                  {user.firstName} {user.lastName}
+                  {user.name}
                 </h3>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <IconMail className="h-4 w-4" />
                   {user.email}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <IconAt className="h-4 w-4" />
-                  {user.username}
                 </div>
               </div>
             </div>

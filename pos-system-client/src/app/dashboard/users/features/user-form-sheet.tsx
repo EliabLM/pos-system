@@ -46,26 +46,17 @@ import {
 
 import { useCreateUser, useUpdateUser } from '@/hooks/useUsers';
 import { useActiveStores } from '@/hooks/useStores';
-import { User } from '@/generated/prisma';
-import { useStore } from '@/store';
+import type { UserWithTenancy } from '@/actions/user/user.actions';
 
 const createSchema = yup.object().shape({
-  firstName: yup
+  name: yup
     .string()
-    .min(2, 'Debe ingresar mínimo 2 caracteres')
+    .min(3, 'Debe ingresar mínimo 3 caracteres')
     .required('El nombre es requerido'),
-  lastName: yup
-    .string()
-    .min(2, 'Debe ingresar mínimo 2 caracteres')
-    .required('El apellido es requerido'),
   email: yup
     .string()
     .email('Debe ingresar un email válido')
     .required('El email es requerido'),
-  username: yup
-    .string()
-    .min(3, 'Debe ingresar mínimo 3 caracteres')
-    .required('El nombre de usuario es requerido'),
   password: yup
     .string()
     .min(8, 'La contraseña debe tener al menos 8 caracteres')
@@ -79,22 +70,14 @@ const createSchema = yup.object().shape({
 });
 
 const editSchema = yup.object().shape({
-  firstName: yup
+  name: yup
     .string()
-    .min(2, 'Debe ingresar mínimo 2 caracteres')
+    .min(3, 'Debe ingresar mínimo 3 caracteres')
     .required('El nombre es requerido'),
-  lastName: yup
-    .string()
-    .min(2, 'Debe ingresar mínimo 2 caracteres')
-    .required('El apellido es requerido'),
   email: yup
     .string()
     .email('Debe ingresar un email válido')
     .required('El email es requerido'),
-  username: yup
-    .string()
-    .min(3, 'Debe ingresar mínimo 3 caracteres')
-    .required('El nombre de usuario es requerido'),
   storeId: yup.string().nullable().notRequired().defined(),
   active: yup.bool().default(true),
 });
@@ -105,8 +88,8 @@ type UserFormData = CreateUserFormData | EditUserFormData;
 
 interface UserFormSheetProps {
   setSheetOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setItemSelected: React.Dispatch<React.SetStateAction<User | null>>;
-  itemSelected: User | null;
+  setItemSelected: React.Dispatch<React.SetStateAction<UserWithTenancy | null>>;
+  itemSelected: UserWithTenancy | null;
 }
 
 export default function UserFormSheet({
@@ -117,7 +100,6 @@ export default function UserFormSheet({
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const { data: activeStores } = useActiveStores();
-  const currentUser = useStore((state) => state.user);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -125,18 +107,14 @@ export default function UserFormSheet({
     criteriaMode: 'firstError',
     defaultValues: itemSelected
       ? {
-          firstName: itemSelected.firstName,
-          lastName: itemSelected.lastName,
+          name: itemSelected.name,
           email: itemSelected.email,
-          username: itemSelected.username,
           storeId: itemSelected.storeId ?? null,
           active: itemSelected.isActive,
         }
       : {
-          firstName: '',
-          lastName: '',
+          name: '',
           email: '',
-          username: '',
           password: '',
           storeId: null,
           active: true,
@@ -151,13 +129,11 @@ export default function UserFormSheet({
       setIsLoading(true);
 
       if (itemSelected) {
-        // Update existing user
+        // Update existing user (role/store se aplican al membership)
         await updateMutation.mutateAsync({
           userId: itemSelected.id,
           updateData: {
-            firstName: data.firstName,
-            lastName: data.lastName,
-            username: data.username,
+            name: data.name,
             storeId: data.storeId,
             isActive: data.active,
           },
@@ -165,23 +141,15 @@ export default function UserFormSheet({
 
         toast.success('Usuario actualizado exitosamente');
       } else {
-        // Create new user
+        // Create new user (identidad + membership SELLER)
         const createData = data as CreateUserFormData;
         await createMutation.mutateAsync({
-          organizationId: currentUser?.organizationId || null,
-          storeId: createData.storeId,
+          name: createData.name,
           email: createData.email,
           password: createData.password,
-          username: createData.username,
-          firstName: createData.firstName,
-          lastName: createData.lastName,
           role: 'SELLER', // Always SELLER
-          emailVerified: false,
+          storeId: createData.storeId,
           isActive: createData.active,
-          lastLoginAt: null,
-          passwordChangedAt: null,
-          loginAttempts: 0,
-          lockedUntil: null,
         });
 
         toast.success('Usuario creado exitosamente');
@@ -204,10 +172,8 @@ export default function UserFormSheet({
 
   useEffect(() => {
     if (itemSelected) {
-      form.setValue('firstName', itemSelected.firstName);
-      form.setValue('lastName', itemSelected.lastName);
+      form.setValue('name', itemSelected.name);
       form.setValue('email', itemSelected.email);
-      form.setValue('username', itemSelected.username);
       form.setValue('storeId', itemSelected.storeId ?? null);
       form.setValue('active', itemSelected.isActive);
     }
@@ -239,35 +205,19 @@ export default function UserFormSheet({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Juan" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Apellido *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Pérez" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Juan Pérez" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
 
@@ -304,36 +254,6 @@ export default function UserFormSheet({
                       {itemSelected && (
                         <p className="text-xs text-muted-foreground">
                           El email no se puede editar en usuarios existentes
-                        </p>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre de usuario *</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <IconUser
-                            className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
-                            aria-hidden="true"
-                          />
-                          <Input
-                            placeholder="juanperez"
-                            {...field}
-                            disabled={!!itemSelected}
-                            className="pl-10"
-                          />
-                        </div>
-                      </FormControl>
-                      {itemSelected && (
-                        <p className="text-xs text-muted-foreground">
-                          El nombre de usuario no se puede editar
                         </p>
                       )}
                       <FormMessage />

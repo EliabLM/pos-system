@@ -24,11 +24,10 @@ import {
 const COOKIE_NAME = 'auth-token';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 días en segundos
 
+// D3.4/D3.5: login por email (sin username), nombre en un solo campo
 interface RegisterFormData {
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
-  username: string;
   password: string;
   confirmPassword: string;
   organizationId?: string;
@@ -38,8 +37,7 @@ interface RegisterFormData {
 interface RegisterResponseData {
   user: {
     id: string;
-    firstName: string | null;
-    lastName: string | null;
+    name: string;
     email: string;
     role: string;
     organizationId: string | null;
@@ -79,10 +77,8 @@ export async function registerUser(
   try {
     // 1. Extraer y validar datos del formulario
     const data: RegisterFormData = {
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
+      name: formData.get('name') as string,
       email: formData.get('email') as string,
-      username: formData.get('username') as string,
       password: formData.get('password') as string,
       confirmPassword: formData.get('confirmPassword') as string,
       organizationId: formData.get('organizationId') as string | undefined,
@@ -90,26 +86,10 @@ export async function registerUser(
     };
 
     // Validar campos requeridos
-    if (!data.firstName || data.firstName.trim().length === 0) {
+    if (!data.name || data.name.trim().length === 0) {
       return {
         status: 400,
         message: 'El nombre es requerido',
-        data: null,
-      };
-    }
-
-    if (!data.lastName || data.lastName.trim().length === 0) {
-      return {
-        status: 400,
-        message: 'El apellido es requerido',
-        data: null,
-      };
-    }
-
-    if (!data.username || data.username.trim().length === 0) {
-      return {
-        status: 400,
-        message: 'El nombre de usuario es requerido',
         data: null,
       };
     }
@@ -154,61 +134,9 @@ export async function registerUser(
       throw error;
     }
 
-    // 4. Verificar que el email no existe (multi-tenant aware)
-    // Si el usuario NO tiene organizationId (primer usuario creando org), verificar globalmente
-    // Si el usuario TIENE organizationId (usuario adicional), verificar solo en esa org
-    if (data.organizationId) {
-      // Usuario adicional en organización existente - verificar solo en esa org
-      const existingUserByEmail = await prisma.user.findFirst({
-        where: {
-          email: normalizedEmail,
-          organizationId: data.organizationId,
-          isDeleted: false,
-        },
-      });
-
-      if (existingUserByEmail) {
-        return {
-          status: 409,
-          message: 'Ya existe un usuario con este correo electrónico en esta organización',
-          data: null,
-        };
-      }
-
-      const existingUserByUsername = await prisma.user.findFirst({
-        where: {
-          username: data.username.trim(),
-          organizationId: data.organizationId,
-          isDeleted: false,
-        },
-      });
-
-      if (existingUserByUsername) {
-        return {
-          status: 409,
-          message: 'Ya existe un usuario con este nombre de usuario en esta organización',
-          data: null,
-        };
-      }
-
-      // Verificar si existe un usuario eliminado con este email en esta org
-      const deletedUser = await prisma.user.findFirst({
-        where: {
-          email: normalizedEmail,
-          organizationId: data.organizationId,
-          isDeleted: true,
-        },
-      });
-
-      if (deletedUser) {
-        return {
-          status: 409,
-          message: 'Este correo electrónico fue usado previamente en esta organización. Por favor contacte a soporte para reactivar su cuenta',
-          data: null,
-        };
-      }
-    } else {
-      // Primer usuario (creando organización) - verificar globalmente
+    // 4. Verificar que el email no existe: los users son identidades GLOBALES
+    //    (D3.4 — email único entre usuarios vivos; la org vive en memberships)
+    {
       const existingUserByEmail = await prisma.user.findFirst({
         where: {
           email: normalizedEmail,
@@ -220,21 +148,6 @@ export async function registerUser(
         return {
           status: 409,
           message: 'Ya existe un usuario con este correo electrónico',
-          data: null,
-        };
-      }
-
-      const existingUserByUsername = await prisma.user.findFirst({
-        where: {
-          username: data.username.trim(),
-          isDeleted: false,
-        },
-      });
-
-      if (existingUserByUsername) {
-        return {
-          status: 409,
-          message: 'Ya existe un usuario con este nombre de usuario',
           data: null,
         };
       }
@@ -261,47 +174,55 @@ export async function registerUser(
       saltRounds: 12,
     });
 
-    // 6. Crear usuario en DB
-    const newUser = await prisma.user.create({
-      data: {
-        firstName: data.firstName.trim(),
-        lastName: data.lastName.trim(),
-        email: normalizedEmail,
-        username: data.username.trim(),
-        password: hashedPassword,
-        role: data.organizationId ? 'SELLER' : 'ADMIN', // ADMIN si no tiene org (primer usuario), SELLER si ya tiene org
-        organizationId: data.organizationId || null,
-        storeId: data.storeId || null,
-        isActive: true,
-        isDeleted: false,
-        emailVerified: false, // Requerir verificación de email (opcional por ahora)
-        passwordChangedAt: new Date(),
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        role: true,
-        organizationId: true,
-        storeId: true,
-        isActive: true,
-        emailVerified: true,
-        createdAt: true,
-        organization: {
-          select: {
-            id: true,
-            name: true,
-          },
+    // 6. Crear usuario (identidad global) y, si viene con organización, su
+    //    membership SELLER (D3.3). Sin org = dueño que va al onboarding.
+    const created = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name: data.name.trim(),
+          email: normalizedEmail,
+          passwordHash: hashedPassword,
+          isActive: true,
+          isDeleted: false,
+          emailVerified: false, // Requerir verificación de email (opcional por ahora)
+          passwordChangedAt: new Date(),
         },
-        store: {
-          select: {
-            id: true,
-            name: true,
-          },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          isActive: true,
+          emailVerified: true,
+          createdAt: true,
         },
-      },
+      });
+
+      if (!data.organizationId) {
+        return { user, membership: null };
+      }
+
+      const membership = await tx.membership.create({
+        data: {
+          userId: user.id,
+          organizationId: data.organizationId,
+          role: 'SELLER',
+          defaultStoreId: data.storeId || null,
+          status: 'ACTIVE',
+          acceptedAt: new Date(),
+        },
+        select: {
+          role: true,
+          organizationId: true,
+          defaultStoreId: true,
+          organization: { select: { id: true, name: true } },
+          defaultStore: { select: { id: true, name: true } },
+        },
+      });
+
+      return { user, membership };
     });
+
+    const { user: newUser, membership } = created;
 
     // 7. Crear sesión y generar JWT
     // Obtener IP y User-Agent de headers (si están disponibles)
@@ -331,14 +252,26 @@ export async function registerUser(
     // 9. Determinar URL de redirección
     // Usuarios sin organización van a onboarding
     // Usuarios con organización van directo a dashboard
-    const redirectUrl = newUser.organizationId ? '/dashboard' : '/onboarding';
+    const redirectUrl = membership ? '/dashboard' : '/onboarding';
 
-    // 10. Return success con user data (sin password) y redirect URL
+    // 10. Return success con la vista compuesta user+membership y redirect URL
     return {
       status: 201,
       message: 'Usuario registrado exitosamente',
       data: {
-        user: newUser,
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: membership?.role ?? 'ADMIN',
+          organizationId: membership?.organizationId ?? null,
+          storeId: membership?.defaultStoreId ?? null,
+          isActive: newUser.isActive,
+          emailVerified: newUser.emailVerified,
+          createdAt: newUser.createdAt,
+          organization: membership?.organization ?? null,
+          store: membership?.defaultStore ?? null,
+        },
         sessionId: session.id,
         redirectTo: redirectUrl,
       },

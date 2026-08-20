@@ -61,10 +61,11 @@ export function NavUser() {
 
   // Get user initials for avatar fallback
   const getUserInitials = () => {
-    if (!user?.firstName && !user?.lastName) return 'U';
-    const firstInitial = user.firstName?.charAt(0).toUpperCase() || '';
-    const lastInitial = user.lastName?.charAt(0).toUpperCase() || '';
-    return `${firstInitial}${lastInitial}`;
+    if (!user?.name) return 'U';
+    const parts = user.name.trim().split(/\s+/);
+    const firstInitial = parts[0]?.charAt(0).toUpperCase() || '';
+    const lastInitial = parts[1]?.charAt(0).toUpperCase() || '';
+    return `${firstInitial}${lastInitial}` || 'U';
   };
 
   return (
@@ -83,7 +84,7 @@ export function NavUser() {
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">
-                  {user?.firstName} {user?.lastName}
+                  {user?.name}
                 </span>
                 <span className="text-muted-foreground truncate text-xs">
                   {user?.email}
@@ -107,7 +108,7 @@ export function NavUser() {
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">
-                    {user?.firstName} {user?.lastName}
+                    {user?.name}
                   </span>
                   <span className="text-muted-foreground truncate text-xs">
                     {user?.email}

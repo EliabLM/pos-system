@@ -45,11 +45,10 @@ interface LoginFormData {
  *   redirect('/dashboard');
  * }
  */
+// Vista compuesta user + tenancy del membership ACTIVO (D3.3)
 interface UserData {
   id: string;
-  firstName: string | null;
-  lastName: string | null;
-  username: string | null;
+  name: string;
   email: string;
   role: string;
   organizationId: string | null;
@@ -117,7 +116,8 @@ export async function loginUser(
     // Normalizar email
     const normalizedEmail = normalizeEmail(data.email);
 
-    // 2. Buscar usuario por email (isDeleted: false)
+    // 2. Buscar usuario por email (isDeleted: false) con su membership ACTIVO
+    //    (D3.3: la tenancy — org, store, role — vive en memberships)
     const user = await prisma.user.findFirst({
       where: {
         email: normalizedEmail,
@@ -125,32 +125,29 @@ export async function loginUser(
       },
       select: {
         id: true,
-        firstName: true,
-        lastName: true,
-        username: true,
+        name: true,
         email: true,
-        password: true,
-        role: true,
-        organizationId: true,
-        storeId: true,
+        passwordHash: true,
         isActive: true,
         emailVerified: true,
         loginAttempts: true,
         lockedUntil: true,
         passwordChangedAt: true,
         createdAt: true,
-        organization: {
+        memberships: {
+          where: { deletedAt: null, status: 'ACTIVE' },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
           select: {
-            id: true,
-            name: true,
-            isActive: true,
-          },
-        },
-        store: {
-          select: {
-            id: true,
-            name: true,
-            isActive: true,
+            role: true,
+            organizationId: true,
+            defaultStoreId: true,
+            organization: {
+              select: { id: true, name: true, isActive: true },
+            },
+            defaultStore: {
+              select: { id: true, name: true, isActive: true },
+            },
           },
         },
       },
@@ -200,8 +197,16 @@ export async function loginUser(
       });
     }
 
-    // 4. Comparar password con bcrypt
-    const passwordResult = await comparePassword(data.password, user.password);
+    // 4. Comparar password con bcrypt (passwordHash es nullable — D3.6:
+    //    usuario solo-OAuth no tiene password local)
+    if (!user.passwordHash) {
+      return {
+        status: 401,
+        message: 'Correo electrónico o contraseña inválidos',
+        data: null,
+      };
+    }
+    const passwordResult = await comparePassword(data.password, user.passwordHash);
 
     if (!passwordResult.isValid) {
       // Incrementar intentos fallidos
@@ -243,18 +248,17 @@ export async function loginUser(
       await prisma.user.update({
         where: { id: user.id },
         data: {
-          password: newHash,
+          passwordHash: newHash,
           passwordChangedAt: new Date(),
         },
       });
     }
 
+    // Tenancy efectiva: membership ACTIVO (si no hay, el usuario va a onboarding)
+    const membership = user.memberships[0] ?? null;
+
     // Verificar organización activa (si aplica)
-    if (
-      user.organizationId &&
-      user.organization &&
-      !user.organization.isActive
-    ) {
+    if (membership && !membership.organization.isActive) {
       return {
         status: 403,
         message:
@@ -264,7 +268,7 @@ export async function loginUser(
     }
 
     // Verificar tienda activa (si aplica)
-    if (user.storeId && user.store && !user.store.isActive) {
+    if (membership?.defaultStore && !membership.defaultStore.isActive) {
       return {
         status: 403,
         message:
@@ -300,17 +304,30 @@ export async function loginUser(
       path: '/',
     });
 
-    const redirectUrl = user.organizationId ? '/dashboard' : '/onboarding';
+    const redirectUrl = membership ? '/dashboard' : '/onboarding';
 
-    // 7. Return success con redirect URL (excluir password de la respuesta)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = user;
+    // 7. Return success con redirect URL — vista compuesta (sin passwordHash)
+    const userData: UserData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: membership?.role ?? 'ADMIN',
+      organizationId: membership?.organizationId ?? null,
+      storeId: membership?.defaultStoreId ?? null,
+      isActive: user.isActive,
+      emailVerified: user.emailVerified,
+      loginAttempts: user.loginAttempts,
+      passwordChangedAt: user.passwordChangedAt,
+      createdAt: user.createdAt,
+      organization: membership?.organization ?? null,
+      store: membership?.defaultStore ?? null,
+    };
 
     return {
       status: 200,
       message: 'Inicio de sesión exitoso',
       data: {
-        user: userWithoutPassword,
+        user: userData,
         sessionId: session.id,
         redirectTo: redirectUrl,
       },

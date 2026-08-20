@@ -605,8 +605,7 @@ export async function getSalesBySeller(
         user: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
+            name: true,
             email: true,
           },
         },
@@ -632,7 +631,7 @@ export async function getSalesBySeller(
       const items = sale.saleItems.reduce((sum, item) => sum + item.quantity, 0);
 
       const existing = sellerMap.get(sellerId) || {
-        sellerName: `${sale.user.firstName} ${sale.user.lastName}`,
+        sellerName: sale.user.name,
         sellerEmail: sale.user.email,
         salesCount: 0,
         totalRevenue: 0,

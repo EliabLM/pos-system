@@ -12,7 +12,10 @@ import {
 
 const storeInclude: Prisma.StoreInclude = {
   organization: true,
-  users: true,
+  memberships: {
+    where: { deletedAt: null, status: 'ACTIVE' },
+    include: { user: true },
+  },
   sales: {
     take: 5, // Solo las últimas 5 ventas para evitar sobrecarga
     orderBy: { createdAt: 'desc' },
@@ -20,7 +23,7 @@ const storeInclude: Prisma.StoreInclude = {
   _count: {
     select: {
       sales: true,
-      users: true,
+      memberships: true,
     },
   },
 };
@@ -177,7 +180,10 @@ export const getStoreWithSalesInfo = async (
       where: { id: storeId, isDeleted: false },
       include: {
         organization: true,
-        users: true,
+        memberships: {
+          where: { deletedAt: null, status: 'ACTIVE' },
+          include: { user: true },
+        },
         sales: {
           take: 10,
           orderBy: { createdAt: 'desc' },
@@ -192,7 +198,7 @@ export const getStoreWithSalesInfo = async (
         _count: {
           select: {
             sales: true,
-            users: true,
+            memberships: true,
           },
         },
       },
@@ -532,10 +538,10 @@ export const deleteStore = async (
       };
     }
 
-    // Verificar si hay usuarios asociados
-    const usersCount = await prisma.user.count({
+    // Verificar si hay usuarios asociados (membership con esta tienda default)
+    const usersCount = await prisma.membership.count({
       where: {
-        storeId,
+        defaultStoreId: storeId,
       },
     });
 
@@ -589,8 +595,8 @@ export const getStoresByUserId = async (
 
     const stores = await prisma.store.findMany({
       where: {
-        users: {
-          some: { id: userId },
+        memberships: {
+          some: { userId, deletedAt: null, status: 'ACTIVE' },
         },
         isDeleted: false,
         isActive: true,

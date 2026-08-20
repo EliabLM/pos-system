@@ -15,7 +15,8 @@ import { Sheet } from '@/components/ui/sheet';
 import { IconFilter, IconPlus, IconUserPlus } from '@tabler/icons-react';
 
 import { useUsers } from '@/hooks/useUsers';
-import { User, UserRole } from '@/generated/prisma';
+import { MembershipRole } from '@/generated/prisma';
+import type { UserWithTenancy } from '@/actions/user/user.actions';
 import { useStore } from '@/store';
 
 import UserFormSheet from './user-form-sheet';
@@ -29,7 +30,7 @@ const UsersList = () => {
   // Sheet and Dialog states
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [itemSelected, setItemSelected] = useState<User | null>(null);
+  const [itemSelected, setItemSelected] = useState<UserWithTenancy | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Filter states
@@ -56,7 +57,7 @@ const UsersList = () => {
   const apiFilters = useMemo(() => {
     const filters: {
       search?: string;
-      role?: UserRole;
+      role?: MembershipRole;
       isActive?: boolean;
       storeId?: string;
     } = {};
@@ -66,7 +67,7 @@ const UsersList = () => {
     }
 
     if (roleFilter !== 'all') {
-      filters.role = roleFilter as UserRole;
+      filters.role = roleFilter as MembershipRole;
     }
 
     if (statusFilter === 'active') {

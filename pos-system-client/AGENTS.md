@@ -38,6 +38,7 @@ pnpm db:generate    # regenerate the Prisma client only
 - Server actions per entity in `src/actions/<entity>/`, returning `ActionResponse<T>` (`{ status, message, data }` from `@/interfaces`). Auth helpers (`checkAdminRole`, `checkOrgId`, `unauthorizedResponse`) live in `src/actions/utils.ts`.
 - Client data flow: TanStack Query hooks in `src/hooks/use<Entity>.ts` call the server actions and invalidate `queryKey: ['<entity>']`.
 - Auth is custom JWT (migrated off Clerk): middleware at `src/middleware.ts` verifies the `auth-token` cookie with `jose` and injects `x-user-id` / `x-organization-id` / `x-store-id` headers that server actions read.
+- **Tenancy lives in `memberships`, not in `users`** (Fase 1 paso 3): `User` is a global identity (`name`, `email`, `passwordHash`); role/org/store come from the ACTIVE membership. Auth actions compose the legacy-shaped view (`user.organizationId`, `user.role`) that the Zustand store and UI consume — a user with no membership is an onboarding owner (role ADMIN, org null).
 - Zustand store (`src/store/`) persists to **sessionStorage**, not localStorage.
 - UI copy and toast messages are in **Spanish**; code, identifiers, and comments in English.
 - Feature pages follow `page.tsx` + `features/` subfolder (list, new/edit sheets, action component, data-table) — mirror an existing module (e.g. `src/app/dashboard/categories/`) when adding one.

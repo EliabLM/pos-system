@@ -8,7 +8,8 @@
  */
 
 import crypto from 'crypto';
-import { prisma } from '@/actions/utils';
+import { MembershipRole } from '@/generated/prisma';
+import { getActiveMembership, prisma } from '@/actions/utils';
 import {
   AuthError,
   AuthErrorCode,
@@ -60,9 +61,6 @@ export async function createSession(
       select: {
         id: true,
         email: true,
-        role: true,
-        organizationId: true,
-        storeId: true,
         isActive: true,
         isDeleted: true,
       },
@@ -105,13 +103,15 @@ export async function createSession(
       }
     }
 
-    // Generar JWT token
+    // Generar JWT token — la tenancy viene del membership ACTIVO (D3.3).
+    // Sin membership = usuario en onboarding: ADMIN sin org/store todavía.
+    const membership = await getActiveMembership(user.id);
     const token = generateToken({
       userId: user.id,
       email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
-      storeId: user.storeId,
+      role: membership?.role ?? MembershipRole.ADMIN,
+      organizationId: membership?.organizationId ?? null,
+      storeId: membership?.defaultStoreId ?? null,
     });
 
     // Hash del token para almacenar
@@ -126,7 +126,7 @@ export async function createSession(
     const session = await prisma.session.create({
       data: {
         userId,
-        token: tokenHash,
+        tokenHash,
         expiresAt,
         ipAddress,
         userAgent,
@@ -192,7 +192,7 @@ export async function validateSession(token: string): Promise<SessionData | null
 
     // Buscar sesión en la base de datos
     const session = await prisma.session.findUnique({
-      where: { token: tokenHash },
+      where: { tokenHash },
     });
 
     if (!session) {
@@ -262,7 +262,7 @@ export async function invalidateSession(token: string): Promise<boolean> {
     // Marcar sesión como inactiva
     const result = await prisma.session.updateMany({
       where: {
-        token: tokenHash,
+        tokenHash,
         isActive: true,
       },
       data: { isActive: false },
@@ -446,7 +446,7 @@ export async function renewSession(
     newExpiration.setDate(newExpiration.getDate() + additionalDays);
 
     const session = await prisma.session.update({
-      where: { token: tokenHash },
+      where: { tokenHash },
       data: {
         expiresAt: newExpiration,
         lastActivityAt: new Date(),

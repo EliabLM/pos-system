@@ -158,14 +158,10 @@ exports.Prisma.StoreScalarFieldEnum = {
 
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
-  organizationId: 'organizationId',
-  storeId: 'storeId',
   email: 'email',
-  password: 'password',
-  username: 'username',
-  firstName: 'firstName',
-  lastName: 'lastName',
-  role: 'role',
+  passwordHash: 'passwordHash',
+  name: 'name',
+  image: 'image',
   emailVerified: 'emailVerified',
   isActive: 'isActive',
   isDeleted: 'isDeleted',
@@ -181,7 +177,7 @@ exports.Prisma.UserScalarFieldEnum = {
 exports.Prisma.SessionScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
-  token: 'token',
+  tokenHash: 'tokenHash',
   refreshTokenHash: 'refreshTokenHash',
   rotatedFrom: 'rotatedFrom',
   expiresAt: 'expiresAt',
@@ -196,42 +192,19 @@ exports.Prisma.SessionScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
-exports.Prisma.PasswordResetScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  token: 'token',
-  expiresAt: 'expiresAt',
-  used: 'used',
-  usedAt: 'usedAt',
-  ipAddress: 'ipAddress',
-  userAgent: 'userAgent',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.EmailVerificationScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  token: 'token',
-  expiresAt: 'expiresAt',
-  email: 'email',
-  verified: 'verified',
-  verifiedAt: 'verifiedAt',
-  ipAddress: 'ipAddress',
-  userAgent: 'userAgent',
-  createdAt: 'createdAt'
-};
-
 exports.Prisma.AuditLogScalarFieldEnum = {
   id: 'id',
-  userId: 'userId',
+  actorUserId: 'actorUserId',
   action: 'action',
-  entity: 'entity',
-  entityId: 'entityId',
+  targetType: 'targetType',
+  targetId: 'targetId',
   oldValues: 'oldValues',
   newValues: 'newValues',
   ipAddress: 'ipAddress',
   userAgent: 'userAgent',
   organizationId: 'organizationId',
+  storeId: 'storeId',
+  correlationId: 'correlationId',
   metadata: 'metadata',
   createdAt: 'createdAt'
 };
@@ -525,11 +498,6 @@ exports.Prisma.JsonNullValueFilter = {
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
 };
-exports.UserRole = exports.$Enums.UserRole = {
-  ADMIN: 'ADMIN',
-  SELLER: 'SELLER'
-};
-
 exports.AuditAction = exports.$Enums.AuditAction = {
   LOGIN: 'LOGIN',
   LOGOUT: 'LOGOUT',
@@ -547,7 +515,13 @@ exports.AuditAction = exports.$Enums.AuditAction = {
   ROLE_CHANGED: 'ROLE_CHANGED',
   ORGANIZATION_CHANGED: 'ORGANIZATION_CHANGED',
   STORE_CHANGED: 'STORE_CHANGED',
-  SESSION_REVOKED: 'SESSION_REVOKED'
+  SESSION_REVOKED: 'SESSION_REVOKED',
+  LOGOUT_ALL: 'LOGOUT_ALL',
+  PASSWORD_CHANGE: 'PASSWORD_CHANGE',
+  ROLE_CHANGE: 'ROLE_CHANGE',
+  SOFT_DELETE: 'SOFT_DELETE',
+  EXPORT: 'EXPORT',
+  VIEW_SENSITIVE: 'VIEW_SENSITIVE'
 };
 
 exports.PaymentType = exports.$Enums.PaymentType = {
@@ -601,8 +575,6 @@ exports.Prisma.ModelName = {
   Store: 'Store',
   User: 'User',
   Session: 'Session',
-  PasswordReset: 'PasswordReset',
-  EmailVerification: 'EmailVerification',
   AuditLog: 'AuditLog',
   Category: 'Category',
   Brand: 'Brand',

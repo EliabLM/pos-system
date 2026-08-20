@@ -136,12 +136,10 @@ export function UserDetailDialog({
                   className="size-5 sm:size-6 shrink-0"
                   aria-hidden="true"
                 />
-                <span className="truncate">
-                  {user.firstName} {user.lastName}
-                </span>
+                <span className="truncate">{user.name}</span>
               </DialogTitle>
               <DialogDescription className="text-sm sm:text-base flex items-center gap-2">
-                <span className="truncate">@{user.username}</span>
+                <span className="truncate">{user.email}</span>
                 <RoleBadge role={user.role} />
               </DialogDescription>
             </div>
@@ -185,16 +183,7 @@ export function UserDetailDialog({
                     <IconUser className="size-4" aria-hidden="true" />
                     <span>Nombre Completo</span>
                   </div>
-                  <p className="font-medium">
-                    {user.firstName} {user.lastName}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <IconUser className="size-4" aria-hidden="true" />
-                    <span>Nombre de Usuario</span>
-                  </div>
-                  <p className="font-medium">@{user.username}</p>
+                  <p className="font-medium">{user.name}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">

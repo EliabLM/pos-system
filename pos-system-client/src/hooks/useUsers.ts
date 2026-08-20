@@ -16,19 +16,20 @@ import {
   updateUserOrg,
 } from '@/actions/user';
 import { useStore } from '@/store';
-import { User, UserRole } from '@/generated/prisma';
+import { User, MembershipRole } from '@/generated/prisma';
+import type { CreateUserInput, UpdateUserInput } from '@/actions/user/user.actions';
 
 // Tipos para los filtros de usuarios
 interface UserFilters {
   isActive?: boolean;
-  role?: UserRole;
+  role?: MembershipRole;
   storeId?: string;
   search?: string;
 }
 
 interface UserRoleUpdateParams {
   userId: string;
-  newRole: UserRole;
+  newRole: MembershipRole;
 }
 
 interface UserOrgUpdateParams {
@@ -78,7 +79,7 @@ export const useUsers = (
 export const useAllUsers = (
   filters?: {
     isActive?: boolean;
-    role?: UserRole;
+    role?: MembershipRole;
     organizationId?: string;
     search?: string;
   },
@@ -154,7 +155,7 @@ export const useUserByEmail = (email: string) => {
 };
 
 // Hook para obtener usuarios por rol
-export const useUsersByRole = (role: UserRole) => {
+export const useUsersByRole = (role: MembershipRole) => {
   const user = useStore((state) => state.user);
 
   return useQuery({
@@ -188,12 +189,7 @@ export const useCreateUser = () => {
   const user = useStore((state) => state.user);
 
   return useMutation({
-    mutationFn: async (
-      userData: Omit<
-        User,
-        'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-      >
-    ) => {
+    mutationFn: async (userData: CreateUserInput) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
@@ -265,9 +261,7 @@ export const useUpdateUser = () => {
       updateData,
     }: {
       userId: string;
-      updateData: Partial<
-        Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>
-      >;
+      updateData: UpdateUserInput;
     }) => {
       if (!user?.id) {
         throw new Error('Usuario no autenticado');

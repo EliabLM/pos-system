@@ -298,7 +298,7 @@ const RegisterOrganizationPage = () => {
             </div>
           </div>
           <CardTitle className="text-3xl font-bold text-gray-900">
-            ¡Bienvenido, {currentUser.firstName} {currentUser.lastName}! 👋
+            ¡Bienvenido, {currentUser.name}! 👋
           </CardTitle>
           <CardDescription className="text-lg text-gray-600 mt-2">
             Vamos a configurar los datos de tu empresa para comenzar

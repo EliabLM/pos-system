@@ -266,11 +266,7 @@ export function MovementDetailDialog({
                     <span>Realizado por</span>
                   </div>
                   <p className="font-medium">
-                    {movement.user &&
-                    movement.user.firstName &&
-                    movement.user.lastName
-                      ? `${movement.user.firstName} ${movement.user.lastName}`
-                      : movement.user?.username || 'Sistema'}
+                    {movement.user?.name || 'Sistema'}
                   </p>
                 </div>
                 {movement.reference && (

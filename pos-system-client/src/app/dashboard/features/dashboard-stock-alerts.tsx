@@ -273,7 +273,7 @@ export function DashboardStockAlerts({
 
   // Get user from Zustand store
   const user = useStore((state) => state.user);
-  const organizationId = user?.organizationId;
+  const organizationId = user?.organizationId ?? '';
 
   // RBAC: SELLER users must use their assigned storeId (ignoring selectedStoreId prop)
   // ADMIN users use selectedStoreId from selector (can be undefined = toda la org)

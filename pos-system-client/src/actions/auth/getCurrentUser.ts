@@ -102,52 +102,76 @@ export async function getCurrentUser(): Promise<ActionResponse<GetCurrentUserRes
       throw error;
     }
 
-    // 4. Fetch user data (sin password) con organization y store data
-    const user = await prisma.user.findUnique({
+    // 4. Fetch user data (sin passwordHash) + tenancy del membership ACTIVO (D3.3)
+    const userRow = await prisma.user.findUnique({
       where: {
         id: payload.userId,
         isDeleted: false,
       },
       select: {
         id: true,
-        firstName: true,
-        lastName: true,
+        name: true,
         email: true,
-        role: true,
-        organizationId: true,
-        storeId: true,
+        image: true,
         isActive: true,
         emailVerified: true,
         lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
-
-        // Organization data
-        organization: {
+        memberships: {
+          where: { deletedAt: null, status: 'ACTIVE' },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
           select: {
-            id: true,
-            name: true,
-            phone: true,
-            address: true,
-            isActive: true,
-            createdAt: true,
-          },
-        },
-
-        // Store data
-        store: {
-          select: {
-            id: true,
-            name: true,
-            address: true,
-            phone: true,
-            isActive: true,
+            role: true,
             organizationId: true,
-            createdAt: true,
+            defaultStoreId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                address: true,
+                isActive: true,
+                createdAt: true,
+              },
+            },
+            defaultStore: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                phone: true,
+                isActive: true,
+                organizationId: true,
+                createdAt: true,
+              },
+            },
           },
         },
       },
     });
+
+    // Vista compuesta con la forma legacy que consumen store/UI
+    const membership = userRow?.memberships[0] ?? null;
+    const user = userRow
+      ? {
+          id: userRow.id,
+          name: userRow.name,
+          email: userRow.email,
+          image: userRow.image,
+          role: membership?.role ?? 'ADMIN',
+          organizationId: membership?.organizationId ?? null,
+          storeId: membership?.defaultStoreId ?? null,
+          isActive: userRow.isActive,
+          emailVerified: userRow.emailVerified,
+          lastLoginAt: userRow.lastLoginAt,
+          createdAt: userRow.createdAt,
+          updatedAt: userRow.updatedAt,
+          organization: membership?.organization ?? null,
+          store: membership?.defaultStore ?? null,
+        }
+      : null;
 
     if (!user) {
       // Usuario no existe o fue eliminado - limpiar cookie y sesión

@@ -26,7 +26,7 @@
  *   trash@pos.test     → Trash123!   (isDeleted=true)
  */
 
-import { PrismaClient, UserRole, SaleStatus, PaymentType, StockMovementType, AuditAction, PurchaseStatus } from '../src/generated/prisma';
+import { PrismaClient, MembershipRole, MembershipStatus, SaleStatus, PaymentType, StockMovementType, AuditAction, PurchaseStatus } from '../src/generated/prisma';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -58,11 +58,11 @@ async function main() {
   await prisma.unitMeasure.deleteMany({});
   await prisma.brand.deleteMany({});
   await prisma.category.deleteMany({});
-  await prisma.emailVerification.deleteMany({});
-  await prisma.passwordReset.deleteMany({});
+  await prisma.verification.deleteMany({});
   await prisma.session.deleteMany({});
   await prisma.auditLog.deleteMany({});
   await prisma.systemConfig.deleteMany({});
+  await prisma.membership.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.store.deleteMany({});
   await prisma.organization.deleteMany({});
@@ -126,91 +126,78 @@ async function main() {
   const lockPass = await hash('Lock123!');
   const trashPass = await hash('Trash123!');
 
-  const admin = await prisma.user.create({
-    data: {
-      email: 'admin@pos.test',
-      username: 'admin',
-      password: adminPass,
-      firstName: 'Ada',
-      lastName: 'Administradora',
-      role: UserRole.ADMIN,
-      organizationId: org.id,
-      storeId: storeCentral.id,
-      isActive: true,
-      isDeleted: false,
-      emailVerified: true,
-      passwordChangedAt: new Date(),
-    },
+  // D3.3: users son identidades globales; la tenancy (org, store, role) vive
+  // en memberships. Cada user activo recibe su membership ACTIVE.
+  const createUserWithMembership = async (input: {
+    email: string;
+    name: string;
+    passwordHash: string;
+    role: MembershipRole;
+    deleted?: boolean;
+  }) => {
+    const user = await prisma.user.create({
+      data: {
+        email: input.email,
+        name: input.name,
+        passwordHash: input.passwordHash,
+        isActive: true,
+        isDeleted: input.deleted ?? false,
+        deletedAt: input.deleted ? new Date() : null,
+        emailVerified: true,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    await prisma.membership.create({
+      data: {
+        userId: user.id,
+        organizationId: org.id,
+        role: input.role,
+        defaultStoreId: storeCentral.id,
+        status: MembershipStatus.ACTIVE,
+        acceptedAt: new Date(),
+        deletedAt: input.deleted ? new Date() : null,
+      },
+    });
+
+    return user;
+  };
+
+  const admin = await createUserWithMembership({
+    email: 'admin@pos.test',
+    name: 'Ada Administradora',
+    passwordHash: adminPass,
+    role: MembershipRole.ADMIN,
   });
 
-  const seller = await prisma.user.create({
-    data: {
-      email: 'seller@pos.test',
-      username: 'seller',
-      password: sellerPass,
-      firstName: 'Sam',
-      lastName: 'Vendedor',
-      role: UserRole.SELLER,
-      organizationId: org.id,
-      storeId: storeCentral.id,
-      isActive: true,
-      isDeleted: false,
-      emailVerified: true,
-      passwordChangedAt: new Date(),
-    },
+  const seller = await createUserWithMembership({
+    email: 'seller@pos.test',
+    name: 'Sam Vendedor',
+    passwordHash: sellerPass,
+    role: MembershipRole.SELLER,
   });
 
   // Auxiliares de prueba — no tasks de login activo por defecto.
-  await prisma.user.create({
-    data: {
-      email: 'conflict@pos.test',
-      username: 'conflict',
-      password: conflictPass,
-      firstName: 'Connor',
-      lastName: 'Conflicto',
-      role: UserRole.SELLER,
-      organizationId: org.id,
-      storeId: storeCentral.id,
-      isActive: true,
-      isDeleted: false,
-      emailVerified: true,
-      passwordChangedAt: new Date(),
-    },
+  await createUserWithMembership({
+    email: 'conflict@pos.test',
+    name: 'Connor Conflicto',
+    passwordHash: conflictPass,
+    role: MembershipRole.SELLER,
   });
 
-  await prisma.user.create({
-    data: {
-      email: 'lock@pos.test',
-      username: 'lock',
-      password: lockPass,
-      firstName: 'Logan',
-      lastName: 'Locke',
-      role: UserRole.SELLER,
-      organizationId: org.id,
-      storeId: storeCentral.id,
-      isActive: true,
-      isDeleted: false,
-      emailVerified: true,
-      passwordChangedAt: new Date(),
-    },
+  await createUserWithMembership({
+    email: 'lock@pos.test',
+    name: 'Logan Locke',
+    passwordHash: lockPass,
+    role: MembershipRole.SELLER,
   });
 
-  await prisma.user.create({
-    data: {
-      email: 'trash@pos.test',
-      username: 'trash',
-      password: trashPass,
-      firstName: 'Trisha',
-      lastName: 'Borrada',
-      role: UserRole.SELLER,
-      organizationId: org.id,
-      storeId: storeCentral.id,
-      isActive: true,
-      isDeleted: true, // escenario E034 / E146
-      deletedAt: new Date(),
-      emailVerified: true,
-      passwordChangedAt: new Date(),
-    },
+  await createUserWithMembership({
+    email: 'trash@pos.test',
+    name: 'Trisha Borrada',
+    passwordHash: trashPass,
+    role: MembershipRole.SELLER,
+    deleted: true, // escenario E034 / E146
   });
 
   // ============================================================
@@ -444,10 +431,10 @@ async function main() {
   // ============================================================
   await prisma.auditLog.create({
     data: {
-      userId: admin.id,
+      actorUserId: admin.id,
       action: AuditAction.LOGIN,
-      entity: 'sessions',
-      entityId: null,
+      targetType: 'sessions',
+      targetId: null,
       organizationId: org.id,
       metadata: { note: 'seed' },
       createdAt: new Date(),

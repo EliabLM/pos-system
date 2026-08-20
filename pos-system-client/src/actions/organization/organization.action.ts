@@ -10,10 +10,11 @@ import { setBusinessType } from '../system-config';
 import { createUnitMeasure } from '../unit-measure';
 
 const organizationInclude: Prisma.OrganizationInclude = {
-  users: {
+  memberships: {
     take: 5,
     orderBy: { createdAt: 'desc' },
-    where: { isDeleted: false },
+    where: { deletedAt: null },
+    include: { user: true },
   },
   stores: {
     take: 5,
@@ -32,7 +33,7 @@ const organizationInclude: Prisma.OrganizationInclude = {
   },
   _count: {
     select: {
-      users: true,
+      memberships: true,
       stores: true,
       products: true,
       customers: true,
@@ -685,11 +686,12 @@ export const toggleOrganizationStatus = async (
 
     // Si se está desactivando, verificar que no tenga usuarios activos
     if (!isActive) {
-      const activeUsersCount = await prisma.user.count({
+      const activeUsersCount = await prisma.membership.count({
         where: {
           organizationId,
-          isActive: true,
-          isDeleted: false,
+          deletedAt: null,
+          status: 'ACTIVE',
+          user: { isActive: true, isDeleted: false },
         },
       });
 
@@ -837,11 +839,16 @@ export const getOrganizationStatistics = async (
       totalCategories,
       recentStockMovements,
     ] = await Promise.all([
-      prisma.user.count({
-        where: { organizationId, isDeleted: false },
+      prisma.membership.count({
+        where: { organizationId, deletedAt: null, user: { isDeleted: false } },
       }),
-      prisma.user.count({
-        where: { organizationId, isDeleted: false, isActive: true },
+      prisma.membership.count({
+        where: {
+          organizationId,
+          deletedAt: null,
+          status: 'ACTIVE',
+          user: { isDeleted: false, isActive: true },
+        },
       }),
       prisma.store.count({
         where: { organizationId, isDeleted: false },
@@ -931,8 +938,8 @@ export const softDeleteOrganization = async (
     }
 
     // Verificar si hay usuarios asociados
-    const usersCount = await prisma.user.count({
-      where: { organizationId, isDeleted: false },
+    const usersCount = await prisma.membership.count({
+      where: { organizationId, deletedAt: null, user: { isDeleted: false } },
     });
 
     // Verificar si hay tiendas asociadas
@@ -1062,7 +1069,7 @@ export const deleteOrganization = async (
       suppliersCount,
       stockMovementsCount,
     ] = await Promise.all([
-      prisma.user.count({ where: { organizationId } }),
+      prisma.membership.count({ where: { organizationId } }),
       prisma.store.count({ where: { organizationId } }),
       prisma.product.count({ where: { organizationId } }),
       prisma.customer.count({ where: { organizationId } }),

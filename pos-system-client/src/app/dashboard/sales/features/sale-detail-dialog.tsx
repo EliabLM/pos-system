@@ -246,9 +246,7 @@ export function SaleDetailDialog({
                     <span>Vendedor</span>
                   </div>
                   <p className="font-medium">
-                    {sale.user
-                      ? `${sale.user.firstName} ${sale.user.lastName}`
-                      : 'Sin vendedor'}
+                    {sale.user ? sale.user.name : 'Sin vendedor'}
                   </p>
                 </div>
                 <div className="space-y-1">

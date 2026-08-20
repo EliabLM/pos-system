@@ -49,7 +49,6 @@ model Organization {
   suppliers      Supplier[]
   systemConfigs  SystemConfig[]
   unitMeasures   UnitMeasure[]
-  users          User[]
 
   @@map("organizations")
 }
@@ -72,7 +71,6 @@ model Store {
   deletedAt        DateTime?    @map("deleted_at") @db.Timestamptz
   sales            Sale[]
   organization     Organization @relation(fields: [organizationId], references: [id])
-  users            User[]
   memberships      Membership[]
 
   // unique (organization_id, name) WHERE deleted_at IS NULL — partial index in SQL
@@ -80,25 +78,21 @@ model Store {
   @@map("stores")
 }
 
+// Identidad GLOBAL (D3.3–D3.6): la tenancy (org, store, role) vive en
+// memberships. Sin RLS directo — como sessions/verifications, los flujos de
+// auth corren antes de conocer el tenant; memberships sí está bajo RLS.
 model User {
   id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
 
-  // Multi-tenancy
-  organizationId String? @map("organization_id") @db.Uuid
-  storeId        String? @map("store_id") @db.Uuid
+  // Credenciales de autenticación (login por email — D3.4)
+  email        String
+  passwordHash String? @map("password_hash") // D3.6: nullable para futuro OAuth/passkey
 
-  // Credenciales de autenticación
-  email    String
-  password String // Hash bcrypt
-  username String
+  // Información personal (D3.5: first+last → name)
+  name  String
+  image String? // avatar URL
 
-  // Información personal
-  firstName String @map("first_name")
-  lastName  String @map("last_name")
-
-  // Control de acceso
-  role          UserRole @default(SELLER)
-  emailVerified Boolean  @default(false) @map("email_verified")
+  emailVerified Boolean @default(false) @map("email_verified")
 
   // Soft delete pattern
   isActive  Boolean   @default(true) @map("is_active")
@@ -115,25 +109,17 @@ model User {
   loginAttempts     Int       @default(0) @map("login_attempts")
   lockedUntil       DateTime? @map("locked_until") @db.Timestamptz // Account lockout por intentos fallidos
 
-  // Relaciones existentes
+  // Relaciones
   sales          Sale[]
   stockMovements StockMovement[]
-  organization   Organization?   @relation(fields: [organizationId], references: [id])
-  store          Store?          @relation(fields: [storeId], references: [id])
+  sessions       Session[]
+  auditLogs      AuditLog[]
+  memberships    Membership[]
+  accounts       Account[]
 
-  // Nuevas relaciones de autenticación
-  sessions           Session[]
-  passwordResets     PasswordReset[]
-  emailVerifications EmailVerification[]
-  auditLogs          AuditLog[]
-  memberships        Membership[]
-  accounts           Account[]
-
-  // unique (email) / (username) WHERE deleted_at IS NULL — partial indexes in SQL
-  @@index([organizationId, isDeleted, isActive])
+  // unique (email) WHERE deleted_at IS NULL — partial index in SQL
   @@index([email, isDeleted])
   @@index([lastLoginAt])
-  @@index([storeId])
   @@map("users")
 }
 
@@ -145,7 +131,7 @@ model Session {
   userId String @map("user_id") @db.Uuid
 
   // Token y seguridad
-  token     String   @unique // Hash del JWT o session ID (rename a token_hash en 3b)
+  tokenHash String   @unique @map("token_hash") // SHA-256 del JWT
   // Refresh rotation (D3/R8) — el módulo auth de Fase 2 los llena
   refreshTokenHash String? @unique @map("refresh_token_hash")
   rotatedFrom      String? @map("rotated_from") @db.Uuid // reuse-detection chain
@@ -171,91 +157,25 @@ model Session {
 
   // Índices para queries eficientes
   @@index([userId, isActive])
-  @@index([token])
+  @@index([tokenHash])
   @@index([expiresAt])
   @@index([lastActivityAt])
   @@map("sessions")
 }
 
-// ============================================
-// MODELO PASSWORD RESET - RECUPERACIÓN
-// ============================================
-model PasswordReset {
-  id     String @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  userId String @map("user_id") @db.Uuid
-
-  // Token de reset
-  token     String   @unique
-  expiresAt DateTime @map("expires_at") @db.Timestamptz
-
-  // Control de uso
-  used   Boolean   @default(false)
-  usedAt DateTime? @map("used_at") @db.Timestamptz
-
-  // Metadata de seguridad
-  ipAddress String? @map("ip_address")
-  userAgent String? @map("user_agent")
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  // Relación
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Índices
-  @@index([userId, used])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("password_resets")
-}
-
-// ============================================
-// MODELO EMAIL VERIFICATION - VERIFICACIÓN
-// ============================================
-model EmailVerification {
-  id     String @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  userId String @map("user_id") @db.Uuid
-
-  // Token de verificación
-  token     String   @unique
-  expiresAt DateTime @map("expires_at") @db.Timestamptz
-
-  // Email a verificar (permite cambio de email)
-  email String
-
-  // Control de uso
-  verified   Boolean   @default(false)
-  verifiedAt DateTime? @map("verified_at") @db.Timestamptz
-
-  // Metadata
-  ipAddress String? @map("ip_address")
-  userAgent String? @map("user_agent")
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  // Relación
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Índices
-  @@index([userId, verified])
-  @@index([token])
-  @@index([expiresAt])
-  @@index([email])
-  @@map("email_verifications")
-}
 
 // ============================================
 // MODELO AUDIT LOG - TRAZABILIDAD
 // ============================================
+// D3.8: actor-action-target + contexto de tenancy + correlationId (trace distribuido)
 model AuditLog {
-  id     String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  userId String? @map("user_id") @db.Uuid // Nullable para acciones del sistema
+  id          String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  actorUserId String? @map("actor_user_id") @db.Uuid // Nullable para acciones del sistema
 
   // Información del evento
-  action   AuditAction
-  entity   String // Nombre de la tabla/entidad afectada
-  entityId String? @map("entity_id") // ID del registro afectado
+  action     AuditAction
+  targetType String? @map("target_type") // nombre de tabla/entidad afectada
+  targetId   String? @map("target_id") @db.Uuid // ID del registro afectado
 
   // Detalles del cambio
   oldValues Json? @map("old_values") // Estado anterior
@@ -265,22 +185,23 @@ model AuditLog {
   ipAddress String? @map("ip_address")
   userAgent String? @map("user_agent")
 
-  // Contexto adicional
-  organizationId String? @map("organization_id") @db.Uuid // Para filtrar por organización
+  // Contexto de tenancy + trace
+  organizationId String? @map("organization_id") @db.Uuid
+  storeId        String? @map("store_id") @db.Uuid
+  correlationId  String? @map("correlation_id") // distributed trace id
   metadata       Json? // Datos adicionales flexibles
 
   // Timestamp
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relación
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   // Índices para consultas
-  @@index([userId])
-  @@index([action])
-  @@index([entity, entityId])
-  @@index([organizationId])
-  @@index([createdAt])
+  @@index([actorUserId])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+  @@index([organizationId, createdAt])
   @@map("audit_logs")
 }
 
@@ -688,13 +609,6 @@ model LegacyIdMap {
   @@map("legacy_id_map")
 }
 
-enum UserRole {
-  ADMIN
-  SELLER
-
-  @@map("user_role")
-}
-
 enum MembershipRole {
   ADMIN
   SELLER
@@ -781,6 +695,15 @@ enum AuditAction {
   ORGANIZATION_CHANGED
   STORE_CHANGED
   SESSION_REVOKED
+
+  // Valores del target D3.8 (los legacy de arriba se conservan: Postgres no
+  // permite quitar valores de un enum y hay filas históricas que los usan)
+  LOGOUT_ALL
+  PASSWORD_CHANGE
+  ROLE_CHANGE
+  SOFT_DELETE
+  EXPORT
+  VIEW_SENSITIVE
 
   @@map("audit_action")
 }

@@ -338,8 +338,7 @@ export async function getStockMovementsReport(
         },
         user: {
           select: {
-            firstName: true,
-            lastName: true,
+            name: true,
           },
         },
       },
@@ -373,9 +372,7 @@ export async function getStockMovementsReport(
         newStock: movement.newStock,
         reason: movement.reason || '',
         date: movement.createdAt,
-        userName: movement.user
-          ? `${movement.user.firstName} ${movement.user.lastName}`
-          : 'Sistema',
+        userName: movement.user ? movement.user.name : 'Sistema',
       };
     });
 

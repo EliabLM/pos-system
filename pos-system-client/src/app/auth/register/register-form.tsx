@@ -33,8 +33,7 @@ import { ActionResponse } from '@/interfaces';
 interface RegisterResponseData {
   user: {
     id: string;
-    firstName: string | null;
-    lastName: string | null;
+    name: string;
     email: string;
     role: string;
     organizationId: string | null;
@@ -55,34 +54,16 @@ interface RegisterResponseData {
   redirectTo: string;
 }
 
-// Schema de validación con Yup
+// Schema de validación con Yup (D3.4/D3.5: sin username, nombre en un campo)
 const signUpSchema = yup.object({
-  username: yup
-    .string()
-    .required('El nombre de usuario es requerido')
-    .min(3, 'El nombre de usuario debe tener al menos 3 caracteres')
-    .max(20, 'El nombre de usuario no puede tener más de 20 caracteres')
-    .matches(
-      /^[a-zA-Z0-9_]+$/,
-      'El nombre de usuario solo puede contener letras, números y guiones bajos'
-    ),
-  firstName: yup
+  name: yup
     .string()
     .required('El nombre es requerido')
-    .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(50, 'El nombre no puede tener más de 50 caracteres')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre no puede tener más de 100 caracteres')
     .matches(
       /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
       'El nombre solo puede contener letras'
-    ),
-  lastName: yup
-    .string()
-    .required('El apellido es requerido')
-    .min(2, 'El apellido debe tener al menos 2 caracteres')
-    .max(50, 'El apellido no puede tener más de 50 caracteres')
-    .matches(
-      /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
-      'El apellido solo puede contener letras'
     ),
   email: yup
     .string()
@@ -116,9 +97,7 @@ export const RegisterForm = ({
     resolver: yupResolver(signUpSchema),
     criteriaMode: 'firstError',
     defaultValues: {
-      username: '',
-      firstName: '',
-      lastName: '',
+      name: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -133,9 +112,7 @@ export const RegisterForm = ({
 
       // Crear FormData para enviar al server action
       const formData = new FormData();
-      formData.append('username', data.username);
-      formData.append('firstName', data.firstName);
-      formData.append('lastName', data.lastName);
+      formData.append('name', data.name);
       formData.append('email', data.email);
       formData.append('password', data.password);
       formData.append('confirmPassword', data.confirmPassword);
@@ -206,17 +183,17 @@ export const RegisterForm = ({
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <div className="grid gap-6">
-                {/* Username y Email en una fila */}
+                {/* Nombre y Email en una fila */}
                 <div className="grid gap-6 sm:grid-cols-2">
                   <FormField
                     control={form.control}
-                    name="username"
+                    name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nombre de usuario</FormLabel>
+                        <FormLabel>Nombre completo</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="usuario123"
+                            placeholder="Juan Pérez"
                             {...field}
                             disabled={isLoading}
                           />
@@ -236,45 +213,6 @@ export const RegisterForm = ({
                           <Input
                             type="email"
                             placeholder="m@example.com"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Nombre y Apellido en una fila */}
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Juan"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Apellido</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Pérez"
                             {...field}
                             disabled={isLoading}
                           />

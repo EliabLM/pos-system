@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 
 import { useStore } from '@/store';
 import { useSoftDeleteUser, useToggleUserStatus } from '@/hooks/useUsers';
-import { User } from '@/generated/prisma';
+import type { UserWithTenancy as User } from '@/actions/user/user.actions';
 
 interface UserActionComponentProps {
   item: User;

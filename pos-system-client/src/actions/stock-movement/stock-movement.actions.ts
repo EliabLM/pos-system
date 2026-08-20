@@ -22,10 +22,8 @@ const stockMovementInclude = {
   user: {
     select: {
       id: true,
-      username: true,
       email: true,
-      firstName: true,
-      lastName: true,
+      name: true,
     },
   },
 } satisfies Prisma.StockMovementInclude;

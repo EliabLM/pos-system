@@ -1,8 +1,53 @@
-import { Prisma, PrismaClient, UserRole } from '@/generated/prisma';
+import {
+  Membership,
+  MembershipRole,
+  MembershipStatus,
+  Prisma,
+  PrismaClient,
+} from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
 
 // Instancia única de Prisma Client para ser usada en todas las actions
 export const prisma = new PrismaClient();
+
+/**
+ * Devuelve el membership ACTIVO del usuario (D3.3: la tenancy vive en
+ * memberships). null = usuario en onboarding (aún sin organización) o
+ * con membership revocado.
+ */
+export const getActiveMembership = async (
+  userId: string
+): Promise<Membership | null> => {
+  if (!userId) return null;
+  return prisma.membership.findFirst({
+    where: { userId, deletedAt: null, status: MembershipStatus.ACTIVE },
+    orderBy: { createdAt: 'asc' },
+  });
+};
+
+/**
+ * Rol efectivo del usuario. Un usuario SIN ningún membership es un dueño en
+ * onboarding (el registro siempre precede a la creación de la org) → ADMIN.
+ * Un usuario cuyo único membership está REVOKED no tiene rol (null).
+ */
+const getEffectiveRole = async (
+  userId: string
+): Promise<MembershipRole | null> => {
+  if (!userId) return null;
+  const user = await prisma.user.findFirst({
+    where: { id: userId, isDeleted: false },
+    select: { id: true },
+  });
+  if (!user) return null;
+
+  const membershipCount = await prisma.membership.count({
+    where: { userId, deletedAt: null },
+  });
+  if (membershipCount === 0) return MembershipRole.ADMIN; // onboarding
+
+  const active = await getActiveMembership(userId);
+  return active?.role ?? null;
+};
 
 /**
  * Convierte recursivamente los `Prisma.Decimal` (dinero: numeric(12,2) en la DB)
@@ -32,13 +77,9 @@ export const serializeDecimals = <T>(value: T): Serialized<T> => {
  * @returns {Promise<boolean>} - True si el usuario es ADMIN, de lo contrario false.
  */
 export const checkAdminRole = async (userId: string): Promise<boolean> => {
-  if (!userId) return false;
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-    return user?.role === UserRole.ADMIN;
+    const role = await getEffectiveRole(userId);
+    return role === MembershipRole.ADMIN;
   } catch (error) {
     console.error("Error checking admin role:", error);
     return false;
@@ -51,13 +92,9 @@ export const checkAdminRole = async (userId: string): Promise<boolean> => {
  * @returns {Promise<boolean>} - True si el usuario es ADMIN o SELLER, de lo contrario false.
  */
 export const checkAdminOrSellerRole = async (userId: string): Promise<boolean> => {
-  if (!userId) return false;
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-    return user?.role === UserRole.ADMIN || user?.role === UserRole.SELLER;
+    const role = await getEffectiveRole(userId);
+    return role === MembershipRole.ADMIN || role === MembershipRole.SELLER;
   } catch (error) {
     console.error("Error checking admin or seller role:", error);
     return false;

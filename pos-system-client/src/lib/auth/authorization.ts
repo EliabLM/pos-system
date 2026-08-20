@@ -8,9 +8,19 @@
  */
 
 import { cookies } from 'next/headers';
-import { prisma } from '@/actions/utils';
-import { User, UserRole } from '@/generated/prisma';
+import { getActiveMembership, prisma } from '@/actions/utils';
+import { MembershipRole, User } from '@/generated/prisma';
 import { verifyToken } from './jwt';
+
+/**
+ * Usuario autenticado + su tenancy efectiva (D3.3: role/org/store viven en el
+ * membership ACTIVO). Sin membership = dueño en onboarding: ADMIN sin org.
+ */
+export type AuthUser = User & {
+  role: MembershipRole;
+  organizationId: string | null;
+  storeId: string | null;
+};
 
 // Configuración
 const COOKIE_NAME = 'auth-token';
@@ -42,7 +52,7 @@ export class AuthorizationError extends Error {
  *   console.log('User:', user.email);
  * }
  */
-export async function getCurrentAuthUser(): Promise<User | null> {
+export async function getCurrentAuthUser(): Promise<AuthUser | null> {
   try {
     // 1. Obtener token de la cookie
     const cookieStore = await cookies();
@@ -77,7 +87,15 @@ export async function getCurrentAuthUser(): Promise<User | null> {
       return null;
     }
 
-    return user;
+    // 5. Componer la tenancy desde el membership ACTIVO (D3.3)
+    const membership = await getActiveMembership(user.id);
+
+    return {
+      ...user,
+      role: membership?.role ?? MembershipRole.ADMIN,
+      organizationId: membership?.organizationId ?? null,
+      storeId: membership?.defaultStoreId ?? null,
+    };
   } catch (error) {
     console.error('Error getting current auth user:', error);
     return null;
@@ -95,7 +113,7 @@ export async function getCurrentAuthUser(): Promise<User | null> {
  * const user = await requireAuth();
  * // Si llega aquí, user siempre existe
  */
-export async function requireAuth(): Promise<User> {
+export async function requireAuth(): Promise<AuthUser> {
   const user = await getCurrentAuthUser();
 
   if (!user) {
@@ -119,7 +137,7 @@ export async function requireAuth(): Promise<User> {
  * const admin = await requireAdmin();
  * // Solo admins llegan aquí
  */
-export async function requireAdmin(): Promise<User> {
+export async function requireAdmin(): Promise<AuthUser> {
   const user = await requireAuth();
 
   if (user.role !== 'ADMIN') {
@@ -145,7 +163,7 @@ export async function requireAdmin(): Promise<User> {
  * const user = await requireOrganization('org-123');
  * // Solo usuarios de org-123 llegan aquí
  */
-export async function requireOrganization(orgId: string): Promise<User> {
+export async function requireOrganization(orgId: string): Promise<AuthUser> {
   const user = await requireAuth();
 
   if (!user.organizationId) {
@@ -181,7 +199,7 @@ export async function requireOrganization(orgId: string): Promise<User> {
  *   // Mostrar opciones de admin
  * }
  */
-export async function hasRole(role: UserRole): Promise<boolean> {
+export async function hasRole(role: MembershipRole): Promise<boolean> {
   try {
     const user = await getCurrentAuthUser();
     return user?.role === role;
@@ -249,7 +267,7 @@ export async function canAccessStore(storeId: string): Promise<boolean> {
  * const user = await requireStoreAccess('store-123');
  * // Solo usuarios con acceso llegan aquí
  */
-export async function requireStoreAccess(storeId: string): Promise<User> {
+export async function requireStoreAccess(storeId: string): Promise<AuthUser> {
   const user = await requireAuth();
 
   const hasAccess = await canAccessStore(storeId);
@@ -315,7 +333,7 @@ export async function isResourceOwner(resourceUserId: string): Promise<boolean> 
  * await requireResourceOwner(sale.userId);
  * // Solo propietario o ADMIN llegan aquí
  */
-export async function requireResourceOwner(resourceUserId: string): Promise<User> {
+export async function requireResourceOwner(resourceUserId: string): Promise<AuthUser> {
   const user = await requireAuth();
 
   const isOwner = await isResourceOwner(resourceUserId);
@@ -366,7 +384,7 @@ export async function hasOrganization(): Promise<boolean> {
  * const user = await requireUserOrganization();
  * // Solo usuarios con organización llegan aquí
  */
-export async function requireUserOrganization(): Promise<User> {
+export async function requireUserOrganization(): Promise<AuthUser> {
   const user = await requireAuth();
 
   if (!user.organizationId) {
@@ -414,7 +432,7 @@ export async function checkPermissions(
  * const user = await requireActiveOrganization();
  * // Usuario con organización activa
  */
-export async function requireActiveOrganization(): Promise<User> {
+export async function requireActiveOrganization(): Promise<AuthUser> {
   const user = await requireUserOrganization();
 
   // Verificar que la organización esté activa

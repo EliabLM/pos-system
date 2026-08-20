@@ -46,7 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { User } from '@/generated/prisma';
+import type { UserWithTenancy as User } from '@/actions/user/user.actions';
 import { getColumns } from './columns';
 
 interface DataTableProps {

@@ -1,6 +1,13 @@
 'use server';
 
-import { User, Prisma, UserRole } from '@/generated/prisma';
+import {
+  MembershipRole,
+  MembershipStatus,
+  Organization,
+  Prisma,
+  Store,
+  User,
+} from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
 import {
   prisma,
@@ -11,47 +18,119 @@ import {
 } from '../utils';
 import bcrypt from 'bcrypt';
 
-const userInclude: Prisma.UserInclude = {
-  organization: true,
-  store: true,
-  sales: {
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-  },
-  stockMovements: {
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-  },
-  _count: {
-    select: {
-      sales: true,
-      stockMovements: true,
-    },
+// ============================================================
+// D3.3: users es identidad global; la tenancy (org, store, role) vive en
+// memberships. Estas actions exponen la vista compuesta que consume la UI.
+// ============================================================
+
+export type UserWithTenancy = Omit<User, 'passwordHash'> & {
+  role: MembershipRole | null;
+  organizationId: string | null;
+  storeId: string | null;
+  organization: Organization | null;
+  store: Store | null;
+};
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  password: string;
+  role: MembershipRole;
+  storeId?: string | null;
+  isActive?: boolean;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  image?: string | null;
+  isActive?: boolean;
+  password?: string;
+  role?: MembershipRole;
+  storeId?: string | null;
+}
+
+const activeMembershipInclude = {
+  where: { deletedAt: null, status: MembershipStatus.ACTIVE },
+  orderBy: { createdAt: 'asc' as const },
+  take: 1,
+  include: {
+    organization: true,
+    defaultStore: true,
   },
 };
 
-// CREATE
+type UserWithMemberships = User & {
+  memberships: Array<{
+    role: MembershipRole;
+    organizationId: string;
+    defaultStoreId: string | null;
+    organization: Organization;
+    defaultStore: Store | null;
+  }>;
+};
+
+const composeUser = (user: UserWithMemberships): UserWithTenancy => {
+  const membership = user.memberships[0] ?? null;
+  // Sin destructuring-rest: se omiten memberships (interno) y passwordHash (secreto)
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    image: user.image,
+    emailVerified: user.emailVerified,
+    isActive: user.isActive,
+    isDeleted: user.isDeleted,
+    deletedAt: user.deletedAt,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    lastLoginAt: user.lastLoginAt,
+    passwordChangedAt: user.passwordChangedAt,
+    loginAttempts: user.loginAttempts,
+    lockedUntil: user.lockedUntil,
+    role: membership?.role ?? null,
+    organizationId: membership?.organizationId ?? null,
+    storeId: membership?.defaultStoreId ?? null,
+    organization: membership?.organization ?? null,
+    store: membership?.defaultStore ?? null,
+  };
+};
+
+/**
+ * Regla de negocio: una tienda solo puede tener UN vendedor activo asignado.
+ */
+const storeHasActiveSeller = async (
+  storeId: string,
+  excludeUserId?: string
+): Promise<boolean> => {
+  const existing = await prisma.membership.findFirst({
+    where: {
+      defaultStoreId: storeId,
+      role: MembershipRole.SELLER,
+      status: MembershipStatus.ACTIVE,
+      deletedAt: null,
+      ...(excludeUserId ? { userId: { not: excludeUserId } } : {}),
+      user: { isDeleted: false, isActive: true },
+    },
+  });
+  return !!existing;
+};
+
+// CREATE — crea la identidad + su membership en la organización (tx)
 export const createUser = async (
   orgId: string,
   adminUserId: string,
-  userData: Omit<
-    User,
-    'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >
-): Promise<ActionResponse<User | null>> => {
+  userData: CreateUserInput
+): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
     const isAdmin = await checkAdminRole(adminUserId);
     if (!isAdmin) return unauthorizedResponse();
 
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
-    // Verificar unicidad de email
+    // Email único global entre usuarios vivos (D3.4)
     const existingUserByEmail = await prisma.user.findFirst({
-      where: {
-        organizationId: orgId,
-        email: userData.email,
-        isDeleted: false,
-      },
+      where: { email: userData.email, isDeleted: false },
     });
 
     if (existingUserByEmail) {
@@ -62,49 +141,9 @@ export const createUser = async (
       };
     }
 
-    // Verificar unicidad de username
-    const existingUserByUsername = await prisma.user.findFirst({
-      where: {
-        organizationId: orgId,
-        username: userData.username,
-        isDeleted: false,
-      },
-    });
-
-    if (existingUserByUsername) {
-      return {
-        status: 409,
-        message: 'Ya existe un usuario con ese nombre de usuario',
-        data: null,
-      };
-    }
-
-    // Verificar que organizationId existe si se proporciona
-    if (userData.organizationId) {
-      const organization = await prisma.organization.findFirst({
-        where: {
-          id: userData.organizationId,
-          isDeleted: false,
-        },
-      });
-
-      if (!organization) {
-        return {
-          status: 400,
-          message: 'La organización especificada no existe',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar que storeId existe si se proporciona
     if (userData.storeId) {
       const store = await prisma.store.findFirst({
-        where: {
-          id: userData.storeId,
-          organizationId: orgId,
-          isDeleted: false,
-        },
+        where: { id: userData.storeId, organizationId: orgId, isDeleted: false },
       });
 
       if (!store) {
@@ -115,63 +154,64 @@ export const createUser = async (
         };
       }
 
-      // Verificar que la tienda no tenga ya un vendedor asignado (solo para rol SELLER)
-      if (userData.role === 'SELLER') {
-        const existingSellerInStore = await prisma.user.findFirst({
-          where: {
-            storeId: userData.storeId,
-            role: 'SELLER',
-            isDeleted: false,
-            isActive: true,
-          },
-        });
-
-        if (existingSellerInStore) {
-          return {
-            status: 409,
-            message: 'La tienda ya tiene un vendedor asignado',
-            data: null,
-          };
-        }
+      if (
+        userData.role === MembershipRole.SELLER &&
+        (await storeHasActiveSeller(userData.storeId))
+      ) {
+        return {
+          status: 409,
+          message: 'La tienda ya tiene un vendedor asignado',
+          data: null,
+        };
       }
     }
 
-    // Hash de la contraseña antes de guardar
     const hashedPassword = await bcrypt.hash(userData.password, 12);
 
-    const newUser = await prisma.user.create({
-      data: {
-        ...userData,
-        password: hashedPassword,
-      },
-      include: userInclude,
+    const newUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name: userData.name,
+          email: userData.email,
+          passwordHash: hashedPassword,
+          isActive: userData.isActive ?? true,
+          passwordChangedAt: new Date(),
+        },
+      });
+
+      await tx.membership.create({
+        data: {
+          userId: user.id,
+          organizationId: orgId,
+          role: userData.role,
+          defaultStoreId: userData.storeId ?? null,
+          status: MembershipStatus.ACTIVE,
+          invitedBy: adminUserId,
+          acceptedAt: new Date(),
+        },
+      });
+
+      return tx.user.findUniqueOrThrow({
+        where: { id: user.id },
+        include: { memberships: activeMembershipInclude },
+      });
     });
 
     return {
       status: 201,
       message: 'Usuario creado exitosamente',
-      data: newUser,
+      data: composeUser(newUser),
     };
   } catch (error) {
     console.error('Error creating user:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
-        const target = error.meta?.target as string[];
-        if (target?.includes('email')) {
-          return {
-            status: 409,
-            message: 'Ya existe un usuario con ese email',
-            data: null,
-          };
-        }
-        if (target?.includes('username')) {
-          return {
-            status: 409,
-            message: 'Ya existe un usuario con ese nombre de usuario',
-            data: null,
-          };
-        }
+        return {
+          status: 409,
+          message: 'Ya existe un usuario con ese email',
+          data: null,
+        };
       }
       if (error.code === 'P2003') {
         return {
@@ -186,56 +226,65 @@ export const createUser = async (
   }
 };
 
-// GET MANY
+// GET MANY — usuarios de una organización (vía memberships)
 export const getUsersByOrgId = async (
   orgId: string,
   filters?: {
     isActive?: boolean;
-    role?: UserRole;
+    role?: MembershipRole;
     storeId?: string;
     search?: string;
   },
   includeDeleted: boolean = false
-): Promise<ActionResponse<User[] | null>> => {
+): Promise<ActionResponse<UserWithTenancy[] | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
-    const whereClause: Prisma.UserWhereInput = {
+    const membershipFilter: Prisma.MembershipWhereInput = {
       organizationId: orgId,
+      deletedAt: null,
+      status: MembershipStatus.ACTIVE,
+    };
+
+    if (filters?.role) {
+      membershipFilter.role = filters.role;
+    }
+
+    if (filters?.storeId) {
+      membershipFilter.defaultStoreId = filters.storeId;
+    }
+
+    const whereClause: Prisma.UserWhereInput = {
       isDeleted: includeDeleted ? undefined : false,
+      memberships: { some: membershipFilter },
     };
 
     if (filters?.isActive !== undefined) {
       whereClause.isActive = filters.isActive;
     }
 
-    if (filters?.role) {
-      whereClause.role = filters.role;
-    }
-
-    if (filters?.storeId) {
-      whereClause.storeId = filters.storeId;
-    }
-
     if (filters?.search) {
       whereClause.OR = [
-        { firstName: { contains: filters.search, mode: 'insensitive' } },
-        { lastName: { contains: filters.search, mode: 'insensitive' } },
-        { username: { contains: filters.search, mode: 'insensitive' } },
+        { name: { contains: filters.search, mode: 'insensitive' } },
         { email: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
     const users = await prisma.user.findMany({
       where: whereClause,
-      include: userInclude,
+      include: {
+        memberships: {
+          ...activeMembershipInclude,
+          where: { ...activeMembershipInclude.where, organizationId: orgId },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
     return {
       status: 200,
       message: 'Usuarios obtenidos exitosamente',
-      data: users,
+      data: users.map(composeUser),
     };
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -248,12 +297,12 @@ export const getAllUsers = async (
   adminUserId: string,
   filters?: {
     isActive?: boolean;
-    role?: UserRole;
+    role?: MembershipRole;
     organizationId?: string;
     search?: string;
   },
   includeDeleted: boolean = false
-): Promise<ActionResponse<User[] | null>> => {
+): Promise<ActionResponse<UserWithTenancy[] | null>> => {
   try {
     const isAdmin = await checkAdminRole(adminUserId);
     if (!isAdmin) return unauthorizedResponse();
@@ -266,33 +315,35 @@ export const getAllUsers = async (
       whereClause.isActive = filters.isActive;
     }
 
-    if (filters?.role) {
-      whereClause.role = filters.role;
-    }
-
-    if (filters?.organizationId) {
-      whereClause.organizationId = filters.organizationId;
+    if (filters?.role || filters?.organizationId) {
+      whereClause.memberships = {
+        some: {
+          deletedAt: null,
+          ...(filters.role ? { role: filters.role } : {}),
+          ...(filters.organizationId
+            ? { organizationId: filters.organizationId }
+            : {}),
+        },
+      };
     }
 
     if (filters?.search) {
       whereClause.OR = [
-        { firstName: { contains: filters.search, mode: 'insensitive' } },
-        { lastName: { contains: filters.search, mode: 'insensitive' } },
-        { username: { contains: filters.search, mode: 'insensitive' } },
+        { name: { contains: filters.search, mode: 'insensitive' } },
         { email: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
     const users = await prisma.user.findMany({
       where: whereClause,
-      include: userInclude,
+      include: { memberships: activeMembershipInclude },
       orderBy: { createdAt: 'desc' },
     });
 
     return {
       status: 200,
       message: 'Usuarios obtenidos exitosamente',
-      data: users,
+      data: users.map(composeUser),
     };
   } catch (error) {
     console.error('Error fetching all users:', error);
@@ -303,7 +354,7 @@ export const getAllUsers = async (
 // GET ONE
 export const getUserById = async (
   userId: string
-): Promise<ActionResponse<User | null>> => {
+): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
     if (!userId)
       return {
@@ -314,7 +365,7 @@ export const getUserById = async (
 
     const user = await prisma.user.findFirst({
       where: { id: userId, isDeleted: false },
-      include: userInclude,
+      include: { memberships: activeMembershipInclude },
     });
 
     if (!user)
@@ -323,7 +374,7 @@ export const getUserById = async (
     return {
       status: 200,
       message: 'Usuario obtenido exitosamente',
-      data: user,
+      data: composeUser(user),
     };
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -334,7 +385,7 @@ export const getUserById = async (
 // GET BY EMAIL
 export const getUserByEmail = async (
   email: string
-): Promise<ActionResponse<User | null>> => {
+): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
     if (!email)
       return {
@@ -349,7 +400,7 @@ export const getUserByEmail = async (
         isDeleted: false,
         isActive: true,
       },
-      include: userInclude,
+      include: { memberships: activeMembershipInclude },
     });
 
     if (!user)
@@ -358,7 +409,7 @@ export const getUserByEmail = async (
     return {
       status: 200,
       message: 'Usuario obtenido exitosamente',
-      data: user,
+      data: composeUser(user),
     };
   } catch (error) {
     console.error('Error fetching user by email:', error);
@@ -366,14 +417,12 @@ export const getUserByEmail = async (
   }
 };
 
-// UPDATE
+// UPDATE — campos de identidad en users; role/store en el membership ACTIVO
 export const updateUser = async (
   userId: string,
   adminUserId: string,
-  updateData: Partial<
-    Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>
-  >
-): Promise<ActionResponse<User | null>> => {
+  updateData: UpdateUserInput
+): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
     const isAdmin = await checkAdminRole(adminUserId);
     if (!isAdmin) return unauthorizedResponse();
@@ -385,14 +434,16 @@ export const updateUser = async (
         data: null,
       };
 
-    // Verificar que el usuario exista y no esté eliminado
     const existingUser = await prisma.user.findFirst({
       where: { id: userId, isDeleted: false },
+      include: { memberships: activeMembershipInclude },
     });
 
     if (!existingUser) {
       return { status: 404, message: 'Usuario no encontrado', data: null };
     }
+
+    const membership = existingUser.memberships[0] ?? null;
 
     // Verificar unicidad de email si se está actualizando
     if (updateData.email && updateData.email !== existingUser.email) {
@@ -413,51 +464,15 @@ export const updateUser = async (
       }
     }
 
-    // Verificar unicidad de username si se está actualizando
-    if (updateData.username && updateData.username !== existingUser.username) {
-      const duplicateUserByUsername = await prisma.user.findFirst({
-        where: {
-          username: updateData.username,
-          isDeleted: false,
-          id: { not: userId },
-        },
-      });
-
-      if (duplicateUserByUsername) {
-        return {
-          status: 409,
-          message: 'Ya existe un usuario con ese nombre de usuario',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar referencias si se están actualizando
+    // Verificar tienda si se está actualizando
     if (
-      updateData.organizationId &&
-      updateData.organizationId !== existingUser.organizationId
+      updateData.storeId &&
+      updateData.storeId !== membership?.defaultStoreId
     ) {
-      const organization = await prisma.organization.findFirst({
-        where: {
-          id: updateData.organizationId,
-          isDeleted: false,
-        },
-      });
-
-      if (!organization) {
-        return {
-          status: 400,
-          message: 'La organización especificada no existe',
-          data: null,
-        };
-      }
-    }
-
-    if (updateData.storeId && updateData.storeId !== existingUser.storeId) {
       const store = await prisma.store.findFirst({
         where: {
           id: updateData.storeId,
-          organizationId: existingUser.organizationId || undefined,
+          organizationId: membership?.organizationId ?? undefined,
           isDeleted: false,
         },
       });
@@ -470,62 +485,75 @@ export const updateUser = async (
         };
       }
 
-      // Verificar que la tienda no tenga vendedor asignado si el usuario es SELLER
-      if (existingUser.role === 'SELLER') {
-        const existingSellerInStore = await prisma.user.findFirst({
-          where: {
-            storeId: updateData.storeId,
-            role: 'SELLER',
-            isDeleted: false,
-            isActive: true,
-            id: { not: userId },
-          },
-        });
-
-        if (existingSellerInStore) {
-          return {
-            status: 409,
-            message: 'La tienda ya tiene un vendedor asignado',
-            data: null,
-          };
-        }
+      const effectiveRole = updateData.role ?? membership?.role;
+      if (
+        effectiveRole === MembershipRole.SELLER &&
+        (await storeHasActiveSeller(updateData.storeId, userId))
+      ) {
+        return {
+          status: 409,
+          message: 'La tienda ya tiene un vendedor asignado',
+          data: null,
+        };
       }
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...updateData,
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const userChanges: Prisma.UserUpdateInput = {
         updatedAt: new Date(),
-      },
-      include: userInclude,
+      };
+      if (updateData.name !== undefined) userChanges.name = updateData.name;
+      if (updateData.email !== undefined) userChanges.email = updateData.email;
+      if (updateData.image !== undefined) userChanges.image = updateData.image;
+      if (updateData.isActive !== undefined)
+        userChanges.isActive = updateData.isActive;
+      if (updateData.password) {
+        userChanges.passwordHash = await bcrypt.hash(updateData.password, 12);
+        userChanges.passwordChangedAt = new Date();
+      }
+
+      await tx.user.update({ where: { id: userId }, data: userChanges });
+
+      if (
+        membership &&
+        (updateData.role !== undefined || updateData.storeId !== undefined)
+      ) {
+        await tx.membership.updateMany({
+          where: {
+            userId,
+            organizationId: membership.organizationId,
+            deletedAt: null,
+          },
+          data: {
+            ...(updateData.role !== undefined ? { role: updateData.role } : {}),
+            ...(updateData.storeId !== undefined
+              ? { defaultStoreId: updateData.storeId }
+              : {}),
+          },
+        });
+      }
+
+      return tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        include: { memberships: activeMembershipInclude },
+      });
     });
 
     return {
       status: 200,
       message: 'Usuario actualizado exitosamente',
-      data: updatedUser,
+      data: composeUser(updatedUser),
     };
   } catch (error) {
     console.error('Error updating user:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
-        const target = error.meta?.target as string[];
-        if (target?.includes('email')) {
-          return {
-            status: 409,
-            message: 'Ya existe un usuario con ese email',
-            data: null,
-          };
-        }
-        if (target?.includes('username')) {
-          return {
-            status: 409,
-            message: 'Ya existe un usuario con ese nombre de usuario',
-            data: null,
-          };
-        }
+        return {
+          status: 409,
+          message: 'Ya existe un usuario con ese email',
+          data: null,
+        };
       }
       if (error.code === 'P2025') {
         return { status: 404, message: 'Usuario no encontrado', data: null };
@@ -543,11 +571,11 @@ export const updateUser = async (
   }
 };
 
-// UPDATE USER ROLE
+// ASSIGN ORG (onboarding) — crea el membership ADMIN del dueño (D3.3)
 export const updateUserOrg = async (
   userId: string,
   orgId: string
-): Promise<ActionResponse<User | null>> => {
+): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
     if (!userId)
       return {
@@ -564,19 +592,31 @@ export const updateUserOrg = async (
       return { status: 404, message: 'Usuario no encontrado', data: null };
     }
 
-    const updatedUser = await prisma.user.update({
+    const existingMembership = await prisma.membership.findFirst({
+      where: { userId, organizationId: orgId, deletedAt: null },
+    });
+
+    if (!existingMembership) {
+      await prisma.membership.create({
+        data: {
+          userId,
+          organizationId: orgId,
+          role: MembershipRole.ADMIN,
+          status: MembershipStatus.ACTIVE,
+          acceptedAt: new Date(),
+        },
+      });
+    }
+
+    const updatedUser = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      data: {
-        organizationId: orgId,
-        updatedAt: new Date(),
-      },
-      include: userInclude,
+      include: { memberships: activeMembershipInclude },
     });
 
     return {
       status: 200,
       message: 'Organización del usuario actualizada exitosamente',
-      data: updatedUser,
+      data: composeUser(updatedUser),
     };
   } catch (error) {
     console.error('Error updating user organization:', error);
@@ -591,12 +631,12 @@ export const updateUserOrg = async (
   }
 };
 
-// UPDATE USER ROLE
+// UPDATE USER ROLE — sobre el membership ACTIVO
 export const updateUserRole = async (
   userId: string,
   adminUserId: string,
-  newRole: UserRole
-): Promise<ActionResponse<User | null>> => {
+  newRole: MembershipRole
+): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
     const isAdmin = await checkAdminRole(adminUserId);
     if (!isAdmin) return unauthorizedResponse();
@@ -610,25 +650,40 @@ export const updateUserRole = async (
 
     const existingUser = await prisma.user.findFirst({
       where: { id: userId, isDeleted: false },
+      include: { memberships: activeMembershipInclude },
     });
 
     if (!existingUser) {
       return { status: 404, message: 'Usuario no encontrado', data: null };
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        role: newRole,
-        updatedAt: new Date(),
+    const membership = existingUser.memberships[0] ?? null;
+    if (!membership) {
+      return {
+        status: 400,
+        message: 'El usuario no pertenece a ninguna organización',
+        data: null,
+      };
+    }
+
+    await prisma.membership.updateMany({
+      where: {
+        userId,
+        organizationId: membership.organizationId,
+        deletedAt: null,
       },
-      include: userInclude,
+      data: { role: newRole },
+    });
+
+    const updatedUser = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: { memberships: activeMembershipInclude },
     });
 
     return {
       status: 200,
       message: 'Rol de usuario actualizado exitosamente',
-      data: updatedUser,
+      data: composeUser(updatedUser),
     };
   } catch (error) {
     console.error('Error updating user role:', error);
@@ -648,7 +703,7 @@ export const toggleUserStatus = async (
   userId: string,
   adminUserId: string,
   isActive: boolean
-): Promise<ActionResponse<User | null>> => {
+): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
     const isAdminRole = await checkAdminRole(adminUserId);
     if (!isAdminRole) return unauthorizedResponse();
@@ -674,13 +729,13 @@ export const toggleUserStatus = async (
         isActive,
         updatedAt: new Date(),
       },
-      include: userInclude,
+      include: { memberships: activeMembershipInclude },
     });
 
     return {
       status: 200,
       message: `Usuario ${isActive ? 'activado' : 'desactivado'} exitosamente`,
-      data: updatedUser,
+      data: composeUser(updatedUser),
     };
   } catch (error) {
     console.error('Error toggling user status:', error);
@@ -698,26 +753,37 @@ export const toggleUserStatus = async (
 // GET USERS BY ROLE
 export const getUsersByRole = async (
   orgId: string,
-  role: UserRole
-): Promise<ActionResponse<User[] | null>> => {
+  role: MembershipRole
+): Promise<ActionResponse<UserWithTenancy[] | null>> => {
   try {
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
     const users = await prisma.user.findMany({
       where: {
-        organizationId: orgId,
-        role,
         isDeleted: false,
         isActive: true,
+        memberships: {
+          some: {
+            organizationId: orgId,
+            role,
+            deletedAt: null,
+            status: MembershipStatus.ACTIVE,
+          },
+        },
       },
-      include: userInclude,
+      include: {
+        memberships: {
+          ...activeMembershipInclude,
+          where: { ...activeMembershipInclude.where, organizationId: orgId },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
     return {
       status: 200,
       message: `Usuarios con rol ${role} obtenidos exitosamente`,
-      data: users,
+      data: users.map(composeUser),
     };
   } catch (error) {
     console.error('Error fetching users by role:', error);
@@ -725,7 +791,7 @@ export const getUsersByRole = async (
   }
 };
 
-// SOFT DELETE
+// SOFT DELETE — usuario + sus memberships
 export const softDeleteUser = async (
   userId: string,
   adminUserId: string
@@ -760,15 +826,21 @@ export const softDeleteUser = async (
       };
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-        isActive: false,
-        updatedAt: new Date(),
-      },
-    });
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          isActive: false,
+          updatedAt: new Date(),
+        },
+      }),
+      prisma.membership.updateMany({
+        where: { userId, deletedAt: null },
+        data: { deletedAt: new Date() },
+      }),
+    ]);
 
     return {
       status: 200,
@@ -788,11 +860,11 @@ export const softDeleteUser = async (
   }
 };
 
-// RESTORE
+// RESTORE — usuario + sus memberships
 export const restoreUser = async (
   userId: string,
   adminUserId: string
-): Promise<ActionResponse<User | null>> => {
+): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
     const isAdmin = await checkAdminRole(adminUserId);
     if (!isAdmin) return unauthorizedResponse();
@@ -804,20 +876,30 @@ export const restoreUser = async (
         data: null,
       };
 
-    const restoredUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        isDeleted: false,
-        deletedAt: null,
-        updatedAt: new Date(),
-      },
-      include: userInclude,
+    const [restoredUser] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          isDeleted: false,
+          deletedAt: null,
+          updatedAt: new Date(),
+        },
+      }),
+      prisma.membership.updateMany({
+        where: { userId },
+        data: { deletedAt: null },
+      }),
+    ]);
+
+    const composed = await prisma.user.findUniqueOrThrow({
+      where: { id: restoredUser.id },
+      include: { memberships: activeMembershipInclude },
     });
 
     return {
       status: 200,
       message: 'Usuario restaurado exitosamente',
-      data: restoredUser,
+      data: composeUser(composed),
     };
   } catch (error) {
     console.error('Error restoring user:', error);
@@ -865,6 +947,7 @@ export const deleteUser = async (
       };
     }
 
+    // Memberships y sesiones caen por FK ON DELETE CASCADE
     await prisma.user.delete({ where: { id: userId } });
 
     return {
@@ -873,7 +956,7 @@ export const deleteUser = async (
       data: null,
     };
   } catch (error) {
-    console.error('Error hard deleting user:', error);
+    console.error('Error deleting user:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2025') {
@@ -883,7 +966,7 @@ export const deleteUser = async (
         return {
           status: 409,
           message:
-            'No se puede eliminar el usuario debido a relaciones existentes',
+            'No se puede eliminar el usuario porque tiene registros asociados',
           data: null,
         };
       }

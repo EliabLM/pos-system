@@ -2,10 +2,10 @@
 
 import { IconShield, IconUser } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
-import { UserRole } from '@/generated/prisma';
+import { MembershipRole } from '@/generated/prisma';
 
 interface RoleBadgeProps {
-  role: UserRole;
+  role: MembershipRole | null;
   className?: string;
 }
 
@@ -25,7 +25,7 @@ export function RoleBadge({ role, className }: RoleBadgeProps) {
     },
   };
 
-  const config = roleConfig[role];
+  const config = roleConfig[role ?? 'SELLER'];
 
   return (
     <Badge

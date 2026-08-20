@@ -6,16 +6,19 @@
  * Tipos TypeScript para el sistema de autenticación
  */
 
-import { UserRole } from '@/generated/prisma';
+import { MembershipRole } from '@/generated/prisma';
 
 // ============================================
 // JWT PAYLOAD
 // ============================================
 
+// role/organizationId/storeId provienen del membership ACTIVO del usuario
+// (D3.3 — la tenancy vive en memberships). Un usuario sin membership está en
+// onboarding: role ADMIN (dueño creando su org), org/store null.
 export interface JWTPayload {
   userId: string;
   email: string;
-  role: UserRole;
+  role: MembershipRole;
   organizationId: string | null;
   storeId?: string | null;
   iat?: number; // Issued at (timestamp)
@@ -29,7 +32,7 @@ export interface JWTPayload {
 export interface SessionData {
   id: string;
   userId: string;
-  token: string;
+  tokenHash: string;
   expiresAt: Date;
   ipAddress?: string | null;
   userAgent?: string | null;

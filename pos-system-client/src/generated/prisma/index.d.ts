@@ -34,16 +34,6 @@ export type User = $Result.DefaultSelection<Prisma.$UserPayload>
  */
 export type Session = $Result.DefaultSelection<Prisma.$SessionPayload>
 /**
- * Model PasswordReset
- * 
- */
-export type PasswordReset = $Result.DefaultSelection<Prisma.$PasswordResetPayload>
-/**
- * Model EmailVerification
- * 
- */
-export type EmailVerification = $Result.DefaultSelection<Prisma.$EmailVerificationPayload>
-/**
  * Model AuditLog
  * 
  */
@@ -143,15 +133,7 @@ export type LegacyIdMap = $Result.DefaultSelection<Prisma.$LegacyIdMapPayload>
  * Enums
  */
 export namespace $Enums {
-  export const UserRole: {
-  ADMIN: 'ADMIN',
-  SELLER: 'SELLER'
-};
-
-export type UserRole = (typeof UserRole)[keyof typeof UserRole]
-
-
-export const MembershipRole: {
+  export const MembershipRole: {
   ADMIN: 'ADMIN',
   SELLER: 'SELLER'
 };
@@ -235,16 +217,18 @@ export const AuditAction: {
   ROLE_CHANGED: 'ROLE_CHANGED',
   ORGANIZATION_CHANGED: 'ORGANIZATION_CHANGED',
   STORE_CHANGED: 'STORE_CHANGED',
-  SESSION_REVOKED: 'SESSION_REVOKED'
+  SESSION_REVOKED: 'SESSION_REVOKED',
+  LOGOUT_ALL: 'LOGOUT_ALL',
+  PASSWORD_CHANGE: 'PASSWORD_CHANGE',
+  ROLE_CHANGE: 'ROLE_CHANGE',
+  SOFT_DELETE: 'SOFT_DELETE',
+  EXPORT: 'EXPORT',
+  VIEW_SENSITIVE: 'VIEW_SENSITIVE'
 };
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction]
 
 }
-
-export type UserRole = $Enums.UserRole
-
-export const UserRole: typeof $Enums.UserRole
 
 export type MembershipRole = $Enums.MembershipRole
 
@@ -435,26 +419,6 @@ export class PrismaClient<
     * ```
     */
   get session(): Prisma.SessionDelegate<ExtArgs, ClientOptions>;
-
-  /**
-   * `prisma.passwordReset`: Exposes CRUD operations for the **PasswordReset** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more PasswordResets
-    * const passwordResets = await prisma.passwordReset.findMany()
-    * ```
-    */
-  get passwordReset(): Prisma.PasswordResetDelegate<ExtArgs, ClientOptions>;
-
-  /**
-   * `prisma.emailVerification`: Exposes CRUD operations for the **EmailVerification** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more EmailVerifications
-    * const emailVerifications = await prisma.emailVerification.findMany()
-    * ```
-    */
-  get emailVerification(): Prisma.EmailVerificationDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.auditLog`: Exposes CRUD operations for the **AuditLog** model.
@@ -1089,8 +1053,6 @@ export namespace Prisma {
     Store: 'Store',
     User: 'User',
     Session: 'Session',
-    PasswordReset: 'PasswordReset',
-    EmailVerification: 'EmailVerification',
     AuditLog: 'AuditLog',
     Category: 'Category',
     Brand: 'Brand',
@@ -1128,7 +1090,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "organization" | "store" | "user" | "session" | "passwordReset" | "emailVerification" | "auditLog" | "category" | "brand" | "unitMeasure" | "product" | "customer" | "supplier" | "paymentMethod" | "sale" | "saleItem" | "salePayment" | "purchase" | "purchaseItem" | "stockMovement" | "systemConfig" | "membership" | "verification" | "account" | "legacyIdMap"
+      modelProps: "organization" | "store" | "user" | "session" | "auditLog" | "category" | "brand" | "unitMeasure" | "product" | "customer" | "supplier" | "paymentMethod" | "sale" | "saleItem" | "salePayment" | "purchase" | "purchaseItem" | "stockMovement" | "systemConfig" | "membership" | "verification" | "account" | "legacyIdMap"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1425,154 +1387,6 @@ export namespace Prisma {
           count: {
             args: Prisma.SessionCountArgs<ExtArgs>
             result: $Utils.Optional<SessionCountAggregateOutputType> | number
-          }
-        }
-      }
-      PasswordReset: {
-        payload: Prisma.$PasswordResetPayload<ExtArgs>
-        fields: Prisma.PasswordResetFieldRefs
-        operations: {
-          findUnique: {
-            args: Prisma.PasswordResetFindUniqueArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload> | null
-          }
-          findUniqueOrThrow: {
-            args: Prisma.PasswordResetFindUniqueOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>
-          }
-          findFirst: {
-            args: Prisma.PasswordResetFindFirstArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload> | null
-          }
-          findFirstOrThrow: {
-            args: Prisma.PasswordResetFindFirstOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>
-          }
-          findMany: {
-            args: Prisma.PasswordResetFindManyArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>[]
-          }
-          create: {
-            args: Prisma.PasswordResetCreateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>
-          }
-          createMany: {
-            args: Prisma.PasswordResetCreateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          createManyAndReturn: {
-            args: Prisma.PasswordResetCreateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>[]
-          }
-          delete: {
-            args: Prisma.PasswordResetDeleteArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>
-          }
-          update: {
-            args: Prisma.PasswordResetUpdateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>
-          }
-          deleteMany: {
-            args: Prisma.PasswordResetDeleteManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateMany: {
-            args: Prisma.PasswordResetUpdateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateManyAndReturn: {
-            args: Prisma.PasswordResetUpdateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>[]
-          }
-          upsert: {
-            args: Prisma.PasswordResetUpsertArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$PasswordResetPayload>
-          }
-          aggregate: {
-            args: Prisma.PasswordResetAggregateArgs<ExtArgs>
-            result: $Utils.Optional<AggregatePasswordReset>
-          }
-          groupBy: {
-            args: Prisma.PasswordResetGroupByArgs<ExtArgs>
-            result: $Utils.Optional<PasswordResetGroupByOutputType>[]
-          }
-          count: {
-            args: Prisma.PasswordResetCountArgs<ExtArgs>
-            result: $Utils.Optional<PasswordResetCountAggregateOutputType> | number
-          }
-        }
-      }
-      EmailVerification: {
-        payload: Prisma.$EmailVerificationPayload<ExtArgs>
-        fields: Prisma.EmailVerificationFieldRefs
-        operations: {
-          findUnique: {
-            args: Prisma.EmailVerificationFindUniqueArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload> | null
-          }
-          findUniqueOrThrow: {
-            args: Prisma.EmailVerificationFindUniqueOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>
-          }
-          findFirst: {
-            args: Prisma.EmailVerificationFindFirstArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload> | null
-          }
-          findFirstOrThrow: {
-            args: Prisma.EmailVerificationFindFirstOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>
-          }
-          findMany: {
-            args: Prisma.EmailVerificationFindManyArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>[]
-          }
-          create: {
-            args: Prisma.EmailVerificationCreateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>
-          }
-          createMany: {
-            args: Prisma.EmailVerificationCreateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          createManyAndReturn: {
-            args: Prisma.EmailVerificationCreateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>[]
-          }
-          delete: {
-            args: Prisma.EmailVerificationDeleteArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>
-          }
-          update: {
-            args: Prisma.EmailVerificationUpdateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>
-          }
-          deleteMany: {
-            args: Prisma.EmailVerificationDeleteManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateMany: {
-            args: Prisma.EmailVerificationUpdateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateManyAndReturn: {
-            args: Prisma.EmailVerificationUpdateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>[]
-          }
-          upsert: {
-            args: Prisma.EmailVerificationUpsertArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$EmailVerificationPayload>
-          }
-          aggregate: {
-            args: Prisma.EmailVerificationAggregateArgs<ExtArgs>
-            result: $Utils.Optional<AggregateEmailVerification>
-          }
-          groupBy: {
-            args: Prisma.EmailVerificationGroupByArgs<ExtArgs>
-            result: $Utils.Optional<EmailVerificationGroupByOutputType>[]
-          }
-          count: {
-            args: Prisma.EmailVerificationCountArgs<ExtArgs>
-            result: $Utils.Optional<EmailVerificationCountAggregateOutputType> | number
           }
         }
       }
@@ -3078,8 +2892,6 @@ export namespace Prisma {
     store?: StoreOmit
     user?: UserOmit
     session?: SessionOmit
-    passwordReset?: PasswordResetOmit
-    emailVerification?: EmailVerificationOmit
     auditLog?: AuditLogOmit
     category?: CategoryOmit
     brand?: BrandOmit
@@ -3190,7 +3002,6 @@ export namespace Prisma {
     suppliers: number
     systemConfigs: number
     unitMeasures: number
-    users: number
   }
 
   export type OrganizationCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3205,7 +3016,6 @@ export namespace Prisma {
     suppliers?: boolean | OrganizationCountOutputTypeCountSuppliersArgs
     systemConfigs?: boolean | OrganizationCountOutputTypeCountSystemConfigsArgs
     unitMeasures?: boolean | OrganizationCountOutputTypeCountUnitMeasuresArgs
-    users?: boolean | OrganizationCountOutputTypeCountUsersArgs
   }
 
   // Custom InputTypes
@@ -3296,13 +3106,6 @@ export namespace Prisma {
     where?: UnitMeasureWhereInput
   }
 
-  /**
-   * OrganizationCountOutputType without action
-   */
-  export type OrganizationCountOutputTypeCountUsersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: UserWhereInput
-  }
-
 
   /**
    * Count Type StoreCountOutputType
@@ -3310,13 +3113,11 @@ export namespace Prisma {
 
   export type StoreCountOutputType = {
     sales: number
-    users: number
     memberships: number
   }
 
   export type StoreCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     sales?: boolean | StoreCountOutputTypeCountSalesArgs
-    users?: boolean | StoreCountOutputTypeCountUsersArgs
     memberships?: boolean | StoreCountOutputTypeCountMembershipsArgs
   }
 
@@ -3341,13 +3142,6 @@ export namespace Prisma {
   /**
    * StoreCountOutputType without action
    */
-  export type StoreCountOutputTypeCountUsersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: UserWhereInput
-  }
-
-  /**
-   * StoreCountOutputType without action
-   */
   export type StoreCountOutputTypeCountMembershipsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: MembershipWhereInput
   }
@@ -3361,8 +3155,6 @@ export namespace Prisma {
     sales: number
     stockMovements: number
     sessions: number
-    passwordResets: number
-    emailVerifications: number
     auditLogs: number
     memberships: number
     accounts: number
@@ -3372,8 +3164,6 @@ export namespace Prisma {
     sales?: boolean | UserCountOutputTypeCountSalesArgs
     stockMovements?: boolean | UserCountOutputTypeCountStockMovementsArgs
     sessions?: boolean | UserCountOutputTypeCountSessionsArgs
-    passwordResets?: boolean | UserCountOutputTypeCountPasswordResetsArgs
-    emailVerifications?: boolean | UserCountOutputTypeCountEmailVerificationsArgs
     auditLogs?: boolean | UserCountOutputTypeCountAuditLogsArgs
     memberships?: boolean | UserCountOutputTypeCountMembershipsArgs
     accounts?: boolean | UserCountOutputTypeCountAccountsArgs
@@ -3409,20 +3199,6 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountSessionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: SessionWhereInput
-  }
-
-  /**
-   * UserCountOutputType without action
-   */
-  export type UserCountOutputTypeCountPasswordResetsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: PasswordResetWhereInput
-  }
-
-  /**
-   * UserCountOutputType without action
-   */
-  export type UserCountOutputTypeCountEmailVerificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: EmailVerificationWhereInput
   }
 
   /**
@@ -4021,7 +3797,6 @@ export namespace Prisma {
     suppliers?: boolean | Organization$suppliersArgs<ExtArgs>
     systemConfigs?: boolean | Organization$systemConfigsArgs<ExtArgs>
     unitMeasures?: boolean | Organization$unitMeasuresArgs<ExtArgs>
-    users?: boolean | Organization$usersArgs<ExtArgs>
     _count?: boolean | OrganizationCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["organization"]>
 
@@ -4092,7 +3867,6 @@ export namespace Prisma {
     suppliers?: boolean | Organization$suppliersArgs<ExtArgs>
     systemConfigs?: boolean | Organization$systemConfigsArgs<ExtArgs>
     unitMeasures?: boolean | Organization$unitMeasuresArgs<ExtArgs>
-    users?: boolean | Organization$usersArgs<ExtArgs>
     _count?: boolean | OrganizationCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type OrganizationIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -4112,7 +3886,6 @@ export namespace Prisma {
       suppliers: Prisma.$SupplierPayload<ExtArgs>[]
       systemConfigs: Prisma.$SystemConfigPayload<ExtArgs>[]
       unitMeasures: Prisma.$UnitMeasurePayload<ExtArgs>[]
-      users: Prisma.$UserPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -4535,7 +4308,6 @@ export namespace Prisma {
     suppliers<T extends Organization$suppliersArgs<ExtArgs> = {}>(args?: Subset<T, Organization$suppliersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SupplierPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     systemConfigs<T extends Organization$systemConfigsArgs<ExtArgs> = {}>(args?: Subset<T, Organization$systemConfigsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SystemConfigPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     unitMeasures<T extends Organization$unitMeasuresArgs<ExtArgs> = {}>(args?: Subset<T, Organization$unitMeasuresArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UnitMeasurePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-    users<T extends Organization$usersArgs<ExtArgs> = {}>(args?: Subset<T, Organization$usersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5232,30 +5004,6 @@ export namespace Prisma {
   }
 
   /**
-   * Organization.users
-   */
-  export type Organization$usersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the User
-     */
-    select?: UserSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the User
-     */
-    omit?: UserOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: UserInclude<ExtArgs> | null
-    where?: UserWhereInput
-    orderBy?: UserOrderByWithRelationInput | UserOrderByWithRelationInput[]
-    cursor?: UserWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: UserScalarFieldEnum | UserScalarFieldEnum[]
-  }
-
-  /**
    * Organization without action
    */
   export type OrganizationDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -5554,7 +5302,6 @@ export namespace Prisma {
     deletedAt?: boolean
     sales?: boolean | Store$salesArgs<ExtArgs>
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
-    users?: boolean | Store$usersArgs<ExtArgs>
     memberships?: boolean | Store$membershipsArgs<ExtArgs>
     _count?: boolean | StoreCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["store"]>
@@ -5619,7 +5366,6 @@ export namespace Prisma {
   export type StoreInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     sales?: boolean | Store$salesArgs<ExtArgs>
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
-    users?: boolean | Store$usersArgs<ExtArgs>
     memberships?: boolean | Store$membershipsArgs<ExtArgs>
     _count?: boolean | StoreCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -5635,7 +5381,6 @@ export namespace Prisma {
     objects: {
       sales: Prisma.$SalePayload<ExtArgs>[]
       organization: Prisma.$OrganizationPayload<ExtArgs>
-      users: Prisma.$UserPayload<ExtArgs>[]
       memberships: Prisma.$MembershipPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -6050,7 +5795,6 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     sales<T extends Store$salesArgs<ExtArgs> = {}>(args?: Subset<T, Store$salesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     organization<T extends OrganizationDefaultArgs<ExtArgs> = {}>(args?: Subset<T, OrganizationDefaultArgs<ExtArgs>>): Prisma__OrganizationClient<$Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-    users<T extends Store$usersArgs<ExtArgs> = {}>(args?: Subset<T, Store$usersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     memberships<T extends Store$membershipsArgs<ExtArgs> = {}>(args?: Subset<T, Store$membershipsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MembershipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -6516,30 +6260,6 @@ export namespace Prisma {
   }
 
   /**
-   * Store.users
-   */
-  export type Store$usersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the User
-     */
-    select?: UserSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the User
-     */
-    omit?: UserOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: UserInclude<ExtArgs> | null
-    where?: UserWhereInput
-    orderBy?: UserOrderByWithRelationInput | UserOrderByWithRelationInput[]
-    cursor?: UserWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: UserScalarFieldEnum | UserScalarFieldEnum[]
-  }
-
-  /**
    * Store.memberships
    */
   export type Store$membershipsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -6604,14 +6324,10 @@ export namespace Prisma {
 
   export type UserMinAggregateOutputType = {
     id: string | null
-    organizationId: string | null
-    storeId: string | null
     email: string | null
-    password: string | null
-    username: string | null
-    firstName: string | null
-    lastName: string | null
-    role: $Enums.UserRole | null
+    passwordHash: string | null
+    name: string | null
+    image: string | null
     emailVerified: boolean | null
     isActive: boolean | null
     isDeleted: boolean | null
@@ -6626,14 +6342,10 @@ export namespace Prisma {
 
   export type UserMaxAggregateOutputType = {
     id: string | null
-    organizationId: string | null
-    storeId: string | null
     email: string | null
-    password: string | null
-    username: string | null
-    firstName: string | null
-    lastName: string | null
-    role: $Enums.UserRole | null
+    passwordHash: string | null
+    name: string | null
+    image: string | null
     emailVerified: boolean | null
     isActive: boolean | null
     isDeleted: boolean | null
@@ -6648,14 +6360,10 @@ export namespace Prisma {
 
   export type UserCountAggregateOutputType = {
     id: number
-    organizationId: number
-    storeId: number
     email: number
-    password: number
-    username: number
-    firstName: number
-    lastName: number
-    role: number
+    passwordHash: number
+    name: number
+    image: number
     emailVerified: number
     isActive: number
     isDeleted: number
@@ -6680,14 +6388,10 @@ export namespace Prisma {
 
   export type UserMinAggregateInputType = {
     id?: true
-    organizationId?: true
-    storeId?: true
     email?: true
-    password?: true
-    username?: true
-    firstName?: true
-    lastName?: true
-    role?: true
+    passwordHash?: true
+    name?: true
+    image?: true
     emailVerified?: true
     isActive?: true
     isDeleted?: true
@@ -6702,14 +6406,10 @@ export namespace Prisma {
 
   export type UserMaxAggregateInputType = {
     id?: true
-    organizationId?: true
-    storeId?: true
     email?: true
-    password?: true
-    username?: true
-    firstName?: true
-    lastName?: true
-    role?: true
+    passwordHash?: true
+    name?: true
+    image?: true
     emailVerified?: true
     isActive?: true
     isDeleted?: true
@@ -6724,14 +6424,10 @@ export namespace Prisma {
 
   export type UserCountAggregateInputType = {
     id?: true
-    organizationId?: true
-    storeId?: true
     email?: true
-    password?: true
-    username?: true
-    firstName?: true
-    lastName?: true
-    role?: true
+    passwordHash?: true
+    name?: true
+    image?: true
     emailVerified?: true
     isActive?: true
     isDeleted?: true
@@ -6833,14 +6529,10 @@ export namespace Prisma {
 
   export type UserGroupByOutputType = {
     id: string
-    organizationId: string | null
-    storeId: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role: $Enums.UserRole
+    passwordHash: string | null
+    name: string
+    image: string | null
     emailVerified: boolean
     isActive: boolean
     isDeleted: boolean
@@ -6874,14 +6566,10 @@ export namespace Prisma {
 
   export type UserSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    organizationId?: boolean
-    storeId?: boolean
     email?: boolean
-    password?: boolean
-    username?: boolean
-    firstName?: boolean
-    lastName?: boolean
-    role?: boolean
+    passwordHash?: boolean
+    name?: boolean
+    image?: boolean
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -6894,11 +6582,7 @@ export namespace Prisma {
     lockedUntil?: boolean
     sales?: boolean | User$salesArgs<ExtArgs>
     stockMovements?: boolean | User$stockMovementsArgs<ExtArgs>
-    organization?: boolean | User$organizationArgs<ExtArgs>
-    store?: boolean | User$storeArgs<ExtArgs>
     sessions?: boolean | User$sessionsArgs<ExtArgs>
-    passwordResets?: boolean | User$passwordResetsArgs<ExtArgs>
-    emailVerifications?: boolean | User$emailVerificationsArgs<ExtArgs>
     auditLogs?: boolean | User$auditLogsArgs<ExtArgs>
     memberships?: boolean | User$membershipsArgs<ExtArgs>
     accounts?: boolean | User$accountsArgs<ExtArgs>
@@ -6907,14 +6591,10 @@ export namespace Prisma {
 
   export type UserSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    organizationId?: boolean
-    storeId?: boolean
     email?: boolean
-    password?: boolean
-    username?: boolean
-    firstName?: boolean
-    lastName?: boolean
-    role?: boolean
+    passwordHash?: boolean
+    name?: boolean
+    image?: boolean
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -6925,20 +6605,14 @@ export namespace Prisma {
     passwordChangedAt?: boolean
     loginAttempts?: boolean
     lockedUntil?: boolean
-    organization?: boolean | User$organizationArgs<ExtArgs>
-    store?: boolean | User$storeArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    organizationId?: boolean
-    storeId?: boolean
     email?: boolean
-    password?: boolean
-    username?: boolean
-    firstName?: boolean
-    lastName?: boolean
-    role?: boolean
+    passwordHash?: boolean
+    name?: boolean
+    image?: boolean
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -6949,20 +6623,14 @@ export namespace Prisma {
     passwordChangedAt?: boolean
     loginAttempts?: boolean
     lockedUntil?: boolean
-    organization?: boolean | User$organizationArgs<ExtArgs>
-    store?: boolean | User$storeArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectScalar = {
     id?: boolean
-    organizationId?: boolean
-    storeId?: boolean
     email?: boolean
-    password?: boolean
-    username?: boolean
-    firstName?: boolean
-    lastName?: boolean
-    role?: boolean
+    passwordHash?: boolean
+    name?: boolean
+    image?: boolean
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -6975,53 +6643,35 @@ export namespace Prisma {
     lockedUntil?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "organizationId" | "storeId" | "email" | "password" | "username" | "firstName" | "lastName" | "role" | "emailVerified" | "isActive" | "isDeleted" | "deletedAt" | "createdAt" | "updatedAt" | "lastLoginAt" | "passwordChangedAt" | "loginAttempts" | "lockedUntil", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "passwordHash" | "name" | "image" | "emailVerified" | "isActive" | "isDeleted" | "deletedAt" | "createdAt" | "updatedAt" | "lastLoginAt" | "passwordChangedAt" | "loginAttempts" | "lockedUntil", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     sales?: boolean | User$salesArgs<ExtArgs>
     stockMovements?: boolean | User$stockMovementsArgs<ExtArgs>
-    organization?: boolean | User$organizationArgs<ExtArgs>
-    store?: boolean | User$storeArgs<ExtArgs>
     sessions?: boolean | User$sessionsArgs<ExtArgs>
-    passwordResets?: boolean | User$passwordResetsArgs<ExtArgs>
-    emailVerifications?: boolean | User$emailVerificationsArgs<ExtArgs>
     auditLogs?: boolean | User$auditLogsArgs<ExtArgs>
     memberships?: boolean | User$membershipsArgs<ExtArgs>
     accounts?: boolean | User$accountsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
-  export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    organization?: boolean | User$organizationArgs<ExtArgs>
-    store?: boolean | User$storeArgs<ExtArgs>
-  }
-  export type UserIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    organization?: boolean | User$organizationArgs<ExtArgs>
-    store?: boolean | User$storeArgs<ExtArgs>
-  }
+  export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type UserIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
 
   export type $UserPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "User"
     objects: {
       sales: Prisma.$SalePayload<ExtArgs>[]
       stockMovements: Prisma.$StockMovementPayload<ExtArgs>[]
-      organization: Prisma.$OrganizationPayload<ExtArgs> | null
-      store: Prisma.$StorePayload<ExtArgs> | null
       sessions: Prisma.$SessionPayload<ExtArgs>[]
-      passwordResets: Prisma.$PasswordResetPayload<ExtArgs>[]
-      emailVerifications: Prisma.$EmailVerificationPayload<ExtArgs>[]
       auditLogs: Prisma.$AuditLogPayload<ExtArgs>[]
       memberships: Prisma.$MembershipPayload<ExtArgs>[]
       accounts: Prisma.$AccountPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      organizationId: string | null
-      storeId: string | null
       email: string
-      password: string
-      username: string
-      firstName: string
-      lastName: string
-      role: $Enums.UserRole
+      passwordHash: string | null
+      name: string
+      image: string | null
       emailVerified: boolean
       isActive: boolean
       isDeleted: boolean
@@ -7428,11 +7078,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     sales<T extends User$salesArgs<ExtArgs> = {}>(args?: Subset<T, User$salesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     stockMovements<T extends User$stockMovementsArgs<ExtArgs> = {}>(args?: Subset<T, User$stockMovementsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StockMovementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-    organization<T extends User$organizationArgs<ExtArgs> = {}>(args?: Subset<T, User$organizationArgs<ExtArgs>>): Prisma__OrganizationClient<$Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-    store<T extends User$storeArgs<ExtArgs> = {}>(args?: Subset<T, User$storeArgs<ExtArgs>>): Prisma__StoreClient<$Result.GetResult<Prisma.$StorePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     sessions<T extends User$sessionsArgs<ExtArgs> = {}>(args?: Subset<T, User$sessionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-    passwordResets<T extends User$passwordResetsArgs<ExtArgs> = {}>(args?: Subset<T, User$passwordResetsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-    emailVerifications<T extends User$emailVerificationsArgs<ExtArgs> = {}>(args?: Subset<T, User$emailVerificationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     auditLogs<T extends User$auditLogsArgs<ExtArgs> = {}>(args?: Subset<T, User$auditLogsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     memberships<T extends User$membershipsArgs<ExtArgs> = {}>(args?: Subset<T, User$membershipsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MembershipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     accounts<T extends User$accountsArgs<ExtArgs> = {}>(args?: Subset<T, User$accountsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AccountPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -7466,14 +7112,10 @@ export namespace Prisma {
    */
   interface UserFieldRefs {
     readonly id: FieldRef<"User", 'String'>
-    readonly organizationId: FieldRef<"User", 'String'>
-    readonly storeId: FieldRef<"User", 'String'>
     readonly email: FieldRef<"User", 'String'>
-    readonly password: FieldRef<"User", 'String'>
-    readonly username: FieldRef<"User", 'String'>
-    readonly firstName: FieldRef<"User", 'String'>
-    readonly lastName: FieldRef<"User", 'String'>
-    readonly role: FieldRef<"User", 'UserRole'>
+    readonly passwordHash: FieldRef<"User", 'String'>
+    readonly name: FieldRef<"User", 'String'>
+    readonly image: FieldRef<"User", 'String'>
     readonly emailVerified: FieldRef<"User", 'Boolean'>
     readonly isActive: FieldRef<"User", 'Boolean'>
     readonly isDeleted: FieldRef<"User", 'Boolean'>
@@ -7733,10 +7375,6 @@ export namespace Prisma {
      */
     data: UserCreateManyInput | UserCreateManyInput[]
     skipDuplicates?: boolean
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: UserIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -7807,10 +7445,6 @@ export namespace Prisma {
      * Limit how many Users to update.
      */
     limit?: number
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: UserIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -7928,44 +7562,6 @@ export namespace Prisma {
   }
 
   /**
-   * User.organization
-   */
-  export type User$organizationArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the Organization
-     */
-    select?: OrganizationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the Organization
-     */
-    omit?: OrganizationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: OrganizationInclude<ExtArgs> | null
-    where?: OrganizationWhereInput
-  }
-
-  /**
-   * User.store
-   */
-  export type User$storeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the Store
-     */
-    select?: StoreSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the Store
-     */
-    omit?: StoreOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StoreInclude<ExtArgs> | null
-    where?: StoreWhereInput
-  }
-
-  /**
    * User.sessions
    */
   export type User$sessionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -7987,54 +7583,6 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: SessionScalarFieldEnum | SessionScalarFieldEnum[]
-  }
-
-  /**
-   * User.passwordResets
-   */
-  export type User$passwordResetsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    where?: PasswordResetWhereInput
-    orderBy?: PasswordResetOrderByWithRelationInput | PasswordResetOrderByWithRelationInput[]
-    cursor?: PasswordResetWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: PasswordResetScalarFieldEnum | PasswordResetScalarFieldEnum[]
-  }
-
-  /**
-   * User.emailVerifications
-   */
-  export type User$emailVerificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    where?: EmailVerificationWhereInput
-    orderBy?: EmailVerificationOrderByWithRelationInput | EmailVerificationOrderByWithRelationInput[]
-    cursor?: EmailVerificationWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: EmailVerificationScalarFieldEnum | EmailVerificationScalarFieldEnum[]
   }
 
   /**
@@ -8141,7 +7689,7 @@ export namespace Prisma {
   export type SessionMinAggregateOutputType = {
     id: string | null
     userId: string | null
-    token: string | null
+    tokenHash: string | null
     refreshTokenHash: string | null
     rotatedFrom: string | null
     expiresAt: Date | null
@@ -8159,7 +7707,7 @@ export namespace Prisma {
   export type SessionMaxAggregateOutputType = {
     id: string | null
     userId: string | null
-    token: string | null
+    tokenHash: string | null
     refreshTokenHash: string | null
     rotatedFrom: string | null
     expiresAt: Date | null
@@ -8177,7 +7725,7 @@ export namespace Prisma {
   export type SessionCountAggregateOutputType = {
     id: number
     userId: number
-    token: number
+    tokenHash: number
     refreshTokenHash: number
     rotatedFrom: number
     expiresAt: number
@@ -8197,7 +7745,7 @@ export namespace Prisma {
   export type SessionMinAggregateInputType = {
     id?: true
     userId?: true
-    token?: true
+    tokenHash?: true
     refreshTokenHash?: true
     rotatedFrom?: true
     expiresAt?: true
@@ -8215,7 +7763,7 @@ export namespace Prisma {
   export type SessionMaxAggregateInputType = {
     id?: true
     userId?: true
-    token?: true
+    tokenHash?: true
     refreshTokenHash?: true
     rotatedFrom?: true
     expiresAt?: true
@@ -8233,7 +7781,7 @@ export namespace Prisma {
   export type SessionCountAggregateInputType = {
     id?: true
     userId?: true
-    token?: true
+    tokenHash?: true
     refreshTokenHash?: true
     rotatedFrom?: true
     expiresAt?: true
@@ -8324,7 +7872,7 @@ export namespace Prisma {
   export type SessionGroupByOutputType = {
     id: string
     userId: string
-    token: string
+    tokenHash: string
     refreshTokenHash: string | null
     rotatedFrom: string | null
     expiresAt: Date
@@ -8359,7 +7907,7 @@ export namespace Prisma {
   export type SessionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    token?: boolean
+    tokenHash?: boolean
     refreshTokenHash?: boolean
     rotatedFrom?: boolean
     expiresAt?: boolean
@@ -8378,7 +7926,7 @@ export namespace Prisma {
   export type SessionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    token?: boolean
+    tokenHash?: boolean
     refreshTokenHash?: boolean
     rotatedFrom?: boolean
     expiresAt?: boolean
@@ -8397,7 +7945,7 @@ export namespace Prisma {
   export type SessionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    token?: boolean
+    tokenHash?: boolean
     refreshTokenHash?: boolean
     rotatedFrom?: boolean
     expiresAt?: boolean
@@ -8416,7 +7964,7 @@ export namespace Prisma {
   export type SessionSelectScalar = {
     id?: boolean
     userId?: boolean
-    token?: boolean
+    tokenHash?: boolean
     refreshTokenHash?: boolean
     rotatedFrom?: boolean
     expiresAt?: boolean
@@ -8431,7 +7979,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type SessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "token" | "refreshTokenHash" | "rotatedFrom" | "expiresAt" | "ipAddress" | "userAgent" | "deviceId" | "isActive" | "revokedAt" | "revokedBy" | "lastActivityAt" | "createdAt" | "updatedAt", ExtArgs["result"]["session"]>
+  export type SessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "tokenHash" | "refreshTokenHash" | "rotatedFrom" | "expiresAt" | "ipAddress" | "userAgent" | "deviceId" | "isActive" | "revokedAt" | "revokedBy" | "lastActivityAt" | "createdAt" | "updatedAt", ExtArgs["result"]["session"]>
   export type SessionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
   }
@@ -8450,7 +7998,7 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
-      token: string
+      tokenHash: string
       refreshTokenHash: string | null
       rotatedFrom: string | null
       expiresAt: Date
@@ -8889,7 +8437,7 @@ export namespace Prisma {
   interface SessionFieldRefs {
     readonly id: FieldRef<"Session", 'String'>
     readonly userId: FieldRef<"Session", 'String'>
-    readonly token: FieldRef<"Session", 'String'>
+    readonly tokenHash: FieldRef<"Session", 'String'>
     readonly refreshTokenHash: FieldRef<"Session", 'String'>
     readonly rotatedFrom: FieldRef<"Session", 'String'>
     readonly expiresAt: FieldRef<"Session", 'DateTime'>
@@ -9317,2239 +8865,6 @@ export namespace Prisma {
 
 
   /**
-   * Model PasswordReset
-   */
-
-  export type AggregatePasswordReset = {
-    _count: PasswordResetCountAggregateOutputType | null
-    _min: PasswordResetMinAggregateOutputType | null
-    _max: PasswordResetMaxAggregateOutputType | null
-  }
-
-  export type PasswordResetMinAggregateOutputType = {
-    id: string | null
-    userId: string | null
-    token: string | null
-    expiresAt: Date | null
-    used: boolean | null
-    usedAt: Date | null
-    ipAddress: string | null
-    userAgent: string | null
-    createdAt: Date | null
-  }
-
-  export type PasswordResetMaxAggregateOutputType = {
-    id: string | null
-    userId: string | null
-    token: string | null
-    expiresAt: Date | null
-    used: boolean | null
-    usedAt: Date | null
-    ipAddress: string | null
-    userAgent: string | null
-    createdAt: Date | null
-  }
-
-  export type PasswordResetCountAggregateOutputType = {
-    id: number
-    userId: number
-    token: number
-    expiresAt: number
-    used: number
-    usedAt: number
-    ipAddress: number
-    userAgent: number
-    createdAt: number
-    _all: number
-  }
-
-
-  export type PasswordResetMinAggregateInputType = {
-    id?: true
-    userId?: true
-    token?: true
-    expiresAt?: true
-    used?: true
-    usedAt?: true
-    ipAddress?: true
-    userAgent?: true
-    createdAt?: true
-  }
-
-  export type PasswordResetMaxAggregateInputType = {
-    id?: true
-    userId?: true
-    token?: true
-    expiresAt?: true
-    used?: true
-    usedAt?: true
-    ipAddress?: true
-    userAgent?: true
-    createdAt?: true
-  }
-
-  export type PasswordResetCountAggregateInputType = {
-    id?: true
-    userId?: true
-    token?: true
-    expiresAt?: true
-    used?: true
-    usedAt?: true
-    ipAddress?: true
-    userAgent?: true
-    createdAt?: true
-    _all?: true
-  }
-
-  export type PasswordResetAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which PasswordReset to aggregate.
-     */
-    where?: PasswordResetWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of PasswordResets to fetch.
-     */
-    orderBy?: PasswordResetOrderByWithRelationInput | PasswordResetOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the start position
-     */
-    cursor?: PasswordResetWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` PasswordResets from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` PasswordResets.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Count returned PasswordResets
-    **/
-    _count?: true | PasswordResetCountAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the minimum value
-    **/
-    _min?: PasswordResetMinAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the maximum value
-    **/
-    _max?: PasswordResetMaxAggregateInputType
-  }
-
-  export type GetPasswordResetAggregateType<T extends PasswordResetAggregateArgs> = {
-        [P in keyof T & keyof AggregatePasswordReset]: P extends '_count' | 'count'
-      ? T[P] extends true
-        ? number
-        : GetScalarType<T[P], AggregatePasswordReset[P]>
-      : GetScalarType<T[P], AggregatePasswordReset[P]>
-  }
-
-
-
-
-  export type PasswordResetGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: PasswordResetWhereInput
-    orderBy?: PasswordResetOrderByWithAggregationInput | PasswordResetOrderByWithAggregationInput[]
-    by: PasswordResetScalarFieldEnum[] | PasswordResetScalarFieldEnum
-    having?: PasswordResetScalarWhereWithAggregatesInput
-    take?: number
-    skip?: number
-    _count?: PasswordResetCountAggregateInputType | true
-    _min?: PasswordResetMinAggregateInputType
-    _max?: PasswordResetMaxAggregateInputType
-  }
-
-  export type PasswordResetGroupByOutputType = {
-    id: string
-    userId: string
-    token: string
-    expiresAt: Date
-    used: boolean
-    usedAt: Date | null
-    ipAddress: string | null
-    userAgent: string | null
-    createdAt: Date
-    _count: PasswordResetCountAggregateOutputType | null
-    _min: PasswordResetMinAggregateOutputType | null
-    _max: PasswordResetMaxAggregateOutputType | null
-  }
-
-  type GetPasswordResetGroupByPayload<T extends PasswordResetGroupByArgs> = Prisma.PrismaPromise<
-    Array<
-      PickEnumerable<PasswordResetGroupByOutputType, T['by']> &
-        {
-          [P in ((keyof T) & (keyof PasswordResetGroupByOutputType))]: P extends '_count'
-            ? T[P] extends boolean
-              ? number
-              : GetScalarType<T[P], PasswordResetGroupByOutputType[P]>
-            : GetScalarType<T[P], PasswordResetGroupByOutputType[P]>
-        }
-      >
-    >
-
-
-  export type PasswordResetSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    token?: boolean
-    expiresAt?: boolean
-    used?: boolean
-    usedAt?: boolean
-    ipAddress?: boolean
-    userAgent?: boolean
-    createdAt?: boolean
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["passwordReset"]>
-
-  export type PasswordResetSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    token?: boolean
-    expiresAt?: boolean
-    used?: boolean
-    usedAt?: boolean
-    ipAddress?: boolean
-    userAgent?: boolean
-    createdAt?: boolean
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["passwordReset"]>
-
-  export type PasswordResetSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    token?: boolean
-    expiresAt?: boolean
-    used?: boolean
-    usedAt?: boolean
-    ipAddress?: boolean
-    userAgent?: boolean
-    createdAt?: boolean
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["passwordReset"]>
-
-  export type PasswordResetSelectScalar = {
-    id?: boolean
-    userId?: boolean
-    token?: boolean
-    expiresAt?: boolean
-    used?: boolean
-    usedAt?: boolean
-    ipAddress?: boolean
-    userAgent?: boolean
-    createdAt?: boolean
-  }
-
-  export type PasswordResetOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "token" | "expiresAt" | "used" | "usedAt" | "ipAddress" | "userAgent" | "createdAt", ExtArgs["result"]["passwordReset"]>
-  export type PasswordResetInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-  export type PasswordResetIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-  export type PasswordResetIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-
-  export type $PasswordResetPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    name: "PasswordReset"
-    objects: {
-      user: Prisma.$UserPayload<ExtArgs>
-    }
-    scalars: $Extensions.GetPayloadResult<{
-      id: string
-      userId: string
-      token: string
-      expiresAt: Date
-      used: boolean
-      usedAt: Date | null
-      ipAddress: string | null
-      userAgent: string | null
-      createdAt: Date
-    }, ExtArgs["result"]["passwordReset"]>
-    composites: {}
-  }
-
-  type PasswordResetGetPayload<S extends boolean | null | undefined | PasswordResetDefaultArgs> = $Result.GetResult<Prisma.$PasswordResetPayload, S>
-
-  type PasswordResetCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
-    Omit<PasswordResetFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: PasswordResetCountAggregateInputType | true
-    }
-
-  export interface PasswordResetDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['PasswordReset'], meta: { name: 'PasswordReset' } }
-    /**
-     * Find zero or one PasswordReset that matches the filter.
-     * @param {PasswordResetFindUniqueArgs} args - Arguments to find a PasswordReset
-     * @example
-     * // Get one PasswordReset
-     * const passwordReset = await prisma.passwordReset.findUnique({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUnique<T extends PasswordResetFindUniqueArgs>(args: SelectSubset<T, PasswordResetFindUniqueArgs<ExtArgs>>): Prisma__PasswordResetClient<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find one PasswordReset that matches the filter or throw an error with `error.code='P2025'`
-     * if no matches were found.
-     * @param {PasswordResetFindUniqueOrThrowArgs} args - Arguments to find a PasswordReset
-     * @example
-     * // Get one PasswordReset
-     * const passwordReset = await prisma.passwordReset.findUniqueOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUniqueOrThrow<T extends PasswordResetFindUniqueOrThrowArgs>(args: SelectSubset<T, PasswordResetFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PasswordResetClient<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first PasswordReset that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {PasswordResetFindFirstArgs} args - Arguments to find a PasswordReset
-     * @example
-     * // Get one PasswordReset
-     * const passwordReset = await prisma.passwordReset.findFirst({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirst<T extends PasswordResetFindFirstArgs>(args?: SelectSubset<T, PasswordResetFindFirstArgs<ExtArgs>>): Prisma__PasswordResetClient<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first PasswordReset that matches the filter or
-     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {PasswordResetFindFirstOrThrowArgs} args - Arguments to find a PasswordReset
-     * @example
-     * // Get one PasswordReset
-     * const passwordReset = await prisma.passwordReset.findFirstOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirstOrThrow<T extends PasswordResetFindFirstOrThrowArgs>(args?: SelectSubset<T, PasswordResetFindFirstOrThrowArgs<ExtArgs>>): Prisma__PasswordResetClient<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find zero or more PasswordResets that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {PasswordResetFindManyArgs} args - Arguments to filter and select certain fields only.
-     * @example
-     * // Get all PasswordResets
-     * const passwordResets = await prisma.passwordReset.findMany()
-     * 
-     * // Get first 10 PasswordResets
-     * const passwordResets = await prisma.passwordReset.findMany({ take: 10 })
-     * 
-     * // Only select the `id`
-     * const passwordResetWithIdOnly = await prisma.passwordReset.findMany({ select: { id: true } })
-     * 
-     */
-    findMany<T extends PasswordResetFindManyArgs>(args?: SelectSubset<T, PasswordResetFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
-
-    /**
-     * Create a PasswordReset.
-     * @param {PasswordResetCreateArgs} args - Arguments to create a PasswordReset.
-     * @example
-     * // Create one PasswordReset
-     * const PasswordReset = await prisma.passwordReset.create({
-     *   data: {
-     *     // ... data to create a PasswordReset
-     *   }
-     * })
-     * 
-     */
-    create<T extends PasswordResetCreateArgs>(args: SelectSubset<T, PasswordResetCreateArgs<ExtArgs>>): Prisma__PasswordResetClient<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Create many PasswordResets.
-     * @param {PasswordResetCreateManyArgs} args - Arguments to create many PasswordResets.
-     * @example
-     * // Create many PasswordResets
-     * const passwordReset = await prisma.passwordReset.createMany({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     *     
-     */
-    createMany<T extends PasswordResetCreateManyArgs>(args?: SelectSubset<T, PasswordResetCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create many PasswordResets and returns the data saved in the database.
-     * @param {PasswordResetCreateManyAndReturnArgs} args - Arguments to create many PasswordResets.
-     * @example
-     * // Create many PasswordResets
-     * const passwordReset = await prisma.passwordReset.createManyAndReturn({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Create many PasswordResets and only return the `id`
-     * const passwordResetWithIdOnly = await prisma.passwordReset.createManyAndReturn({
-     *   select: { id: true },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    createManyAndReturn<T extends PasswordResetCreateManyAndReturnArgs>(args?: SelectSubset<T, PasswordResetCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Delete a PasswordReset.
-     * @param {PasswordResetDeleteArgs} args - Arguments to delete one PasswordReset.
-     * @example
-     * // Delete one PasswordReset
-     * const PasswordReset = await prisma.passwordReset.delete({
-     *   where: {
-     *     // ... filter to delete one PasswordReset
-     *   }
-     * })
-     * 
-     */
-    delete<T extends PasswordResetDeleteArgs>(args: SelectSubset<T, PasswordResetDeleteArgs<ExtArgs>>): Prisma__PasswordResetClient<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Update one PasswordReset.
-     * @param {PasswordResetUpdateArgs} args - Arguments to update one PasswordReset.
-     * @example
-     * // Update one PasswordReset
-     * const passwordReset = await prisma.passwordReset.update({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    update<T extends PasswordResetUpdateArgs>(args: SelectSubset<T, PasswordResetUpdateArgs<ExtArgs>>): Prisma__PasswordResetClient<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Delete zero or more PasswordResets.
-     * @param {PasswordResetDeleteManyArgs} args - Arguments to filter PasswordResets to delete.
-     * @example
-     * // Delete a few PasswordResets
-     * const { count } = await prisma.passwordReset.deleteMany({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     * 
-     */
-    deleteMany<T extends PasswordResetDeleteManyArgs>(args?: SelectSubset<T, PasswordResetDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more PasswordResets.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {PasswordResetUpdateManyArgs} args - Arguments to update one or more rows.
-     * @example
-     * // Update many PasswordResets
-     * const passwordReset = await prisma.passwordReset.updateMany({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    updateMany<T extends PasswordResetUpdateManyArgs>(args: SelectSubset<T, PasswordResetUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more PasswordResets and returns the data updated in the database.
-     * @param {PasswordResetUpdateManyAndReturnArgs} args - Arguments to update many PasswordResets.
-     * @example
-     * // Update many PasswordResets
-     * const passwordReset = await prisma.passwordReset.updateManyAndReturn({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Update zero or more PasswordResets and only return the `id`
-     * const passwordResetWithIdOnly = await prisma.passwordReset.updateManyAndReturn({
-     *   select: { id: true },
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    updateManyAndReturn<T extends PasswordResetUpdateManyAndReturnArgs>(args: SelectSubset<T, PasswordResetUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Create or update one PasswordReset.
-     * @param {PasswordResetUpsertArgs} args - Arguments to update or create a PasswordReset.
-     * @example
-     * // Update or create a PasswordReset
-     * const passwordReset = await prisma.passwordReset.upsert({
-     *   create: {
-     *     // ... data to create a PasswordReset
-     *   },
-     *   update: {
-     *     // ... in case it already exists, update
-     *   },
-     *   where: {
-     *     // ... the filter for the PasswordReset we want to update
-     *   }
-     * })
-     */
-    upsert<T extends PasswordResetUpsertArgs>(args: SelectSubset<T, PasswordResetUpsertArgs<ExtArgs>>): Prisma__PasswordResetClient<$Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-
-    /**
-     * Count the number of PasswordResets.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {PasswordResetCountArgs} args - Arguments to filter PasswordResets to count.
-     * @example
-     * // Count the number of PasswordResets
-     * const count = await prisma.passwordReset.count({
-     *   where: {
-     *     // ... the filter for the PasswordResets we want to count
-     *   }
-     * })
-    **/
-    count<T extends PasswordResetCountArgs>(
-      args?: Subset<T, PasswordResetCountArgs>,
-    ): Prisma.PrismaPromise<
-      T extends $Utils.Record<'select', any>
-        ? T['select'] extends true
-          ? number
-          : GetScalarType<T['select'], PasswordResetCountAggregateOutputType>
-        : number
-    >
-
-    /**
-     * Allows you to perform aggregations operations on a PasswordReset.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {PasswordResetAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
-     * @example
-     * // Ordered by age ascending
-     * // Where email contains prisma.io
-     * // Limited to the 10 users
-     * const aggregations = await prisma.user.aggregate({
-     *   _avg: {
-     *     age: true,
-     *   },
-     *   where: {
-     *     email: {
-     *       contains: "prisma.io",
-     *     },
-     *   },
-     *   orderBy: {
-     *     age: "asc",
-     *   },
-     *   take: 10,
-     * })
-    **/
-    aggregate<T extends PasswordResetAggregateArgs>(args: Subset<T, PasswordResetAggregateArgs>): Prisma.PrismaPromise<GetPasswordResetAggregateType<T>>
-
-    /**
-     * Group by PasswordReset.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {PasswordResetGroupByArgs} args - Group by arguments.
-     * @example
-     * // Group by city, order by createdAt, get count
-     * const result = await prisma.user.groupBy({
-     *   by: ['city', 'createdAt'],
-     *   orderBy: {
-     *     createdAt: true
-     *   },
-     *   _count: {
-     *     _all: true
-     *   },
-     * })
-     * 
-    **/
-    groupBy<
-      T extends PasswordResetGroupByArgs,
-      HasSelectOrTake extends Or<
-        Extends<'skip', Keys<T>>,
-        Extends<'take', Keys<T>>
-      >,
-      OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: PasswordResetGroupByArgs['orderBy'] }
-        : { orderBy?: PasswordResetGroupByArgs['orderBy'] },
-      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
-      ByFields extends MaybeTupleToUnion<T['by']>,
-      ByValid extends Has<ByFields, OrderFields>,
-      HavingFields extends GetHavingFields<T['having']>,
-      HavingValid extends Has<ByFields, HavingFields>,
-      ByEmpty extends T['by'] extends never[] ? True : False,
-      InputErrors extends ByEmpty extends True
-      ? `Error: "by" must not be empty.`
-      : HavingValid extends False
-      ? {
-          [P in HavingFields]: P extends ByFields
-            ? never
-            : P extends string
-            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
-            : [
-                Error,
-                'Field ',
-                P,
-                ` in "having" needs to be provided in "by"`,
-              ]
-        }[HavingFields]
-      : 'take' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "take", you also need to provide "orderBy"'
-      : 'skip' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "skip", you also need to provide "orderBy"'
-      : ByValid extends True
-      ? {}
-      : {
-          [P in OrderFields]: P extends ByFields
-            ? never
-            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-        }[OrderFields]
-    >(args: SubsetIntersection<T, PasswordResetGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPasswordResetGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
-  /**
-   * Fields of the PasswordReset model
-   */
-  readonly fields: PasswordResetFieldRefs;
-  }
-
-  /**
-   * The delegate class that acts as a "Promise-like" for PasswordReset.
-   * Why is this prefixed with `Prisma__`?
-   * Because we want to prevent naming conflicts as mentioned in
-   * https://github.com/prisma/prisma-client-js/issues/707
-   */
-  export interface Prisma__PasswordResetClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
-    readonly [Symbol.toStringTag]: "PrismaPromise"
-    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-    /**
-     * Attaches callbacks for the resolution and/or rejection of the Promise.
-     * @param onfulfilled The callback to execute when the Promise is resolved.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of which ever callback is executed.
-     */
-    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
-    /**
-     * Attaches a callback for only the rejection of the Promise.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of the callback.
-     */
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
-    /**
-     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
-     * resolved value cannot be modified from the callback.
-     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
-  }
-
-
-
-
-  /**
-   * Fields of the PasswordReset model
-   */
-  interface PasswordResetFieldRefs {
-    readonly id: FieldRef<"PasswordReset", 'String'>
-    readonly userId: FieldRef<"PasswordReset", 'String'>
-    readonly token: FieldRef<"PasswordReset", 'String'>
-    readonly expiresAt: FieldRef<"PasswordReset", 'DateTime'>
-    readonly used: FieldRef<"PasswordReset", 'Boolean'>
-    readonly usedAt: FieldRef<"PasswordReset", 'DateTime'>
-    readonly ipAddress: FieldRef<"PasswordReset", 'String'>
-    readonly userAgent: FieldRef<"PasswordReset", 'String'>
-    readonly createdAt: FieldRef<"PasswordReset", 'DateTime'>
-  }
-    
-
-  // Custom InputTypes
-  /**
-   * PasswordReset findUnique
-   */
-  export type PasswordResetFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * Filter, which PasswordReset to fetch.
-     */
-    where: PasswordResetWhereUniqueInput
-  }
-
-  /**
-   * PasswordReset findUniqueOrThrow
-   */
-  export type PasswordResetFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * Filter, which PasswordReset to fetch.
-     */
-    where: PasswordResetWhereUniqueInput
-  }
-
-  /**
-   * PasswordReset findFirst
-   */
-  export type PasswordResetFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * Filter, which PasswordReset to fetch.
-     */
-    where?: PasswordResetWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of PasswordResets to fetch.
-     */
-    orderBy?: PasswordResetOrderByWithRelationInput | PasswordResetOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for PasswordResets.
-     */
-    cursor?: PasswordResetWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` PasswordResets from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` PasswordResets.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of PasswordResets.
-     */
-    distinct?: PasswordResetScalarFieldEnum | PasswordResetScalarFieldEnum[]
-  }
-
-  /**
-   * PasswordReset findFirstOrThrow
-   */
-  export type PasswordResetFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * Filter, which PasswordReset to fetch.
-     */
-    where?: PasswordResetWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of PasswordResets to fetch.
-     */
-    orderBy?: PasswordResetOrderByWithRelationInput | PasswordResetOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for PasswordResets.
-     */
-    cursor?: PasswordResetWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` PasswordResets from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` PasswordResets.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of PasswordResets.
-     */
-    distinct?: PasswordResetScalarFieldEnum | PasswordResetScalarFieldEnum[]
-  }
-
-  /**
-   * PasswordReset findMany
-   */
-  export type PasswordResetFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * Filter, which PasswordResets to fetch.
-     */
-    where?: PasswordResetWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of PasswordResets to fetch.
-     */
-    orderBy?: PasswordResetOrderByWithRelationInput | PasswordResetOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for listing PasswordResets.
-     */
-    cursor?: PasswordResetWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` PasswordResets from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` PasswordResets.
-     */
-    skip?: number
-    distinct?: PasswordResetScalarFieldEnum | PasswordResetScalarFieldEnum[]
-  }
-
-  /**
-   * PasswordReset create
-   */
-  export type PasswordResetCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * The data needed to create a PasswordReset.
-     */
-    data: XOR<PasswordResetCreateInput, PasswordResetUncheckedCreateInput>
-  }
-
-  /**
-   * PasswordReset createMany
-   */
-  export type PasswordResetCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to create many PasswordResets.
-     */
-    data: PasswordResetCreateManyInput | PasswordResetCreateManyInput[]
-    skipDuplicates?: boolean
-  }
-
-  /**
-   * PasswordReset createManyAndReturn
-   */
-  export type PasswordResetCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelectCreateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * The data used to create many PasswordResets.
-     */
-    data: PasswordResetCreateManyInput | PasswordResetCreateManyInput[]
-    skipDuplicates?: boolean
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetIncludeCreateManyAndReturn<ExtArgs> | null
-  }
-
-  /**
-   * PasswordReset update
-   */
-  export type PasswordResetUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * The data needed to update a PasswordReset.
-     */
-    data: XOR<PasswordResetUpdateInput, PasswordResetUncheckedUpdateInput>
-    /**
-     * Choose, which PasswordReset to update.
-     */
-    where: PasswordResetWhereUniqueInput
-  }
-
-  /**
-   * PasswordReset updateMany
-   */
-  export type PasswordResetUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to update PasswordResets.
-     */
-    data: XOR<PasswordResetUpdateManyMutationInput, PasswordResetUncheckedUpdateManyInput>
-    /**
-     * Filter which PasswordResets to update
-     */
-    where?: PasswordResetWhereInput
-    /**
-     * Limit how many PasswordResets to update.
-     */
-    limit?: number
-  }
-
-  /**
-   * PasswordReset updateManyAndReturn
-   */
-  export type PasswordResetUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelectUpdateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * The data used to update PasswordResets.
-     */
-    data: XOR<PasswordResetUpdateManyMutationInput, PasswordResetUncheckedUpdateManyInput>
-    /**
-     * Filter which PasswordResets to update
-     */
-    where?: PasswordResetWhereInput
-    /**
-     * Limit how many PasswordResets to update.
-     */
-    limit?: number
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetIncludeUpdateManyAndReturn<ExtArgs> | null
-  }
-
-  /**
-   * PasswordReset upsert
-   */
-  export type PasswordResetUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * The filter to search for the PasswordReset to update in case it exists.
-     */
-    where: PasswordResetWhereUniqueInput
-    /**
-     * In case the PasswordReset found by the `where` argument doesn't exist, create a new PasswordReset with this data.
-     */
-    create: XOR<PasswordResetCreateInput, PasswordResetUncheckedCreateInput>
-    /**
-     * In case the PasswordReset was found with the provided `where` argument, update it with this data.
-     */
-    update: XOR<PasswordResetUpdateInput, PasswordResetUncheckedUpdateInput>
-  }
-
-  /**
-   * PasswordReset delete
-   */
-  export type PasswordResetDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-    /**
-     * Filter which PasswordReset to delete.
-     */
-    where: PasswordResetWhereUniqueInput
-  }
-
-  /**
-   * PasswordReset deleteMany
-   */
-  export type PasswordResetDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which PasswordResets to delete
-     */
-    where?: PasswordResetWhereInput
-    /**
-     * Limit how many PasswordResets to delete.
-     */
-    limit?: number
-  }
-
-  /**
-   * PasswordReset without action
-   */
-  export type PasswordResetDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the PasswordReset
-     */
-    select?: PasswordResetSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the PasswordReset
-     */
-    omit?: PasswordResetOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: PasswordResetInclude<ExtArgs> | null
-  }
-
-
-  /**
-   * Model EmailVerification
-   */
-
-  export type AggregateEmailVerification = {
-    _count: EmailVerificationCountAggregateOutputType | null
-    _min: EmailVerificationMinAggregateOutputType | null
-    _max: EmailVerificationMaxAggregateOutputType | null
-  }
-
-  export type EmailVerificationMinAggregateOutputType = {
-    id: string | null
-    userId: string | null
-    token: string | null
-    expiresAt: Date | null
-    email: string | null
-    verified: boolean | null
-    verifiedAt: Date | null
-    ipAddress: string | null
-    userAgent: string | null
-    createdAt: Date | null
-  }
-
-  export type EmailVerificationMaxAggregateOutputType = {
-    id: string | null
-    userId: string | null
-    token: string | null
-    expiresAt: Date | null
-    email: string | null
-    verified: boolean | null
-    verifiedAt: Date | null
-    ipAddress: string | null
-    userAgent: string | null
-    createdAt: Date | null
-  }
-
-  export type EmailVerificationCountAggregateOutputType = {
-    id: number
-    userId: number
-    token: number
-    expiresAt: number
-    email: number
-    verified: number
-    verifiedAt: number
-    ipAddress: number
-    userAgent: number
-    createdAt: number
-    _all: number
-  }
-
-
-  export type EmailVerificationMinAggregateInputType = {
-    id?: true
-    userId?: true
-    token?: true
-    expiresAt?: true
-    email?: true
-    verified?: true
-    verifiedAt?: true
-    ipAddress?: true
-    userAgent?: true
-    createdAt?: true
-  }
-
-  export type EmailVerificationMaxAggregateInputType = {
-    id?: true
-    userId?: true
-    token?: true
-    expiresAt?: true
-    email?: true
-    verified?: true
-    verifiedAt?: true
-    ipAddress?: true
-    userAgent?: true
-    createdAt?: true
-  }
-
-  export type EmailVerificationCountAggregateInputType = {
-    id?: true
-    userId?: true
-    token?: true
-    expiresAt?: true
-    email?: true
-    verified?: true
-    verifiedAt?: true
-    ipAddress?: true
-    userAgent?: true
-    createdAt?: true
-    _all?: true
-  }
-
-  export type EmailVerificationAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which EmailVerification to aggregate.
-     */
-    where?: EmailVerificationWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of EmailVerifications to fetch.
-     */
-    orderBy?: EmailVerificationOrderByWithRelationInput | EmailVerificationOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the start position
-     */
-    cursor?: EmailVerificationWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` EmailVerifications from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` EmailVerifications.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Count returned EmailVerifications
-    **/
-    _count?: true | EmailVerificationCountAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the minimum value
-    **/
-    _min?: EmailVerificationMinAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the maximum value
-    **/
-    _max?: EmailVerificationMaxAggregateInputType
-  }
-
-  export type GetEmailVerificationAggregateType<T extends EmailVerificationAggregateArgs> = {
-        [P in keyof T & keyof AggregateEmailVerification]: P extends '_count' | 'count'
-      ? T[P] extends true
-        ? number
-        : GetScalarType<T[P], AggregateEmailVerification[P]>
-      : GetScalarType<T[P], AggregateEmailVerification[P]>
-  }
-
-
-
-
-  export type EmailVerificationGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: EmailVerificationWhereInput
-    orderBy?: EmailVerificationOrderByWithAggregationInput | EmailVerificationOrderByWithAggregationInput[]
-    by: EmailVerificationScalarFieldEnum[] | EmailVerificationScalarFieldEnum
-    having?: EmailVerificationScalarWhereWithAggregatesInput
-    take?: number
-    skip?: number
-    _count?: EmailVerificationCountAggregateInputType | true
-    _min?: EmailVerificationMinAggregateInputType
-    _max?: EmailVerificationMaxAggregateInputType
-  }
-
-  export type EmailVerificationGroupByOutputType = {
-    id: string
-    userId: string
-    token: string
-    expiresAt: Date
-    email: string
-    verified: boolean
-    verifiedAt: Date | null
-    ipAddress: string | null
-    userAgent: string | null
-    createdAt: Date
-    _count: EmailVerificationCountAggregateOutputType | null
-    _min: EmailVerificationMinAggregateOutputType | null
-    _max: EmailVerificationMaxAggregateOutputType | null
-  }
-
-  type GetEmailVerificationGroupByPayload<T extends EmailVerificationGroupByArgs> = Prisma.PrismaPromise<
-    Array<
-      PickEnumerable<EmailVerificationGroupByOutputType, T['by']> &
-        {
-          [P in ((keyof T) & (keyof EmailVerificationGroupByOutputType))]: P extends '_count'
-            ? T[P] extends boolean
-              ? number
-              : GetScalarType<T[P], EmailVerificationGroupByOutputType[P]>
-            : GetScalarType<T[P], EmailVerificationGroupByOutputType[P]>
-        }
-      >
-    >
-
-
-  export type EmailVerificationSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    token?: boolean
-    expiresAt?: boolean
-    email?: boolean
-    verified?: boolean
-    verifiedAt?: boolean
-    ipAddress?: boolean
-    userAgent?: boolean
-    createdAt?: boolean
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["emailVerification"]>
-
-  export type EmailVerificationSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    token?: boolean
-    expiresAt?: boolean
-    email?: boolean
-    verified?: boolean
-    verifiedAt?: boolean
-    ipAddress?: boolean
-    userAgent?: boolean
-    createdAt?: boolean
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["emailVerification"]>
-
-  export type EmailVerificationSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    token?: boolean
-    expiresAt?: boolean
-    email?: boolean
-    verified?: boolean
-    verifiedAt?: boolean
-    ipAddress?: boolean
-    userAgent?: boolean
-    createdAt?: boolean
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["emailVerification"]>
-
-  export type EmailVerificationSelectScalar = {
-    id?: boolean
-    userId?: boolean
-    token?: boolean
-    expiresAt?: boolean
-    email?: boolean
-    verified?: boolean
-    verifiedAt?: boolean
-    ipAddress?: boolean
-    userAgent?: boolean
-    createdAt?: boolean
-  }
-
-  export type EmailVerificationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "token" | "expiresAt" | "email" | "verified" | "verifiedAt" | "ipAddress" | "userAgent" | "createdAt", ExtArgs["result"]["emailVerification"]>
-  export type EmailVerificationInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-  export type EmailVerificationIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-  export type EmailVerificationIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-
-  export type $EmailVerificationPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    name: "EmailVerification"
-    objects: {
-      user: Prisma.$UserPayload<ExtArgs>
-    }
-    scalars: $Extensions.GetPayloadResult<{
-      id: string
-      userId: string
-      token: string
-      expiresAt: Date
-      email: string
-      verified: boolean
-      verifiedAt: Date | null
-      ipAddress: string | null
-      userAgent: string | null
-      createdAt: Date
-    }, ExtArgs["result"]["emailVerification"]>
-    composites: {}
-  }
-
-  type EmailVerificationGetPayload<S extends boolean | null | undefined | EmailVerificationDefaultArgs> = $Result.GetResult<Prisma.$EmailVerificationPayload, S>
-
-  type EmailVerificationCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
-    Omit<EmailVerificationFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: EmailVerificationCountAggregateInputType | true
-    }
-
-  export interface EmailVerificationDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['EmailVerification'], meta: { name: 'EmailVerification' } }
-    /**
-     * Find zero or one EmailVerification that matches the filter.
-     * @param {EmailVerificationFindUniqueArgs} args - Arguments to find a EmailVerification
-     * @example
-     * // Get one EmailVerification
-     * const emailVerification = await prisma.emailVerification.findUnique({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUnique<T extends EmailVerificationFindUniqueArgs>(args: SelectSubset<T, EmailVerificationFindUniqueArgs<ExtArgs>>): Prisma__EmailVerificationClient<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find one EmailVerification that matches the filter or throw an error with `error.code='P2025'`
-     * if no matches were found.
-     * @param {EmailVerificationFindUniqueOrThrowArgs} args - Arguments to find a EmailVerification
-     * @example
-     * // Get one EmailVerification
-     * const emailVerification = await prisma.emailVerification.findUniqueOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUniqueOrThrow<T extends EmailVerificationFindUniqueOrThrowArgs>(args: SelectSubset<T, EmailVerificationFindUniqueOrThrowArgs<ExtArgs>>): Prisma__EmailVerificationClient<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first EmailVerification that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {EmailVerificationFindFirstArgs} args - Arguments to find a EmailVerification
-     * @example
-     * // Get one EmailVerification
-     * const emailVerification = await prisma.emailVerification.findFirst({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirst<T extends EmailVerificationFindFirstArgs>(args?: SelectSubset<T, EmailVerificationFindFirstArgs<ExtArgs>>): Prisma__EmailVerificationClient<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first EmailVerification that matches the filter or
-     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {EmailVerificationFindFirstOrThrowArgs} args - Arguments to find a EmailVerification
-     * @example
-     * // Get one EmailVerification
-     * const emailVerification = await prisma.emailVerification.findFirstOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirstOrThrow<T extends EmailVerificationFindFirstOrThrowArgs>(args?: SelectSubset<T, EmailVerificationFindFirstOrThrowArgs<ExtArgs>>): Prisma__EmailVerificationClient<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find zero or more EmailVerifications that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {EmailVerificationFindManyArgs} args - Arguments to filter and select certain fields only.
-     * @example
-     * // Get all EmailVerifications
-     * const emailVerifications = await prisma.emailVerification.findMany()
-     * 
-     * // Get first 10 EmailVerifications
-     * const emailVerifications = await prisma.emailVerification.findMany({ take: 10 })
-     * 
-     * // Only select the `id`
-     * const emailVerificationWithIdOnly = await prisma.emailVerification.findMany({ select: { id: true } })
-     * 
-     */
-    findMany<T extends EmailVerificationFindManyArgs>(args?: SelectSubset<T, EmailVerificationFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
-
-    /**
-     * Create a EmailVerification.
-     * @param {EmailVerificationCreateArgs} args - Arguments to create a EmailVerification.
-     * @example
-     * // Create one EmailVerification
-     * const EmailVerification = await prisma.emailVerification.create({
-     *   data: {
-     *     // ... data to create a EmailVerification
-     *   }
-     * })
-     * 
-     */
-    create<T extends EmailVerificationCreateArgs>(args: SelectSubset<T, EmailVerificationCreateArgs<ExtArgs>>): Prisma__EmailVerificationClient<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Create many EmailVerifications.
-     * @param {EmailVerificationCreateManyArgs} args - Arguments to create many EmailVerifications.
-     * @example
-     * // Create many EmailVerifications
-     * const emailVerification = await prisma.emailVerification.createMany({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     *     
-     */
-    createMany<T extends EmailVerificationCreateManyArgs>(args?: SelectSubset<T, EmailVerificationCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create many EmailVerifications and returns the data saved in the database.
-     * @param {EmailVerificationCreateManyAndReturnArgs} args - Arguments to create many EmailVerifications.
-     * @example
-     * // Create many EmailVerifications
-     * const emailVerification = await prisma.emailVerification.createManyAndReturn({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Create many EmailVerifications and only return the `id`
-     * const emailVerificationWithIdOnly = await prisma.emailVerification.createManyAndReturn({
-     *   select: { id: true },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    createManyAndReturn<T extends EmailVerificationCreateManyAndReturnArgs>(args?: SelectSubset<T, EmailVerificationCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Delete a EmailVerification.
-     * @param {EmailVerificationDeleteArgs} args - Arguments to delete one EmailVerification.
-     * @example
-     * // Delete one EmailVerification
-     * const EmailVerification = await prisma.emailVerification.delete({
-     *   where: {
-     *     // ... filter to delete one EmailVerification
-     *   }
-     * })
-     * 
-     */
-    delete<T extends EmailVerificationDeleteArgs>(args: SelectSubset<T, EmailVerificationDeleteArgs<ExtArgs>>): Prisma__EmailVerificationClient<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Update one EmailVerification.
-     * @param {EmailVerificationUpdateArgs} args - Arguments to update one EmailVerification.
-     * @example
-     * // Update one EmailVerification
-     * const emailVerification = await prisma.emailVerification.update({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    update<T extends EmailVerificationUpdateArgs>(args: SelectSubset<T, EmailVerificationUpdateArgs<ExtArgs>>): Prisma__EmailVerificationClient<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Delete zero or more EmailVerifications.
-     * @param {EmailVerificationDeleteManyArgs} args - Arguments to filter EmailVerifications to delete.
-     * @example
-     * // Delete a few EmailVerifications
-     * const { count } = await prisma.emailVerification.deleteMany({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     * 
-     */
-    deleteMany<T extends EmailVerificationDeleteManyArgs>(args?: SelectSubset<T, EmailVerificationDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more EmailVerifications.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {EmailVerificationUpdateManyArgs} args - Arguments to update one or more rows.
-     * @example
-     * // Update many EmailVerifications
-     * const emailVerification = await prisma.emailVerification.updateMany({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    updateMany<T extends EmailVerificationUpdateManyArgs>(args: SelectSubset<T, EmailVerificationUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more EmailVerifications and returns the data updated in the database.
-     * @param {EmailVerificationUpdateManyAndReturnArgs} args - Arguments to update many EmailVerifications.
-     * @example
-     * // Update many EmailVerifications
-     * const emailVerification = await prisma.emailVerification.updateManyAndReturn({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Update zero or more EmailVerifications and only return the `id`
-     * const emailVerificationWithIdOnly = await prisma.emailVerification.updateManyAndReturn({
-     *   select: { id: true },
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    updateManyAndReturn<T extends EmailVerificationUpdateManyAndReturnArgs>(args: SelectSubset<T, EmailVerificationUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Create or update one EmailVerification.
-     * @param {EmailVerificationUpsertArgs} args - Arguments to update or create a EmailVerification.
-     * @example
-     * // Update or create a EmailVerification
-     * const emailVerification = await prisma.emailVerification.upsert({
-     *   create: {
-     *     // ... data to create a EmailVerification
-     *   },
-     *   update: {
-     *     // ... in case it already exists, update
-     *   },
-     *   where: {
-     *     // ... the filter for the EmailVerification we want to update
-     *   }
-     * })
-     */
-    upsert<T extends EmailVerificationUpsertArgs>(args: SelectSubset<T, EmailVerificationUpsertArgs<ExtArgs>>): Prisma__EmailVerificationClient<$Result.GetResult<Prisma.$EmailVerificationPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-
-    /**
-     * Count the number of EmailVerifications.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {EmailVerificationCountArgs} args - Arguments to filter EmailVerifications to count.
-     * @example
-     * // Count the number of EmailVerifications
-     * const count = await prisma.emailVerification.count({
-     *   where: {
-     *     // ... the filter for the EmailVerifications we want to count
-     *   }
-     * })
-    **/
-    count<T extends EmailVerificationCountArgs>(
-      args?: Subset<T, EmailVerificationCountArgs>,
-    ): Prisma.PrismaPromise<
-      T extends $Utils.Record<'select', any>
-        ? T['select'] extends true
-          ? number
-          : GetScalarType<T['select'], EmailVerificationCountAggregateOutputType>
-        : number
-    >
-
-    /**
-     * Allows you to perform aggregations operations on a EmailVerification.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {EmailVerificationAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
-     * @example
-     * // Ordered by age ascending
-     * // Where email contains prisma.io
-     * // Limited to the 10 users
-     * const aggregations = await prisma.user.aggregate({
-     *   _avg: {
-     *     age: true,
-     *   },
-     *   where: {
-     *     email: {
-     *       contains: "prisma.io",
-     *     },
-     *   },
-     *   orderBy: {
-     *     age: "asc",
-     *   },
-     *   take: 10,
-     * })
-    **/
-    aggregate<T extends EmailVerificationAggregateArgs>(args: Subset<T, EmailVerificationAggregateArgs>): Prisma.PrismaPromise<GetEmailVerificationAggregateType<T>>
-
-    /**
-     * Group by EmailVerification.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {EmailVerificationGroupByArgs} args - Group by arguments.
-     * @example
-     * // Group by city, order by createdAt, get count
-     * const result = await prisma.user.groupBy({
-     *   by: ['city', 'createdAt'],
-     *   orderBy: {
-     *     createdAt: true
-     *   },
-     *   _count: {
-     *     _all: true
-     *   },
-     * })
-     * 
-    **/
-    groupBy<
-      T extends EmailVerificationGroupByArgs,
-      HasSelectOrTake extends Or<
-        Extends<'skip', Keys<T>>,
-        Extends<'take', Keys<T>>
-      >,
-      OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: EmailVerificationGroupByArgs['orderBy'] }
-        : { orderBy?: EmailVerificationGroupByArgs['orderBy'] },
-      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
-      ByFields extends MaybeTupleToUnion<T['by']>,
-      ByValid extends Has<ByFields, OrderFields>,
-      HavingFields extends GetHavingFields<T['having']>,
-      HavingValid extends Has<ByFields, HavingFields>,
-      ByEmpty extends T['by'] extends never[] ? True : False,
-      InputErrors extends ByEmpty extends True
-      ? `Error: "by" must not be empty.`
-      : HavingValid extends False
-      ? {
-          [P in HavingFields]: P extends ByFields
-            ? never
-            : P extends string
-            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
-            : [
-                Error,
-                'Field ',
-                P,
-                ` in "having" needs to be provided in "by"`,
-              ]
-        }[HavingFields]
-      : 'take' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "take", you also need to provide "orderBy"'
-      : 'skip' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "skip", you also need to provide "orderBy"'
-      : ByValid extends True
-      ? {}
-      : {
-          [P in OrderFields]: P extends ByFields
-            ? never
-            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-        }[OrderFields]
-    >(args: SubsetIntersection<T, EmailVerificationGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetEmailVerificationGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
-  /**
-   * Fields of the EmailVerification model
-   */
-  readonly fields: EmailVerificationFieldRefs;
-  }
-
-  /**
-   * The delegate class that acts as a "Promise-like" for EmailVerification.
-   * Why is this prefixed with `Prisma__`?
-   * Because we want to prevent naming conflicts as mentioned in
-   * https://github.com/prisma/prisma-client-js/issues/707
-   */
-  export interface Prisma__EmailVerificationClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
-    readonly [Symbol.toStringTag]: "PrismaPromise"
-    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-    /**
-     * Attaches callbacks for the resolution and/or rejection of the Promise.
-     * @param onfulfilled The callback to execute when the Promise is resolved.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of which ever callback is executed.
-     */
-    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
-    /**
-     * Attaches a callback for only the rejection of the Promise.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of the callback.
-     */
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
-    /**
-     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
-     * resolved value cannot be modified from the callback.
-     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
-  }
-
-
-
-
-  /**
-   * Fields of the EmailVerification model
-   */
-  interface EmailVerificationFieldRefs {
-    readonly id: FieldRef<"EmailVerification", 'String'>
-    readonly userId: FieldRef<"EmailVerification", 'String'>
-    readonly token: FieldRef<"EmailVerification", 'String'>
-    readonly expiresAt: FieldRef<"EmailVerification", 'DateTime'>
-    readonly email: FieldRef<"EmailVerification", 'String'>
-    readonly verified: FieldRef<"EmailVerification", 'Boolean'>
-    readonly verifiedAt: FieldRef<"EmailVerification", 'DateTime'>
-    readonly ipAddress: FieldRef<"EmailVerification", 'String'>
-    readonly userAgent: FieldRef<"EmailVerification", 'String'>
-    readonly createdAt: FieldRef<"EmailVerification", 'DateTime'>
-  }
-    
-
-  // Custom InputTypes
-  /**
-   * EmailVerification findUnique
-   */
-  export type EmailVerificationFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * Filter, which EmailVerification to fetch.
-     */
-    where: EmailVerificationWhereUniqueInput
-  }
-
-  /**
-   * EmailVerification findUniqueOrThrow
-   */
-  export type EmailVerificationFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * Filter, which EmailVerification to fetch.
-     */
-    where: EmailVerificationWhereUniqueInput
-  }
-
-  /**
-   * EmailVerification findFirst
-   */
-  export type EmailVerificationFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * Filter, which EmailVerification to fetch.
-     */
-    where?: EmailVerificationWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of EmailVerifications to fetch.
-     */
-    orderBy?: EmailVerificationOrderByWithRelationInput | EmailVerificationOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for EmailVerifications.
-     */
-    cursor?: EmailVerificationWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` EmailVerifications from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` EmailVerifications.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of EmailVerifications.
-     */
-    distinct?: EmailVerificationScalarFieldEnum | EmailVerificationScalarFieldEnum[]
-  }
-
-  /**
-   * EmailVerification findFirstOrThrow
-   */
-  export type EmailVerificationFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * Filter, which EmailVerification to fetch.
-     */
-    where?: EmailVerificationWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of EmailVerifications to fetch.
-     */
-    orderBy?: EmailVerificationOrderByWithRelationInput | EmailVerificationOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for EmailVerifications.
-     */
-    cursor?: EmailVerificationWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` EmailVerifications from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` EmailVerifications.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of EmailVerifications.
-     */
-    distinct?: EmailVerificationScalarFieldEnum | EmailVerificationScalarFieldEnum[]
-  }
-
-  /**
-   * EmailVerification findMany
-   */
-  export type EmailVerificationFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * Filter, which EmailVerifications to fetch.
-     */
-    where?: EmailVerificationWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of EmailVerifications to fetch.
-     */
-    orderBy?: EmailVerificationOrderByWithRelationInput | EmailVerificationOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for listing EmailVerifications.
-     */
-    cursor?: EmailVerificationWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` EmailVerifications from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` EmailVerifications.
-     */
-    skip?: number
-    distinct?: EmailVerificationScalarFieldEnum | EmailVerificationScalarFieldEnum[]
-  }
-
-  /**
-   * EmailVerification create
-   */
-  export type EmailVerificationCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * The data needed to create a EmailVerification.
-     */
-    data: XOR<EmailVerificationCreateInput, EmailVerificationUncheckedCreateInput>
-  }
-
-  /**
-   * EmailVerification createMany
-   */
-  export type EmailVerificationCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to create many EmailVerifications.
-     */
-    data: EmailVerificationCreateManyInput | EmailVerificationCreateManyInput[]
-    skipDuplicates?: boolean
-  }
-
-  /**
-   * EmailVerification createManyAndReturn
-   */
-  export type EmailVerificationCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelectCreateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * The data used to create many EmailVerifications.
-     */
-    data: EmailVerificationCreateManyInput | EmailVerificationCreateManyInput[]
-    skipDuplicates?: boolean
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationIncludeCreateManyAndReturn<ExtArgs> | null
-  }
-
-  /**
-   * EmailVerification update
-   */
-  export type EmailVerificationUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * The data needed to update a EmailVerification.
-     */
-    data: XOR<EmailVerificationUpdateInput, EmailVerificationUncheckedUpdateInput>
-    /**
-     * Choose, which EmailVerification to update.
-     */
-    where: EmailVerificationWhereUniqueInput
-  }
-
-  /**
-   * EmailVerification updateMany
-   */
-  export type EmailVerificationUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to update EmailVerifications.
-     */
-    data: XOR<EmailVerificationUpdateManyMutationInput, EmailVerificationUncheckedUpdateManyInput>
-    /**
-     * Filter which EmailVerifications to update
-     */
-    where?: EmailVerificationWhereInput
-    /**
-     * Limit how many EmailVerifications to update.
-     */
-    limit?: number
-  }
-
-  /**
-   * EmailVerification updateManyAndReturn
-   */
-  export type EmailVerificationUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelectUpdateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * The data used to update EmailVerifications.
-     */
-    data: XOR<EmailVerificationUpdateManyMutationInput, EmailVerificationUncheckedUpdateManyInput>
-    /**
-     * Filter which EmailVerifications to update
-     */
-    where?: EmailVerificationWhereInput
-    /**
-     * Limit how many EmailVerifications to update.
-     */
-    limit?: number
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationIncludeUpdateManyAndReturn<ExtArgs> | null
-  }
-
-  /**
-   * EmailVerification upsert
-   */
-  export type EmailVerificationUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * The filter to search for the EmailVerification to update in case it exists.
-     */
-    where: EmailVerificationWhereUniqueInput
-    /**
-     * In case the EmailVerification found by the `where` argument doesn't exist, create a new EmailVerification with this data.
-     */
-    create: XOR<EmailVerificationCreateInput, EmailVerificationUncheckedCreateInput>
-    /**
-     * In case the EmailVerification was found with the provided `where` argument, update it with this data.
-     */
-    update: XOR<EmailVerificationUpdateInput, EmailVerificationUncheckedUpdateInput>
-  }
-
-  /**
-   * EmailVerification delete
-   */
-  export type EmailVerificationDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-    /**
-     * Filter which EmailVerification to delete.
-     */
-    where: EmailVerificationWhereUniqueInput
-  }
-
-  /**
-   * EmailVerification deleteMany
-   */
-  export type EmailVerificationDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which EmailVerifications to delete
-     */
-    where?: EmailVerificationWhereInput
-    /**
-     * Limit how many EmailVerifications to delete.
-     */
-    limit?: number
-  }
-
-  /**
-   * EmailVerification without action
-   */
-  export type EmailVerificationDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the EmailVerification
-     */
-    select?: EmailVerificationSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the EmailVerification
-     */
-    omit?: EmailVerificationOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: EmailVerificationInclude<ExtArgs> | null
-  }
-
-
-  /**
    * Model AuditLog
    */
 
@@ -11561,39 +8876,45 @@ export namespace Prisma {
 
   export type AuditLogMinAggregateOutputType = {
     id: string | null
-    userId: string | null
+    actorUserId: string | null
     action: $Enums.AuditAction | null
-    entity: string | null
-    entityId: string | null
+    targetType: string | null
+    targetId: string | null
     ipAddress: string | null
     userAgent: string | null
     organizationId: string | null
+    storeId: string | null
+    correlationId: string | null
     createdAt: Date | null
   }
 
   export type AuditLogMaxAggregateOutputType = {
     id: string | null
-    userId: string | null
+    actorUserId: string | null
     action: $Enums.AuditAction | null
-    entity: string | null
-    entityId: string | null
+    targetType: string | null
+    targetId: string | null
     ipAddress: string | null
     userAgent: string | null
     organizationId: string | null
+    storeId: string | null
+    correlationId: string | null
     createdAt: Date | null
   }
 
   export type AuditLogCountAggregateOutputType = {
     id: number
-    userId: number
+    actorUserId: number
     action: number
-    entity: number
-    entityId: number
+    targetType: number
+    targetId: number
     oldValues: number
     newValues: number
     ipAddress: number
     userAgent: number
     organizationId: number
+    storeId: number
+    correlationId: number
     metadata: number
     createdAt: number
     _all: number
@@ -11602,39 +8923,45 @@ export namespace Prisma {
 
   export type AuditLogMinAggregateInputType = {
     id?: true
-    userId?: true
+    actorUserId?: true
     action?: true
-    entity?: true
-    entityId?: true
+    targetType?: true
+    targetId?: true
     ipAddress?: true
     userAgent?: true
     organizationId?: true
+    storeId?: true
+    correlationId?: true
     createdAt?: true
   }
 
   export type AuditLogMaxAggregateInputType = {
     id?: true
-    userId?: true
+    actorUserId?: true
     action?: true
-    entity?: true
-    entityId?: true
+    targetType?: true
+    targetId?: true
     ipAddress?: true
     userAgent?: true
     organizationId?: true
+    storeId?: true
+    correlationId?: true
     createdAt?: true
   }
 
   export type AuditLogCountAggregateInputType = {
     id?: true
-    userId?: true
+    actorUserId?: true
     action?: true
-    entity?: true
-    entityId?: true
+    targetType?: true
+    targetId?: true
     oldValues?: true
     newValues?: true
     ipAddress?: true
     userAgent?: true
     organizationId?: true
+    storeId?: true
+    correlationId?: true
     metadata?: true
     createdAt?: true
     _all?: true
@@ -11714,15 +9041,17 @@ export namespace Prisma {
 
   export type AuditLogGroupByOutputType = {
     id: string
-    userId: string | null
+    actorUserId: string | null
     action: $Enums.AuditAction
-    entity: string
-    entityId: string | null
+    targetType: string | null
+    targetId: string | null
     oldValues: JsonValue | null
     newValues: JsonValue | null
     ipAddress: string | null
     userAgent: string | null
     organizationId: string | null
+    storeId: string | null
+    correlationId: string | null
     metadata: JsonValue | null
     createdAt: Date
     _count: AuditLogCountAggregateOutputType | null
@@ -11746,15 +9075,17 @@ export namespace Prisma {
 
   export type AuditLogSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    userId?: boolean
+    actorUserId?: boolean
     action?: boolean
-    entity?: boolean
-    entityId?: boolean
+    targetType?: boolean
+    targetId?: boolean
     oldValues?: boolean
     newValues?: boolean
     ipAddress?: boolean
     userAgent?: boolean
     organizationId?: boolean
+    storeId?: boolean
+    correlationId?: boolean
     metadata?: boolean
     createdAt?: boolean
     user?: boolean | AuditLog$userArgs<ExtArgs>
@@ -11762,15 +9093,17 @@ export namespace Prisma {
 
   export type AuditLogSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    userId?: boolean
+    actorUserId?: boolean
     action?: boolean
-    entity?: boolean
-    entityId?: boolean
+    targetType?: boolean
+    targetId?: boolean
     oldValues?: boolean
     newValues?: boolean
     ipAddress?: boolean
     userAgent?: boolean
     organizationId?: boolean
+    storeId?: boolean
+    correlationId?: boolean
     metadata?: boolean
     createdAt?: boolean
     user?: boolean | AuditLog$userArgs<ExtArgs>
@@ -11778,15 +9111,17 @@ export namespace Prisma {
 
   export type AuditLogSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    userId?: boolean
+    actorUserId?: boolean
     action?: boolean
-    entity?: boolean
-    entityId?: boolean
+    targetType?: boolean
+    targetId?: boolean
     oldValues?: boolean
     newValues?: boolean
     ipAddress?: boolean
     userAgent?: boolean
     organizationId?: boolean
+    storeId?: boolean
+    correlationId?: boolean
     metadata?: boolean
     createdAt?: boolean
     user?: boolean | AuditLog$userArgs<ExtArgs>
@@ -11794,20 +9129,22 @@ export namespace Prisma {
 
   export type AuditLogSelectScalar = {
     id?: boolean
-    userId?: boolean
+    actorUserId?: boolean
     action?: boolean
-    entity?: boolean
-    entityId?: boolean
+    targetType?: boolean
+    targetId?: boolean
     oldValues?: boolean
     newValues?: boolean
     ipAddress?: boolean
     userAgent?: boolean
     organizationId?: boolean
+    storeId?: boolean
+    correlationId?: boolean
     metadata?: boolean
     createdAt?: boolean
   }
 
-  export type AuditLogOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "action" | "entity" | "entityId" | "oldValues" | "newValues" | "ipAddress" | "userAgent" | "organizationId" | "metadata" | "createdAt", ExtArgs["result"]["auditLog"]>
+  export type AuditLogOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "actorUserId" | "action" | "targetType" | "targetId" | "oldValues" | "newValues" | "ipAddress" | "userAgent" | "organizationId" | "storeId" | "correlationId" | "metadata" | "createdAt", ExtArgs["result"]["auditLog"]>
   export type AuditLogInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | AuditLog$userArgs<ExtArgs>
   }
@@ -11825,15 +9162,17 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      userId: string | null
+      actorUserId: string | null
       action: $Enums.AuditAction
-      entity: string
-      entityId: string | null
+      targetType: string | null
+      targetId: string | null
       oldValues: Prisma.JsonValue | null
       newValues: Prisma.JsonValue | null
       ipAddress: string | null
       userAgent: string | null
       organizationId: string | null
+      storeId: string | null
+      correlationId: string | null
       metadata: Prisma.JsonValue | null
       createdAt: Date
     }, ExtArgs["result"]["auditLog"]>
@@ -12261,15 +9600,17 @@ export namespace Prisma {
    */
   interface AuditLogFieldRefs {
     readonly id: FieldRef<"AuditLog", 'String'>
-    readonly userId: FieldRef<"AuditLog", 'String'>
+    readonly actorUserId: FieldRef<"AuditLog", 'String'>
     readonly action: FieldRef<"AuditLog", 'AuditAction'>
-    readonly entity: FieldRef<"AuditLog", 'String'>
-    readonly entityId: FieldRef<"AuditLog", 'String'>
+    readonly targetType: FieldRef<"AuditLog", 'String'>
+    readonly targetId: FieldRef<"AuditLog", 'String'>
     readonly oldValues: FieldRef<"AuditLog", 'Json'>
     readonly newValues: FieldRef<"AuditLog", 'Json'>
     readonly ipAddress: FieldRef<"AuditLog", 'String'>
     readonly userAgent: FieldRef<"AuditLog", 'String'>
     readonly organizationId: FieldRef<"AuditLog", 'String'>
+    readonly storeId: FieldRef<"AuditLog", 'String'>
+    readonly correlationId: FieldRef<"AuditLog", 'String'>
     readonly metadata: FieldRef<"AuditLog", 'Json'>
     readonly createdAt: FieldRef<"AuditLog", 'DateTime'>
   }
@@ -34142,14 +31483,10 @@ export namespace Prisma {
 
   export const UserScalarFieldEnum: {
     id: 'id',
-    organizationId: 'organizationId',
-    storeId: 'storeId',
     email: 'email',
-    password: 'password',
-    username: 'username',
-    firstName: 'firstName',
-    lastName: 'lastName',
-    role: 'role',
+    passwordHash: 'passwordHash',
+    name: 'name',
+    image: 'image',
     emailVerified: 'emailVerified',
     isActive: 'isActive',
     isDeleted: 'isDeleted',
@@ -34168,7 +31505,7 @@ export namespace Prisma {
   export const SessionScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
-    token: 'token',
+    tokenHash: 'tokenHash',
     refreshTokenHash: 'refreshTokenHash',
     rotatedFrom: 'rotatedFrom',
     expiresAt: 'expiresAt',
@@ -34186,48 +31523,19 @@ export namespace Prisma {
   export type SessionScalarFieldEnum = (typeof SessionScalarFieldEnum)[keyof typeof SessionScalarFieldEnum]
 
 
-  export const PasswordResetScalarFieldEnum: {
-    id: 'id',
-    userId: 'userId',
-    token: 'token',
-    expiresAt: 'expiresAt',
-    used: 'used',
-    usedAt: 'usedAt',
-    ipAddress: 'ipAddress',
-    userAgent: 'userAgent',
-    createdAt: 'createdAt'
-  };
-
-  export type PasswordResetScalarFieldEnum = (typeof PasswordResetScalarFieldEnum)[keyof typeof PasswordResetScalarFieldEnum]
-
-
-  export const EmailVerificationScalarFieldEnum: {
-    id: 'id',
-    userId: 'userId',
-    token: 'token',
-    expiresAt: 'expiresAt',
-    email: 'email',
-    verified: 'verified',
-    verifiedAt: 'verifiedAt',
-    ipAddress: 'ipAddress',
-    userAgent: 'userAgent',
-    createdAt: 'createdAt'
-  };
-
-  export type EmailVerificationScalarFieldEnum = (typeof EmailVerificationScalarFieldEnum)[keyof typeof EmailVerificationScalarFieldEnum]
-
-
   export const AuditLogScalarFieldEnum: {
     id: 'id',
-    userId: 'userId',
+    actorUserId: 'actorUserId',
     action: 'action',
-    entity: 'entity',
-    entityId: 'entityId',
+    targetType: 'targetType',
+    targetId: 'targetId',
     oldValues: 'oldValues',
     newValues: 'newValues',
     ipAddress: 'ipAddress',
     userAgent: 'userAgent',
     organizationId: 'organizationId',
+    storeId: 'storeId',
+    correlationId: 'correlationId',
     metadata: 'metadata',
     createdAt: 'createdAt'
   };
@@ -34649,20 +31957,6 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'UserRole'
-   */
-  export type EnumUserRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UserRole'>
-    
-
-
-  /**
-   * Reference to a field of type 'UserRole[]'
-   */
-  export type ListEnumUserRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UserRole[]'>
-    
-
-
-  /**
    * Reference to a field of type 'AuditAction'
    */
   export type EnumAuditActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AuditAction'>
@@ -34849,7 +32143,6 @@ export namespace Prisma {
     suppliers?: SupplierListRelationFilter
     systemConfigs?: SystemConfigListRelationFilter
     unitMeasures?: UnitMeasureListRelationFilter
-    users?: UserListRelationFilter
   }
 
   export type OrganizationOrderByWithRelationInput = {
@@ -34879,7 +32172,6 @@ export namespace Prisma {
     suppliers?: SupplierOrderByRelationAggregateInput
     systemConfigs?: SystemConfigOrderByRelationAggregateInput
     unitMeasures?: UnitMeasureOrderByRelationAggregateInput
-    users?: UserOrderByRelationAggregateInput
   }
 
   export type OrganizationWhereUniqueInput = Prisma.AtLeast<{
@@ -34912,7 +32204,6 @@ export namespace Prisma {
     suppliers?: SupplierListRelationFilter
     systemConfigs?: SystemConfigListRelationFilter
     unitMeasures?: UnitMeasureListRelationFilter
-    users?: UserListRelationFilter
   }, "id" | "slug">
 
   export type OrganizationOrderByWithAggregationInput = {
@@ -34978,7 +32269,6 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"Store"> | Date | string | null
     sales?: SaleListRelationFilter
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
-    users?: UserListRelationFilter
     memberships?: MembershipListRelationFilter
   }
 
@@ -35000,7 +32290,6 @@ export namespace Prisma {
     deletedAt?: SortOrderInput | SortOrder
     sales?: SaleOrderByRelationAggregateInput
     organization?: OrganizationOrderByWithRelationInput
-    users?: UserOrderByRelationAggregateInput
     memberships?: MembershipOrderByRelationAggregateInput
   }
 
@@ -35025,7 +32314,6 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"Store"> | Date | string | null
     sales?: SaleListRelationFilter
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
-    users?: UserListRelationFilter
     memberships?: MembershipListRelationFilter
   }, "id">
 
@@ -35078,14 +32366,10 @@ export namespace Prisma {
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     id?: UuidFilter<"User"> | string
-    organizationId?: UuidNullableFilter<"User"> | string | null
-    storeId?: UuidNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
-    password?: StringFilter<"User"> | string
-    username?: StringFilter<"User"> | string
-    firstName?: StringFilter<"User"> | string
-    lastName?: StringFilter<"User"> | string
-    role?: EnumUserRoleFilter<"User"> | $Enums.UserRole
+    passwordHash?: StringNullableFilter<"User"> | string | null
+    name?: StringFilter<"User"> | string
+    image?: StringNullableFilter<"User"> | string | null
     emailVerified?: BoolFilter<"User"> | boolean
     isActive?: BoolFilter<"User"> | boolean
     isDeleted?: BoolFilter<"User"> | boolean
@@ -35098,11 +32382,7 @@ export namespace Prisma {
     lockedUntil?: DateTimeNullableFilter<"User"> | Date | string | null
     sales?: SaleListRelationFilter
     stockMovements?: StockMovementListRelationFilter
-    organization?: XOR<OrganizationNullableScalarRelationFilter, OrganizationWhereInput> | null
-    store?: XOR<StoreNullableScalarRelationFilter, StoreWhereInput> | null
     sessions?: SessionListRelationFilter
-    passwordResets?: PasswordResetListRelationFilter
-    emailVerifications?: EmailVerificationListRelationFilter
     auditLogs?: AuditLogListRelationFilter
     memberships?: MembershipListRelationFilter
     accounts?: AccountListRelationFilter
@@ -35110,14 +32390,10 @@ export namespace Prisma {
 
   export type UserOrderByWithRelationInput = {
     id?: SortOrder
-    organizationId?: SortOrderInput | SortOrder
-    storeId?: SortOrderInput | SortOrder
     email?: SortOrder
-    password?: SortOrder
-    username?: SortOrder
-    firstName?: SortOrder
-    lastName?: SortOrder
-    role?: SortOrder
+    passwordHash?: SortOrderInput | SortOrder
+    name?: SortOrder
+    image?: SortOrderInput | SortOrder
     emailVerified?: SortOrder
     isActive?: SortOrder
     isDeleted?: SortOrder
@@ -35130,11 +32406,7 @@ export namespace Prisma {
     lockedUntil?: SortOrderInput | SortOrder
     sales?: SaleOrderByRelationAggregateInput
     stockMovements?: StockMovementOrderByRelationAggregateInput
-    organization?: OrganizationOrderByWithRelationInput
-    store?: StoreOrderByWithRelationInput
     sessions?: SessionOrderByRelationAggregateInput
-    passwordResets?: PasswordResetOrderByRelationAggregateInput
-    emailVerifications?: EmailVerificationOrderByRelationAggregateInput
     auditLogs?: AuditLogOrderByRelationAggregateInput
     memberships?: MembershipOrderByRelationAggregateInput
     accounts?: AccountOrderByRelationAggregateInput
@@ -35145,14 +32417,10 @@ export namespace Prisma {
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
-    organizationId?: UuidNullableFilter<"User"> | string | null
-    storeId?: UuidNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
-    password?: StringFilter<"User"> | string
-    username?: StringFilter<"User"> | string
-    firstName?: StringFilter<"User"> | string
-    lastName?: StringFilter<"User"> | string
-    role?: EnumUserRoleFilter<"User"> | $Enums.UserRole
+    passwordHash?: StringNullableFilter<"User"> | string | null
+    name?: StringFilter<"User"> | string
+    image?: StringNullableFilter<"User"> | string | null
     emailVerified?: BoolFilter<"User"> | boolean
     isActive?: BoolFilter<"User"> | boolean
     isDeleted?: BoolFilter<"User"> | boolean
@@ -35165,11 +32433,7 @@ export namespace Prisma {
     lockedUntil?: DateTimeNullableFilter<"User"> | Date | string | null
     sales?: SaleListRelationFilter
     stockMovements?: StockMovementListRelationFilter
-    organization?: XOR<OrganizationNullableScalarRelationFilter, OrganizationWhereInput> | null
-    store?: XOR<StoreNullableScalarRelationFilter, StoreWhereInput> | null
     sessions?: SessionListRelationFilter
-    passwordResets?: PasswordResetListRelationFilter
-    emailVerifications?: EmailVerificationListRelationFilter
     auditLogs?: AuditLogListRelationFilter
     memberships?: MembershipListRelationFilter
     accounts?: AccountListRelationFilter
@@ -35177,14 +32441,10 @@ export namespace Prisma {
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
-    organizationId?: SortOrderInput | SortOrder
-    storeId?: SortOrderInput | SortOrder
     email?: SortOrder
-    password?: SortOrder
-    username?: SortOrder
-    firstName?: SortOrder
-    lastName?: SortOrder
-    role?: SortOrder
+    passwordHash?: SortOrderInput | SortOrder
+    name?: SortOrder
+    image?: SortOrderInput | SortOrder
     emailVerified?: SortOrder
     isActive?: SortOrder
     isDeleted?: SortOrder
@@ -35207,14 +32467,10 @@ export namespace Prisma {
     OR?: UserScalarWhereWithAggregatesInput[]
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     id?: UuidWithAggregatesFilter<"User"> | string
-    organizationId?: UuidNullableWithAggregatesFilter<"User"> | string | null
-    storeId?: UuidNullableWithAggregatesFilter<"User"> | string | null
     email?: StringWithAggregatesFilter<"User"> | string
-    password?: StringWithAggregatesFilter<"User"> | string
-    username?: StringWithAggregatesFilter<"User"> | string
-    firstName?: StringWithAggregatesFilter<"User"> | string
-    lastName?: StringWithAggregatesFilter<"User"> | string
-    role?: EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
+    passwordHash?: StringNullableWithAggregatesFilter<"User"> | string | null
+    name?: StringWithAggregatesFilter<"User"> | string
+    image?: StringNullableWithAggregatesFilter<"User"> | string | null
     emailVerified?: BoolWithAggregatesFilter<"User"> | boolean
     isActive?: BoolWithAggregatesFilter<"User"> | boolean
     isDeleted?: BoolWithAggregatesFilter<"User"> | boolean
@@ -35233,7 +32489,7 @@ export namespace Prisma {
     NOT?: SessionWhereInput | SessionWhereInput[]
     id?: UuidFilter<"Session"> | string
     userId?: UuidFilter<"Session"> | string
-    token?: StringFilter<"Session"> | string
+    tokenHash?: StringFilter<"Session"> | string
     refreshTokenHash?: StringNullableFilter<"Session"> | string | null
     rotatedFrom?: UuidNullableFilter<"Session"> | string | null
     expiresAt?: DateTimeFilter<"Session"> | Date | string
@@ -35252,7 +32508,7 @@ export namespace Prisma {
   export type SessionOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
-    token?: SortOrder
+    tokenHash?: SortOrder
     refreshTokenHash?: SortOrderInput | SortOrder
     rotatedFrom?: SortOrderInput | SortOrder
     expiresAt?: SortOrder
@@ -35270,7 +32526,7 @@ export namespace Prisma {
 
   export type SessionWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    token?: string
+    tokenHash?: string
     refreshTokenHash?: string
     AND?: SessionWhereInput | SessionWhereInput[]
     OR?: SessionWhereInput[]
@@ -35288,12 +32544,12 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Session"> | Date | string
     updatedAt?: DateTimeFilter<"Session"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }, "id" | "token" | "refreshTokenHash">
+  }, "id" | "tokenHash" | "refreshTokenHash">
 
   export type SessionOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
-    token?: SortOrder
+    tokenHash?: SortOrder
     refreshTokenHash?: SortOrderInput | SortOrder
     rotatedFrom?: SortOrderInput | SortOrder
     expiresAt?: SortOrder
@@ -35317,7 +32573,7 @@ export namespace Prisma {
     NOT?: SessionScalarWhereWithAggregatesInput | SessionScalarWhereWithAggregatesInput[]
     id?: UuidWithAggregatesFilter<"Session"> | string
     userId?: UuidWithAggregatesFilter<"Session"> | string
-    token?: StringWithAggregatesFilter<"Session"> | string
+    tokenHash?: StringWithAggregatesFilter<"Session"> | string
     refreshTokenHash?: StringNullableWithAggregatesFilter<"Session"> | string | null
     rotatedFrom?: UuidNullableWithAggregatesFilter<"Session"> | string | null
     expiresAt?: DateTimeWithAggregatesFilter<"Session"> | Date | string
@@ -35332,175 +32588,22 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"Session"> | Date | string
   }
 
-  export type PasswordResetWhereInput = {
-    AND?: PasswordResetWhereInput | PasswordResetWhereInput[]
-    OR?: PasswordResetWhereInput[]
-    NOT?: PasswordResetWhereInput | PasswordResetWhereInput[]
-    id?: UuidFilter<"PasswordReset"> | string
-    userId?: UuidFilter<"PasswordReset"> | string
-    token?: StringFilter<"PasswordReset"> | string
-    expiresAt?: DateTimeFilter<"PasswordReset"> | Date | string
-    used?: BoolFilter<"PasswordReset"> | boolean
-    usedAt?: DateTimeNullableFilter<"PasswordReset"> | Date | string | null
-    ipAddress?: StringNullableFilter<"PasswordReset"> | string | null
-    userAgent?: StringNullableFilter<"PasswordReset"> | string | null
-    createdAt?: DateTimeFilter<"PasswordReset"> | Date | string
-    user?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }
-
-  export type PasswordResetOrderByWithRelationInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    used?: SortOrder
-    usedAt?: SortOrderInput | SortOrder
-    ipAddress?: SortOrderInput | SortOrder
-    userAgent?: SortOrderInput | SortOrder
-    createdAt?: SortOrder
-    user?: UserOrderByWithRelationInput
-  }
-
-  export type PasswordResetWhereUniqueInput = Prisma.AtLeast<{
-    id?: string
-    token?: string
-    AND?: PasswordResetWhereInput | PasswordResetWhereInput[]
-    OR?: PasswordResetWhereInput[]
-    NOT?: PasswordResetWhereInput | PasswordResetWhereInput[]
-    userId?: UuidFilter<"PasswordReset"> | string
-    expiresAt?: DateTimeFilter<"PasswordReset"> | Date | string
-    used?: BoolFilter<"PasswordReset"> | boolean
-    usedAt?: DateTimeNullableFilter<"PasswordReset"> | Date | string | null
-    ipAddress?: StringNullableFilter<"PasswordReset"> | string | null
-    userAgent?: StringNullableFilter<"PasswordReset"> | string | null
-    createdAt?: DateTimeFilter<"PasswordReset"> | Date | string
-    user?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }, "id" | "token">
-
-  export type PasswordResetOrderByWithAggregationInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    used?: SortOrder
-    usedAt?: SortOrderInput | SortOrder
-    ipAddress?: SortOrderInput | SortOrder
-    userAgent?: SortOrderInput | SortOrder
-    createdAt?: SortOrder
-    _count?: PasswordResetCountOrderByAggregateInput
-    _max?: PasswordResetMaxOrderByAggregateInput
-    _min?: PasswordResetMinOrderByAggregateInput
-  }
-
-  export type PasswordResetScalarWhereWithAggregatesInput = {
-    AND?: PasswordResetScalarWhereWithAggregatesInput | PasswordResetScalarWhereWithAggregatesInput[]
-    OR?: PasswordResetScalarWhereWithAggregatesInput[]
-    NOT?: PasswordResetScalarWhereWithAggregatesInput | PasswordResetScalarWhereWithAggregatesInput[]
-    id?: UuidWithAggregatesFilter<"PasswordReset"> | string
-    userId?: UuidWithAggregatesFilter<"PasswordReset"> | string
-    token?: StringWithAggregatesFilter<"PasswordReset"> | string
-    expiresAt?: DateTimeWithAggregatesFilter<"PasswordReset"> | Date | string
-    used?: BoolWithAggregatesFilter<"PasswordReset"> | boolean
-    usedAt?: DateTimeNullableWithAggregatesFilter<"PasswordReset"> | Date | string | null
-    ipAddress?: StringNullableWithAggregatesFilter<"PasswordReset"> | string | null
-    userAgent?: StringNullableWithAggregatesFilter<"PasswordReset"> | string | null
-    createdAt?: DateTimeWithAggregatesFilter<"PasswordReset"> | Date | string
-  }
-
-  export type EmailVerificationWhereInput = {
-    AND?: EmailVerificationWhereInput | EmailVerificationWhereInput[]
-    OR?: EmailVerificationWhereInput[]
-    NOT?: EmailVerificationWhereInput | EmailVerificationWhereInput[]
-    id?: UuidFilter<"EmailVerification"> | string
-    userId?: UuidFilter<"EmailVerification"> | string
-    token?: StringFilter<"EmailVerification"> | string
-    expiresAt?: DateTimeFilter<"EmailVerification"> | Date | string
-    email?: StringFilter<"EmailVerification"> | string
-    verified?: BoolFilter<"EmailVerification"> | boolean
-    verifiedAt?: DateTimeNullableFilter<"EmailVerification"> | Date | string | null
-    ipAddress?: StringNullableFilter<"EmailVerification"> | string | null
-    userAgent?: StringNullableFilter<"EmailVerification"> | string | null
-    createdAt?: DateTimeFilter<"EmailVerification"> | Date | string
-    user?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }
-
-  export type EmailVerificationOrderByWithRelationInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    email?: SortOrder
-    verified?: SortOrder
-    verifiedAt?: SortOrderInput | SortOrder
-    ipAddress?: SortOrderInput | SortOrder
-    userAgent?: SortOrderInput | SortOrder
-    createdAt?: SortOrder
-    user?: UserOrderByWithRelationInput
-  }
-
-  export type EmailVerificationWhereUniqueInput = Prisma.AtLeast<{
-    id?: string
-    token?: string
-    AND?: EmailVerificationWhereInput | EmailVerificationWhereInput[]
-    OR?: EmailVerificationWhereInput[]
-    NOT?: EmailVerificationWhereInput | EmailVerificationWhereInput[]
-    userId?: UuidFilter<"EmailVerification"> | string
-    expiresAt?: DateTimeFilter<"EmailVerification"> | Date | string
-    email?: StringFilter<"EmailVerification"> | string
-    verified?: BoolFilter<"EmailVerification"> | boolean
-    verifiedAt?: DateTimeNullableFilter<"EmailVerification"> | Date | string | null
-    ipAddress?: StringNullableFilter<"EmailVerification"> | string | null
-    userAgent?: StringNullableFilter<"EmailVerification"> | string | null
-    createdAt?: DateTimeFilter<"EmailVerification"> | Date | string
-    user?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }, "id" | "token">
-
-  export type EmailVerificationOrderByWithAggregationInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    email?: SortOrder
-    verified?: SortOrder
-    verifiedAt?: SortOrderInput | SortOrder
-    ipAddress?: SortOrderInput | SortOrder
-    userAgent?: SortOrderInput | SortOrder
-    createdAt?: SortOrder
-    _count?: EmailVerificationCountOrderByAggregateInput
-    _max?: EmailVerificationMaxOrderByAggregateInput
-    _min?: EmailVerificationMinOrderByAggregateInput
-  }
-
-  export type EmailVerificationScalarWhereWithAggregatesInput = {
-    AND?: EmailVerificationScalarWhereWithAggregatesInput | EmailVerificationScalarWhereWithAggregatesInput[]
-    OR?: EmailVerificationScalarWhereWithAggregatesInput[]
-    NOT?: EmailVerificationScalarWhereWithAggregatesInput | EmailVerificationScalarWhereWithAggregatesInput[]
-    id?: UuidWithAggregatesFilter<"EmailVerification"> | string
-    userId?: UuidWithAggregatesFilter<"EmailVerification"> | string
-    token?: StringWithAggregatesFilter<"EmailVerification"> | string
-    expiresAt?: DateTimeWithAggregatesFilter<"EmailVerification"> | Date | string
-    email?: StringWithAggregatesFilter<"EmailVerification"> | string
-    verified?: BoolWithAggregatesFilter<"EmailVerification"> | boolean
-    verifiedAt?: DateTimeNullableWithAggregatesFilter<"EmailVerification"> | Date | string | null
-    ipAddress?: StringNullableWithAggregatesFilter<"EmailVerification"> | string | null
-    userAgent?: StringNullableWithAggregatesFilter<"EmailVerification"> | string | null
-    createdAt?: DateTimeWithAggregatesFilter<"EmailVerification"> | Date | string
-  }
-
   export type AuditLogWhereInput = {
     AND?: AuditLogWhereInput | AuditLogWhereInput[]
     OR?: AuditLogWhereInput[]
     NOT?: AuditLogWhereInput | AuditLogWhereInput[]
     id?: UuidFilter<"AuditLog"> | string
-    userId?: UuidNullableFilter<"AuditLog"> | string | null
+    actorUserId?: UuidNullableFilter<"AuditLog"> | string | null
     action?: EnumAuditActionFilter<"AuditLog"> | $Enums.AuditAction
-    entity?: StringFilter<"AuditLog"> | string
-    entityId?: StringNullableFilter<"AuditLog"> | string | null
+    targetType?: StringNullableFilter<"AuditLog"> | string | null
+    targetId?: UuidNullableFilter<"AuditLog"> | string | null
     oldValues?: JsonNullableFilter<"AuditLog">
     newValues?: JsonNullableFilter<"AuditLog">
     ipAddress?: StringNullableFilter<"AuditLog"> | string | null
     userAgent?: StringNullableFilter<"AuditLog"> | string | null
     organizationId?: UuidNullableFilter<"AuditLog"> | string | null
+    storeId?: UuidNullableFilter<"AuditLog"> | string | null
+    correlationId?: StringNullableFilter<"AuditLog"> | string | null
     metadata?: JsonNullableFilter<"AuditLog">
     createdAt?: DateTimeFilter<"AuditLog"> | Date | string
     user?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
@@ -35508,15 +32611,17 @@ export namespace Prisma {
 
   export type AuditLogOrderByWithRelationInput = {
     id?: SortOrder
-    userId?: SortOrderInput | SortOrder
+    actorUserId?: SortOrderInput | SortOrder
     action?: SortOrder
-    entity?: SortOrder
-    entityId?: SortOrderInput | SortOrder
+    targetType?: SortOrderInput | SortOrder
+    targetId?: SortOrderInput | SortOrder
     oldValues?: SortOrderInput | SortOrder
     newValues?: SortOrderInput | SortOrder
     ipAddress?: SortOrderInput | SortOrder
     userAgent?: SortOrderInput | SortOrder
     organizationId?: SortOrderInput | SortOrder
+    storeId?: SortOrderInput | SortOrder
+    correlationId?: SortOrderInput | SortOrder
     metadata?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     user?: UserOrderByWithRelationInput
@@ -35527,15 +32632,17 @@ export namespace Prisma {
     AND?: AuditLogWhereInput | AuditLogWhereInput[]
     OR?: AuditLogWhereInput[]
     NOT?: AuditLogWhereInput | AuditLogWhereInput[]
-    userId?: UuidNullableFilter<"AuditLog"> | string | null
+    actorUserId?: UuidNullableFilter<"AuditLog"> | string | null
     action?: EnumAuditActionFilter<"AuditLog"> | $Enums.AuditAction
-    entity?: StringFilter<"AuditLog"> | string
-    entityId?: StringNullableFilter<"AuditLog"> | string | null
+    targetType?: StringNullableFilter<"AuditLog"> | string | null
+    targetId?: UuidNullableFilter<"AuditLog"> | string | null
     oldValues?: JsonNullableFilter<"AuditLog">
     newValues?: JsonNullableFilter<"AuditLog">
     ipAddress?: StringNullableFilter<"AuditLog"> | string | null
     userAgent?: StringNullableFilter<"AuditLog"> | string | null
     organizationId?: UuidNullableFilter<"AuditLog"> | string | null
+    storeId?: UuidNullableFilter<"AuditLog"> | string | null
+    correlationId?: StringNullableFilter<"AuditLog"> | string | null
     metadata?: JsonNullableFilter<"AuditLog">
     createdAt?: DateTimeFilter<"AuditLog"> | Date | string
     user?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
@@ -35543,15 +32650,17 @@ export namespace Prisma {
 
   export type AuditLogOrderByWithAggregationInput = {
     id?: SortOrder
-    userId?: SortOrderInput | SortOrder
+    actorUserId?: SortOrderInput | SortOrder
     action?: SortOrder
-    entity?: SortOrder
-    entityId?: SortOrderInput | SortOrder
+    targetType?: SortOrderInput | SortOrder
+    targetId?: SortOrderInput | SortOrder
     oldValues?: SortOrderInput | SortOrder
     newValues?: SortOrderInput | SortOrder
     ipAddress?: SortOrderInput | SortOrder
     userAgent?: SortOrderInput | SortOrder
     organizationId?: SortOrderInput | SortOrder
+    storeId?: SortOrderInput | SortOrder
+    correlationId?: SortOrderInput | SortOrder
     metadata?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     _count?: AuditLogCountOrderByAggregateInput
@@ -35564,15 +32673,17 @@ export namespace Prisma {
     OR?: AuditLogScalarWhereWithAggregatesInput[]
     NOT?: AuditLogScalarWhereWithAggregatesInput | AuditLogScalarWhereWithAggregatesInput[]
     id?: UuidWithAggregatesFilter<"AuditLog"> | string
-    userId?: UuidNullableWithAggregatesFilter<"AuditLog"> | string | null
+    actorUserId?: UuidNullableWithAggregatesFilter<"AuditLog"> | string | null
     action?: EnumAuditActionWithAggregatesFilter<"AuditLog"> | $Enums.AuditAction
-    entity?: StringWithAggregatesFilter<"AuditLog"> | string
-    entityId?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
+    targetType?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
+    targetId?: UuidNullableWithAggregatesFilter<"AuditLog"> | string | null
     oldValues?: JsonNullableWithAggregatesFilter<"AuditLog">
     newValues?: JsonNullableWithAggregatesFilter<"AuditLog">
     ipAddress?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
     userAgent?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
     organizationId?: UuidNullableWithAggregatesFilter<"AuditLog"> | string | null
+    storeId?: UuidNullableWithAggregatesFilter<"AuditLog"> | string | null
+    correlationId?: StringNullableWithAggregatesFilter<"AuditLog"> | string | null
     metadata?: JsonNullableWithAggregatesFilter<"AuditLog">
     createdAt?: DateTimeWithAggregatesFilter<"AuditLog"> | Date | string
   }
@@ -37282,7 +34393,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateInput = {
@@ -37312,7 +34422,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUpdateInput = {
@@ -37342,7 +34451,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateInput = {
@@ -37372,7 +34480,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationCreateManyInput = {
@@ -37446,7 +34553,6 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     sales?: SaleCreateNestedManyWithoutStoreInput
     organization: OrganizationCreateNestedOneWithoutStoresInput
-    users?: UserCreateNestedManyWithoutStoreInput
     memberships?: MembershipCreateNestedManyWithoutDefaultStoreInput
   }
 
@@ -37467,7 +34573,6 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     sales?: SaleUncheckedCreateNestedManyWithoutStoreInput
-    users?: UserUncheckedCreateNestedManyWithoutStoreInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutDefaultStoreInput
   }
 
@@ -37488,7 +34593,6 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutStoreNestedInput
     organization?: OrganizationUpdateOneRequiredWithoutStoresNestedInput
-    users?: UserUpdateManyWithoutStoreNestedInput
     memberships?: MembershipUpdateManyWithoutDefaultStoreNestedInput
   }
 
@@ -37509,7 +34613,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUncheckedUpdateManyWithoutStoreNestedInput
-    users?: UserUncheckedUpdateManyWithoutStoreNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutDefaultStoreNestedInput
   }
 
@@ -37569,11 +34672,9 @@ export namespace Prisma {
   export type UserCreateInput = {
     id?: string
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -37586,11 +34687,7 @@ export namespace Prisma {
     lockedUntil?: Date | string | null
     sales?: SaleCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
     sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
     accounts?: AccountCreateNestedManyWithoutUserInput
@@ -37598,14 +34695,10 @@ export namespace Prisma {
 
   export type UserUncheckedCreateInput = {
     id?: string
-    organizationId?: string | null
-    storeId?: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -37619,8 +34712,6 @@ export namespace Prisma {
     sales?: SaleUncheckedCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
@@ -37629,11 +34720,9 @@ export namespace Prisma {
   export type UserUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -37646,11 +34735,7 @@ export namespace Prisma {
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
     sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
     accounts?: AccountUpdateManyWithoutUserNestedInput
@@ -37658,14 +34743,10 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -37679,8 +34760,6 @@ export namespace Prisma {
     sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
@@ -37688,14 +34767,10 @@ export namespace Prisma {
 
   export type UserCreateManyInput = {
     id?: string
-    organizationId?: string | null
-    storeId?: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -37711,11 +34786,9 @@ export namespace Prisma {
   export type UserUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -37730,14 +34803,10 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -37752,7 +34821,7 @@ export namespace Prisma {
 
   export type SessionCreateInput = {
     id?: string
-    token: string
+    tokenHash: string
     refreshTokenHash?: string | null
     rotatedFrom?: string | null
     expiresAt: Date | string
@@ -37771,7 +34840,7 @@ export namespace Prisma {
   export type SessionUncheckedCreateInput = {
     id?: string
     userId: string
-    token: string
+    tokenHash: string
     refreshTokenHash?: string | null
     rotatedFrom?: string | null
     expiresAt: Date | string
@@ -37788,7 +34857,7 @@ export namespace Prisma {
 
   export type SessionUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
     refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     rotatedFrom?: NullableStringFieldUpdateOperationsInput | string | null
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -37807,7 +34876,7 @@ export namespace Prisma {
   export type SessionUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
     refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     rotatedFrom?: NullableStringFieldUpdateOperationsInput | string | null
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -37825,7 +34894,7 @@ export namespace Prisma {
   export type SessionCreateManyInput = {
     id?: string
     userId: string
-    token: string
+    tokenHash: string
     refreshTokenHash?: string | null
     rotatedFrom?: string | null
     expiresAt: Date | string
@@ -37842,7 +34911,7 @@ export namespace Prisma {
 
   export type SessionUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
     refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     rotatedFrom?: NullableStringFieldUpdateOperationsInput | string | null
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -37860,7 +34929,7 @@ export namespace Prisma {
   export type SessionUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
     refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     rotatedFrom?: NullableStringFieldUpdateOperationsInput | string | null
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -37875,189 +34944,18 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type PasswordResetCreateInput = {
-    id?: string
-    token: string
-    expiresAt: Date | string
-    used?: boolean
-    usedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-    user: UserCreateNestedOneWithoutPasswordResetsInput
-  }
-
-  export type PasswordResetUncheckedCreateInput = {
-    id?: string
-    userId: string
-    token: string
-    expiresAt: Date | string
-    used?: boolean
-    usedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type PasswordResetUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    used?: BoolFieldUpdateOperationsInput | boolean
-    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutPasswordResetsNestedInput
-  }
-
-  export type PasswordResetUncheckedUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    used?: BoolFieldUpdateOperationsInput | boolean
-    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type PasswordResetCreateManyInput = {
-    id?: string
-    userId: string
-    token: string
-    expiresAt: Date | string
-    used?: boolean
-    usedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type PasswordResetUpdateManyMutationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    used?: BoolFieldUpdateOperationsInput | boolean
-    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type PasswordResetUncheckedUpdateManyInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    used?: BoolFieldUpdateOperationsInput | boolean
-    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type EmailVerificationCreateInput = {
-    id?: string
-    token: string
-    expiresAt: Date | string
-    email: string
-    verified?: boolean
-    verifiedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-    user: UserCreateNestedOneWithoutEmailVerificationsInput
-  }
-
-  export type EmailVerificationUncheckedCreateInput = {
-    id?: string
-    userId: string
-    token: string
-    expiresAt: Date | string
-    email: string
-    verified?: boolean
-    verifiedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type EmailVerificationUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    email?: StringFieldUpdateOperationsInput | string
-    verified?: BoolFieldUpdateOperationsInput | boolean
-    verifiedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutEmailVerificationsNestedInput
-  }
-
-  export type EmailVerificationUncheckedUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    email?: StringFieldUpdateOperationsInput | string
-    verified?: BoolFieldUpdateOperationsInput | boolean
-    verifiedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type EmailVerificationCreateManyInput = {
-    id?: string
-    userId: string
-    token: string
-    expiresAt: Date | string
-    email: string
-    verified?: boolean
-    verifiedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type EmailVerificationUpdateManyMutationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    email?: StringFieldUpdateOperationsInput | string
-    verified?: BoolFieldUpdateOperationsInput | boolean
-    verifiedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type EmailVerificationUncheckedUpdateManyInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    email?: StringFieldUpdateOperationsInput | string
-    verified?: BoolFieldUpdateOperationsInput | boolean
-    verifiedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
   export type AuditLogCreateInput = {
     id?: string
     action: $Enums.AuditAction
-    entity: string
-    entityId?: string | null
+    targetType?: string | null
+    targetId?: string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: string | null
     userAgent?: string | null
     organizationId?: string | null
+    storeId?: string | null
+    correlationId?: string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     user?: UserCreateNestedOneWithoutAuditLogsInput
@@ -38065,15 +34963,17 @@ export namespace Prisma {
 
   export type AuditLogUncheckedCreateInput = {
     id?: string
-    userId?: string | null
+    actorUserId?: string | null
     action: $Enums.AuditAction
-    entity: string
-    entityId?: string | null
+    targetType?: string | null
+    targetId?: string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: string | null
     userAgent?: string | null
     organizationId?: string | null
+    storeId?: string | null
+    correlationId?: string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
   }
@@ -38081,13 +34981,15 @@ export namespace Prisma {
   export type AuditLogUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     action?: EnumAuditActionFieldUpdateOperationsInput | $Enums.AuditAction
-    entity?: StringFieldUpdateOperationsInput | string
-    entityId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetType?: NullableStringFieldUpdateOperationsInput | string | null
+    targetId?: NullableStringFieldUpdateOperationsInput | string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     userAgent?: NullableStringFieldUpdateOperationsInput | string | null
     organizationId?: NullableStringFieldUpdateOperationsInput | string | null
+    storeId?: NullableStringFieldUpdateOperationsInput | string | null
+    correlationId?: NullableStringFieldUpdateOperationsInput | string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneWithoutAuditLogsNestedInput
@@ -38095,30 +34997,34 @@ export namespace Prisma {
 
   export type AuditLogUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    actorUserId?: NullableStringFieldUpdateOperationsInput | string | null
     action?: EnumAuditActionFieldUpdateOperationsInput | $Enums.AuditAction
-    entity?: StringFieldUpdateOperationsInput | string
-    entityId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetType?: NullableStringFieldUpdateOperationsInput | string | null
+    targetId?: NullableStringFieldUpdateOperationsInput | string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     userAgent?: NullableStringFieldUpdateOperationsInput | string | null
     organizationId?: NullableStringFieldUpdateOperationsInput | string | null
+    storeId?: NullableStringFieldUpdateOperationsInput | string | null
+    correlationId?: NullableStringFieldUpdateOperationsInput | string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AuditLogCreateManyInput = {
     id?: string
-    userId?: string | null
+    actorUserId?: string | null
     action: $Enums.AuditAction
-    entity: string
-    entityId?: string | null
+    targetType?: string | null
+    targetId?: string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: string | null
     userAgent?: string | null
     organizationId?: string | null
+    storeId?: string | null
+    correlationId?: string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
   }
@@ -38126,28 +35032,32 @@ export namespace Prisma {
   export type AuditLogUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     action?: EnumAuditActionFieldUpdateOperationsInput | $Enums.AuditAction
-    entity?: StringFieldUpdateOperationsInput | string
-    entityId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetType?: NullableStringFieldUpdateOperationsInput | string | null
+    targetId?: NullableStringFieldUpdateOperationsInput | string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     userAgent?: NullableStringFieldUpdateOperationsInput | string | null
     organizationId?: NullableStringFieldUpdateOperationsInput | string | null
+    storeId?: NullableStringFieldUpdateOperationsInput | string | null
+    correlationId?: NullableStringFieldUpdateOperationsInput | string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AuditLogUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: NullableStringFieldUpdateOperationsInput | string | null
+    actorUserId?: NullableStringFieldUpdateOperationsInput | string | null
     action?: EnumAuditActionFieldUpdateOperationsInput | $Enums.AuditAction
-    entity?: StringFieldUpdateOperationsInput | string
-    entityId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetType?: NullableStringFieldUpdateOperationsInput | string | null
+    targetId?: NullableStringFieldUpdateOperationsInput | string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     userAgent?: NullableStringFieldUpdateOperationsInput | string | null
     organizationId?: NullableStringFieldUpdateOperationsInput | string | null
+    storeId?: NullableStringFieldUpdateOperationsInput | string | null
+    correlationId?: NullableStringFieldUpdateOperationsInput | string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -40158,12 +37068,6 @@ export namespace Prisma {
     none?: UnitMeasureWhereInput
   }
 
-  export type UserListRelationFilter = {
-    every?: UserWhereInput
-    some?: UserWhereInput
-    none?: UserWhereInput
-  }
-
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
@@ -40210,10 +37114,6 @@ export namespace Prisma {
   }
 
   export type UnitMeasureOrderByRelationAggregateInput = {
-    _count?: SortOrder
-  }
-
-  export type UserOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -40462,51 +37362,10 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
-  export type UuidNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedUuidNullableFilter<$PrismaModel> | string | null
-  }
-
-  export type EnumUserRoleFilter<$PrismaModel = never> = {
-    equals?: $Enums.UserRole | EnumUserRoleFieldRefInput<$PrismaModel>
-    in?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
-    notIn?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
-    not?: NestedEnumUserRoleFilter<$PrismaModel> | $Enums.UserRole
-  }
-
-  export type OrganizationNullableScalarRelationFilter = {
-    is?: OrganizationWhereInput | null
-    isNot?: OrganizationWhereInput | null
-  }
-
-  export type StoreNullableScalarRelationFilter = {
-    is?: StoreWhereInput | null
-    isNot?: StoreWhereInput | null
-  }
-
   export type SessionListRelationFilter = {
     every?: SessionWhereInput
     some?: SessionWhereInput
     none?: SessionWhereInput
-  }
-
-  export type PasswordResetListRelationFilter = {
-    every?: PasswordResetWhereInput
-    some?: PasswordResetWhereInput
-    none?: PasswordResetWhereInput
-  }
-
-  export type EmailVerificationListRelationFilter = {
-    every?: EmailVerificationWhereInput
-    some?: EmailVerificationWhereInput
-    none?: EmailVerificationWhereInput
   }
 
   export type AuditLogListRelationFilter = {
@@ -40525,14 +37384,6 @@ export namespace Prisma {
     _count?: SortOrder
   }
 
-  export type PasswordResetOrderByRelationAggregateInput = {
-    _count?: SortOrder
-  }
-
-  export type EmailVerificationOrderByRelationAggregateInput = {
-    _count?: SortOrder
-  }
-
   export type AuditLogOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -40543,14 +37394,10 @@ export namespace Prisma {
 
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
-    organizationId?: SortOrder
-    storeId?: SortOrder
     email?: SortOrder
-    password?: SortOrder
-    username?: SortOrder
-    firstName?: SortOrder
-    lastName?: SortOrder
-    role?: SortOrder
+    passwordHash?: SortOrder
+    name?: SortOrder
+    image?: SortOrder
     emailVerified?: SortOrder
     isActive?: SortOrder
     isDeleted?: SortOrder
@@ -40569,14 +37416,10 @@ export namespace Prisma {
 
   export type UserMaxOrderByAggregateInput = {
     id?: SortOrder
-    organizationId?: SortOrder
-    storeId?: SortOrder
     email?: SortOrder
-    password?: SortOrder
-    username?: SortOrder
-    firstName?: SortOrder
-    lastName?: SortOrder
-    role?: SortOrder
+    passwordHash?: SortOrder
+    name?: SortOrder
+    image?: SortOrder
     emailVerified?: SortOrder
     isActive?: SortOrder
     isDeleted?: SortOrder
@@ -40591,14 +37434,10 @@ export namespace Prisma {
 
   export type UserMinOrderByAggregateInput = {
     id?: SortOrder
-    organizationId?: SortOrder
-    storeId?: SortOrder
     email?: SortOrder
-    password?: SortOrder
-    username?: SortOrder
-    firstName?: SortOrder
-    lastName?: SortOrder
-    role?: SortOrder
+    passwordHash?: SortOrder
+    name?: SortOrder
+    image?: SortOrder
     emailVerified?: SortOrder
     isActive?: SortOrder
     isDeleted?: SortOrder
@@ -40615,7 +37454,7 @@ export namespace Prisma {
     loginAttempts?: SortOrder
   }
 
-  export type UuidNullableWithAggregatesFilter<$PrismaModel = never> = {
+  export type UuidNullableFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel> | null
     in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
     notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
@@ -40624,20 +37463,7 @@ export namespace Prisma {
     gt?: string | StringFieldRefInput<$PrismaModel>
     gte?: string | StringFieldRefInput<$PrismaModel>
     mode?: QueryMode
-    not?: NestedUuidNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type EnumUserRoleWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: $Enums.UserRole | EnumUserRoleFieldRefInput<$PrismaModel>
-    in?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
-    notIn?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
-    not?: NestedEnumUserRoleWithAggregatesFilter<$PrismaModel> | $Enums.UserRole
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedEnumUserRoleFilter<$PrismaModel>
-    _max?: NestedEnumUserRoleFilter<$PrismaModel>
+    not?: NestedUuidNullableFilter<$PrismaModel> | string | null
   }
 
   export type UserScalarRelationFilter = {
@@ -40648,7 +37474,7 @@ export namespace Prisma {
   export type SessionCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    token?: SortOrder
+    tokenHash?: SortOrder
     refreshTokenHash?: SortOrder
     rotatedFrom?: SortOrder
     expiresAt?: SortOrder
@@ -40666,7 +37492,7 @@ export namespace Prisma {
   export type SessionMaxOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    token?: SortOrder
+    tokenHash?: SortOrder
     refreshTokenHash?: SortOrder
     rotatedFrom?: SortOrder
     expiresAt?: SortOrder
@@ -40684,7 +37510,7 @@ export namespace Prisma {
   export type SessionMinOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    token?: SortOrder
+    tokenHash?: SortOrder
     refreshTokenHash?: SortOrder
     rotatedFrom?: SortOrder
     expiresAt?: SortOrder
@@ -40699,79 +37525,19 @@ export namespace Prisma {
     updatedAt?: SortOrder
   }
 
-  export type PasswordResetCountOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    used?: SortOrder
-    usedAt?: SortOrder
-    ipAddress?: SortOrder
-    userAgent?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type PasswordResetMaxOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    used?: SortOrder
-    usedAt?: SortOrder
-    ipAddress?: SortOrder
-    userAgent?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type PasswordResetMinOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    used?: SortOrder
-    usedAt?: SortOrder
-    ipAddress?: SortOrder
-    userAgent?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type EmailVerificationCountOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    email?: SortOrder
-    verified?: SortOrder
-    verifiedAt?: SortOrder
-    ipAddress?: SortOrder
-    userAgent?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type EmailVerificationMaxOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    email?: SortOrder
-    verified?: SortOrder
-    verifiedAt?: SortOrder
-    ipAddress?: SortOrder
-    userAgent?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type EmailVerificationMinOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    token?: SortOrder
-    expiresAt?: SortOrder
-    email?: SortOrder
-    verified?: SortOrder
-    verifiedAt?: SortOrder
-    ipAddress?: SortOrder
-    userAgent?: SortOrder
-    createdAt?: SortOrder
+  export type UuidNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedUuidNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type EnumAuditActionFilter<$PrismaModel = never> = {
@@ -40811,40 +37577,46 @@ export namespace Prisma {
 
   export type AuditLogCountOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
+    actorUserId?: SortOrder
     action?: SortOrder
-    entity?: SortOrder
-    entityId?: SortOrder
+    targetType?: SortOrder
+    targetId?: SortOrder
     oldValues?: SortOrder
     newValues?: SortOrder
     ipAddress?: SortOrder
     userAgent?: SortOrder
     organizationId?: SortOrder
+    storeId?: SortOrder
+    correlationId?: SortOrder
     metadata?: SortOrder
     createdAt?: SortOrder
   }
 
   export type AuditLogMaxOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
+    actorUserId?: SortOrder
     action?: SortOrder
-    entity?: SortOrder
-    entityId?: SortOrder
+    targetType?: SortOrder
+    targetId?: SortOrder
     ipAddress?: SortOrder
     userAgent?: SortOrder
     organizationId?: SortOrder
+    storeId?: SortOrder
+    correlationId?: SortOrder
     createdAt?: SortOrder
   }
 
   export type AuditLogMinOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
+    actorUserId?: SortOrder
     action?: SortOrder
-    entity?: SortOrder
-    entityId?: SortOrder
+    targetType?: SortOrder
+    targetId?: SortOrder
     ipAddress?: SortOrder
     userAgent?: SortOrder
     organizationId?: SortOrder
+    storeId?: SortOrder
+    correlationId?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -41844,6 +38616,11 @@ export namespace Prisma {
     not?: NestedEnumMembershipStatusFilter<$PrismaModel> | $Enums.MembershipStatus
   }
 
+  export type StoreNullableScalarRelationFilter = {
+    is?: StoreWhereInput | null
+    isNot?: StoreWhereInput | null
+  }
+
   export type MembershipCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
@@ -42104,13 +38881,6 @@ export namespace Prisma {
     connect?: UnitMeasureWhereUniqueInput | UnitMeasureWhereUniqueInput[]
   }
 
-  export type UserCreateNestedManyWithoutOrganizationInput = {
-    create?: XOR<UserCreateWithoutOrganizationInput, UserUncheckedCreateWithoutOrganizationInput> | UserCreateWithoutOrganizationInput[] | UserUncheckedCreateWithoutOrganizationInput[]
-    connectOrCreate?: UserCreateOrConnectWithoutOrganizationInput | UserCreateOrConnectWithoutOrganizationInput[]
-    createMany?: UserCreateManyOrganizationInputEnvelope
-    connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-  }
-
   export type BrandUncheckedCreateNestedManyWithoutOrganizationInput = {
     create?: XOR<BrandCreateWithoutOrganizationInput, BrandUncheckedCreateWithoutOrganizationInput> | BrandCreateWithoutOrganizationInput[] | BrandUncheckedCreateWithoutOrganizationInput[]
     connectOrCreate?: BrandCreateOrConnectWithoutOrganizationInput | BrandCreateOrConnectWithoutOrganizationInput[]
@@ -42186,13 +38956,6 @@ export namespace Prisma {
     connectOrCreate?: UnitMeasureCreateOrConnectWithoutOrganizationInput | UnitMeasureCreateOrConnectWithoutOrganizationInput[]
     createMany?: UnitMeasureCreateManyOrganizationInputEnvelope
     connect?: UnitMeasureWhereUniqueInput | UnitMeasureWhereUniqueInput[]
-  }
-
-  export type UserUncheckedCreateNestedManyWithoutOrganizationInput = {
-    create?: XOR<UserCreateWithoutOrganizationInput, UserUncheckedCreateWithoutOrganizationInput> | UserCreateWithoutOrganizationInput[] | UserUncheckedCreateWithoutOrganizationInput[]
-    connectOrCreate?: UserCreateOrConnectWithoutOrganizationInput | UserCreateOrConnectWithoutOrganizationInput[]
-    createMany?: UserCreateManyOrganizationInputEnvelope
-    connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -42369,20 +39132,6 @@ export namespace Prisma {
     deleteMany?: UnitMeasureScalarWhereInput | UnitMeasureScalarWhereInput[]
   }
 
-  export type UserUpdateManyWithoutOrganizationNestedInput = {
-    create?: XOR<UserCreateWithoutOrganizationInput, UserUncheckedCreateWithoutOrganizationInput> | UserCreateWithoutOrganizationInput[] | UserUncheckedCreateWithoutOrganizationInput[]
-    connectOrCreate?: UserCreateOrConnectWithoutOrganizationInput | UserCreateOrConnectWithoutOrganizationInput[]
-    upsert?: UserUpsertWithWhereUniqueWithoutOrganizationInput | UserUpsertWithWhereUniqueWithoutOrganizationInput[]
-    createMany?: UserCreateManyOrganizationInputEnvelope
-    set?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    disconnect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    delete?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    update?: UserUpdateWithWhereUniqueWithoutOrganizationInput | UserUpdateWithWhereUniqueWithoutOrganizationInput[]
-    updateMany?: UserUpdateManyWithWhereWithoutOrganizationInput | UserUpdateManyWithWhereWithoutOrganizationInput[]
-    deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
-  }
-
   export type BrandUncheckedUpdateManyWithoutOrganizationNestedInput = {
     create?: XOR<BrandCreateWithoutOrganizationInput, BrandUncheckedCreateWithoutOrganizationInput> | BrandCreateWithoutOrganizationInput[] | BrandUncheckedCreateWithoutOrganizationInput[]
     connectOrCreate?: BrandCreateOrConnectWithoutOrganizationInput | BrandCreateOrConnectWithoutOrganizationInput[]
@@ -42537,20 +39286,6 @@ export namespace Prisma {
     deleteMany?: UnitMeasureScalarWhereInput | UnitMeasureScalarWhereInput[]
   }
 
-  export type UserUncheckedUpdateManyWithoutOrganizationNestedInput = {
-    create?: XOR<UserCreateWithoutOrganizationInput, UserUncheckedCreateWithoutOrganizationInput> | UserCreateWithoutOrganizationInput[] | UserUncheckedCreateWithoutOrganizationInput[]
-    connectOrCreate?: UserCreateOrConnectWithoutOrganizationInput | UserCreateOrConnectWithoutOrganizationInput[]
-    upsert?: UserUpsertWithWhereUniqueWithoutOrganizationInput | UserUpsertWithWhereUniqueWithoutOrganizationInput[]
-    createMany?: UserCreateManyOrganizationInputEnvelope
-    set?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    disconnect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    delete?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    update?: UserUpdateWithWhereUniqueWithoutOrganizationInput | UserUpdateWithWhereUniqueWithoutOrganizationInput[]
-    updateMany?: UserUpdateManyWithWhereWithoutOrganizationInput | UserUpdateManyWithWhereWithoutOrganizationInput[]
-    deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
-  }
-
   export type SaleCreateNestedManyWithoutStoreInput = {
     create?: XOR<SaleCreateWithoutStoreInput, SaleUncheckedCreateWithoutStoreInput> | SaleCreateWithoutStoreInput[] | SaleUncheckedCreateWithoutStoreInput[]
     connectOrCreate?: SaleCreateOrConnectWithoutStoreInput | SaleCreateOrConnectWithoutStoreInput[]
@@ -42562,13 +39297,6 @@ export namespace Prisma {
     create?: XOR<OrganizationCreateWithoutStoresInput, OrganizationUncheckedCreateWithoutStoresInput>
     connectOrCreate?: OrganizationCreateOrConnectWithoutStoresInput
     connect?: OrganizationWhereUniqueInput
-  }
-
-  export type UserCreateNestedManyWithoutStoreInput = {
-    create?: XOR<UserCreateWithoutStoreInput, UserUncheckedCreateWithoutStoreInput> | UserCreateWithoutStoreInput[] | UserUncheckedCreateWithoutStoreInput[]
-    connectOrCreate?: UserCreateOrConnectWithoutStoreInput | UserCreateOrConnectWithoutStoreInput[]
-    createMany?: UserCreateManyStoreInputEnvelope
-    connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
   }
 
   export type MembershipCreateNestedManyWithoutDefaultStoreInput = {
@@ -42583,13 +39311,6 @@ export namespace Prisma {
     connectOrCreate?: SaleCreateOrConnectWithoutStoreInput | SaleCreateOrConnectWithoutStoreInput[]
     createMany?: SaleCreateManyStoreInputEnvelope
     connect?: SaleWhereUniqueInput | SaleWhereUniqueInput[]
-  }
-
-  export type UserUncheckedCreateNestedManyWithoutStoreInput = {
-    create?: XOR<UserCreateWithoutStoreInput, UserUncheckedCreateWithoutStoreInput> | UserCreateWithoutStoreInput[] | UserUncheckedCreateWithoutStoreInput[]
-    connectOrCreate?: UserCreateOrConnectWithoutStoreInput | UserCreateOrConnectWithoutStoreInput[]
-    createMany?: UserCreateManyStoreInputEnvelope
-    connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
   }
 
   export type MembershipUncheckedCreateNestedManyWithoutDefaultStoreInput = {
@@ -42629,20 +39350,6 @@ export namespace Prisma {
     update?: XOR<XOR<OrganizationUpdateToOneWithWhereWithoutStoresInput, OrganizationUpdateWithoutStoresInput>, OrganizationUncheckedUpdateWithoutStoresInput>
   }
 
-  export type UserUpdateManyWithoutStoreNestedInput = {
-    create?: XOR<UserCreateWithoutStoreInput, UserUncheckedCreateWithoutStoreInput> | UserCreateWithoutStoreInput[] | UserUncheckedCreateWithoutStoreInput[]
-    connectOrCreate?: UserCreateOrConnectWithoutStoreInput | UserCreateOrConnectWithoutStoreInput[]
-    upsert?: UserUpsertWithWhereUniqueWithoutStoreInput | UserUpsertWithWhereUniqueWithoutStoreInput[]
-    createMany?: UserCreateManyStoreInputEnvelope
-    set?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    disconnect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    delete?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    update?: UserUpdateWithWhereUniqueWithoutStoreInput | UserUpdateWithWhereUniqueWithoutStoreInput[]
-    updateMany?: UserUpdateManyWithWhereWithoutStoreInput | UserUpdateManyWithWhereWithoutStoreInput[]
-    deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
-  }
-
   export type MembershipUpdateManyWithoutDefaultStoreNestedInput = {
     create?: XOR<MembershipCreateWithoutDefaultStoreInput, MembershipUncheckedCreateWithoutDefaultStoreInput> | MembershipCreateWithoutDefaultStoreInput[] | MembershipUncheckedCreateWithoutDefaultStoreInput[]
     connectOrCreate?: MembershipCreateOrConnectWithoutDefaultStoreInput | MembershipCreateOrConnectWithoutDefaultStoreInput[]
@@ -42669,20 +39376,6 @@ export namespace Prisma {
     update?: SaleUpdateWithWhereUniqueWithoutStoreInput | SaleUpdateWithWhereUniqueWithoutStoreInput[]
     updateMany?: SaleUpdateManyWithWhereWithoutStoreInput | SaleUpdateManyWithWhereWithoutStoreInput[]
     deleteMany?: SaleScalarWhereInput | SaleScalarWhereInput[]
-  }
-
-  export type UserUncheckedUpdateManyWithoutStoreNestedInput = {
-    create?: XOR<UserCreateWithoutStoreInput, UserUncheckedCreateWithoutStoreInput> | UserCreateWithoutStoreInput[] | UserUncheckedCreateWithoutStoreInput[]
-    connectOrCreate?: UserCreateOrConnectWithoutStoreInput | UserCreateOrConnectWithoutStoreInput[]
-    upsert?: UserUpsertWithWhereUniqueWithoutStoreInput | UserUpsertWithWhereUniqueWithoutStoreInput[]
-    createMany?: UserCreateManyStoreInputEnvelope
-    set?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    disconnect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    delete?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
-    update?: UserUpdateWithWhereUniqueWithoutStoreInput | UserUpdateWithWhereUniqueWithoutStoreInput[]
-    updateMany?: UserUpdateManyWithWhereWithoutStoreInput | UserUpdateManyWithWhereWithoutStoreInput[]
-    deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
   }
 
   export type MembershipUncheckedUpdateManyWithoutDefaultStoreNestedInput = {
@@ -42713,37 +39406,11 @@ export namespace Prisma {
     connect?: StockMovementWhereUniqueInput | StockMovementWhereUniqueInput[]
   }
 
-  export type OrganizationCreateNestedOneWithoutUsersInput = {
-    create?: XOR<OrganizationCreateWithoutUsersInput, OrganizationUncheckedCreateWithoutUsersInput>
-    connectOrCreate?: OrganizationCreateOrConnectWithoutUsersInput
-    connect?: OrganizationWhereUniqueInput
-  }
-
-  export type StoreCreateNestedOneWithoutUsersInput = {
-    create?: XOR<StoreCreateWithoutUsersInput, StoreUncheckedCreateWithoutUsersInput>
-    connectOrCreate?: StoreCreateOrConnectWithoutUsersInput
-    connect?: StoreWhereUniqueInput
-  }
-
   export type SessionCreateNestedManyWithoutUserInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
     createMany?: SessionCreateManyUserInputEnvelope
     connect?: SessionWhereUniqueInput | SessionWhereUniqueInput[]
-  }
-
-  export type PasswordResetCreateNestedManyWithoutUserInput = {
-    create?: XOR<PasswordResetCreateWithoutUserInput, PasswordResetUncheckedCreateWithoutUserInput> | PasswordResetCreateWithoutUserInput[] | PasswordResetUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: PasswordResetCreateOrConnectWithoutUserInput | PasswordResetCreateOrConnectWithoutUserInput[]
-    createMany?: PasswordResetCreateManyUserInputEnvelope
-    connect?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-  }
-
-  export type EmailVerificationCreateNestedManyWithoutUserInput = {
-    create?: XOR<EmailVerificationCreateWithoutUserInput, EmailVerificationUncheckedCreateWithoutUserInput> | EmailVerificationCreateWithoutUserInput[] | EmailVerificationUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: EmailVerificationCreateOrConnectWithoutUserInput | EmailVerificationCreateOrConnectWithoutUserInput[]
-    createMany?: EmailVerificationCreateManyUserInputEnvelope
-    connect?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
   }
 
   export type AuditLogCreateNestedManyWithoutUserInput = {
@@ -42788,20 +39455,6 @@ export namespace Prisma {
     connect?: SessionWhereUniqueInput | SessionWhereUniqueInput[]
   }
 
-  export type PasswordResetUncheckedCreateNestedManyWithoutUserInput = {
-    create?: XOR<PasswordResetCreateWithoutUserInput, PasswordResetUncheckedCreateWithoutUserInput> | PasswordResetCreateWithoutUserInput[] | PasswordResetUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: PasswordResetCreateOrConnectWithoutUserInput | PasswordResetCreateOrConnectWithoutUserInput[]
-    createMany?: PasswordResetCreateManyUserInputEnvelope
-    connect?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-  }
-
-  export type EmailVerificationUncheckedCreateNestedManyWithoutUserInput = {
-    create?: XOR<EmailVerificationCreateWithoutUserInput, EmailVerificationUncheckedCreateWithoutUserInput> | EmailVerificationCreateWithoutUserInput[] | EmailVerificationUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: EmailVerificationCreateOrConnectWithoutUserInput | EmailVerificationCreateOrConnectWithoutUserInput[]
-    createMany?: EmailVerificationCreateManyUserInputEnvelope
-    connect?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-  }
-
   export type AuditLogUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<AuditLogCreateWithoutUserInput, AuditLogUncheckedCreateWithoutUserInput> | AuditLogCreateWithoutUserInput[] | AuditLogUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
@@ -42821,10 +39474,6 @@ export namespace Prisma {
     connectOrCreate?: AccountCreateOrConnectWithoutUserInput | AccountCreateOrConnectWithoutUserInput[]
     createMany?: AccountCreateManyUserInputEnvelope
     connect?: AccountWhereUniqueInput | AccountWhereUniqueInput[]
-  }
-
-  export type EnumUserRoleFieldUpdateOperationsInput = {
-    set?: $Enums.UserRole
   }
 
   export type SaleUpdateManyWithoutUserNestedInput = {
@@ -42855,26 +39504,6 @@ export namespace Prisma {
     deleteMany?: StockMovementScalarWhereInput | StockMovementScalarWhereInput[]
   }
 
-  export type OrganizationUpdateOneWithoutUsersNestedInput = {
-    create?: XOR<OrganizationCreateWithoutUsersInput, OrganizationUncheckedCreateWithoutUsersInput>
-    connectOrCreate?: OrganizationCreateOrConnectWithoutUsersInput
-    upsert?: OrganizationUpsertWithoutUsersInput
-    disconnect?: OrganizationWhereInput | boolean
-    delete?: OrganizationWhereInput | boolean
-    connect?: OrganizationWhereUniqueInput
-    update?: XOR<XOR<OrganizationUpdateToOneWithWhereWithoutUsersInput, OrganizationUpdateWithoutUsersInput>, OrganizationUncheckedUpdateWithoutUsersInput>
-  }
-
-  export type StoreUpdateOneWithoutUsersNestedInput = {
-    create?: XOR<StoreCreateWithoutUsersInput, StoreUncheckedCreateWithoutUsersInput>
-    connectOrCreate?: StoreCreateOrConnectWithoutUsersInput
-    upsert?: StoreUpsertWithoutUsersInput
-    disconnect?: StoreWhereInput | boolean
-    delete?: StoreWhereInput | boolean
-    connect?: StoreWhereUniqueInput
-    update?: XOR<XOR<StoreUpdateToOneWithWhereWithoutUsersInput, StoreUpdateWithoutUsersInput>, StoreUncheckedUpdateWithoutUsersInput>
-  }
-
   export type SessionUpdateManyWithoutUserNestedInput = {
     create?: XOR<SessionCreateWithoutUserInput, SessionUncheckedCreateWithoutUserInput> | SessionCreateWithoutUserInput[] | SessionUncheckedCreateWithoutUserInput[]
     connectOrCreate?: SessionCreateOrConnectWithoutUserInput | SessionCreateOrConnectWithoutUserInput[]
@@ -42887,34 +39516,6 @@ export namespace Prisma {
     update?: SessionUpdateWithWhereUniqueWithoutUserInput | SessionUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: SessionUpdateManyWithWhereWithoutUserInput | SessionUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: SessionScalarWhereInput | SessionScalarWhereInput[]
-  }
-
-  export type PasswordResetUpdateManyWithoutUserNestedInput = {
-    create?: XOR<PasswordResetCreateWithoutUserInput, PasswordResetUncheckedCreateWithoutUserInput> | PasswordResetCreateWithoutUserInput[] | PasswordResetUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: PasswordResetCreateOrConnectWithoutUserInput | PasswordResetCreateOrConnectWithoutUserInput[]
-    upsert?: PasswordResetUpsertWithWhereUniqueWithoutUserInput | PasswordResetUpsertWithWhereUniqueWithoutUserInput[]
-    createMany?: PasswordResetCreateManyUserInputEnvelope
-    set?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-    disconnect?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-    delete?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-    connect?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-    update?: PasswordResetUpdateWithWhereUniqueWithoutUserInput | PasswordResetUpdateWithWhereUniqueWithoutUserInput[]
-    updateMany?: PasswordResetUpdateManyWithWhereWithoutUserInput | PasswordResetUpdateManyWithWhereWithoutUserInput[]
-    deleteMany?: PasswordResetScalarWhereInput | PasswordResetScalarWhereInput[]
-  }
-
-  export type EmailVerificationUpdateManyWithoutUserNestedInput = {
-    create?: XOR<EmailVerificationCreateWithoutUserInput, EmailVerificationUncheckedCreateWithoutUserInput> | EmailVerificationCreateWithoutUserInput[] | EmailVerificationUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: EmailVerificationCreateOrConnectWithoutUserInput | EmailVerificationCreateOrConnectWithoutUserInput[]
-    upsert?: EmailVerificationUpsertWithWhereUniqueWithoutUserInput | EmailVerificationUpsertWithWhereUniqueWithoutUserInput[]
-    createMany?: EmailVerificationCreateManyUserInputEnvelope
-    set?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-    disconnect?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-    delete?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-    connect?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-    update?: EmailVerificationUpdateWithWhereUniqueWithoutUserInput | EmailVerificationUpdateWithWhereUniqueWithoutUserInput[]
-    updateMany?: EmailVerificationUpdateManyWithWhereWithoutUserInput | EmailVerificationUpdateManyWithWhereWithoutUserInput[]
-    deleteMany?: EmailVerificationScalarWhereInput | EmailVerificationScalarWhereInput[]
   }
 
   export type AuditLogUpdateManyWithoutUserNestedInput = {
@@ -43001,34 +39602,6 @@ export namespace Prisma {
     deleteMany?: SessionScalarWhereInput | SessionScalarWhereInput[]
   }
 
-  export type PasswordResetUncheckedUpdateManyWithoutUserNestedInput = {
-    create?: XOR<PasswordResetCreateWithoutUserInput, PasswordResetUncheckedCreateWithoutUserInput> | PasswordResetCreateWithoutUserInput[] | PasswordResetUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: PasswordResetCreateOrConnectWithoutUserInput | PasswordResetCreateOrConnectWithoutUserInput[]
-    upsert?: PasswordResetUpsertWithWhereUniqueWithoutUserInput | PasswordResetUpsertWithWhereUniqueWithoutUserInput[]
-    createMany?: PasswordResetCreateManyUserInputEnvelope
-    set?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-    disconnect?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-    delete?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-    connect?: PasswordResetWhereUniqueInput | PasswordResetWhereUniqueInput[]
-    update?: PasswordResetUpdateWithWhereUniqueWithoutUserInput | PasswordResetUpdateWithWhereUniqueWithoutUserInput[]
-    updateMany?: PasswordResetUpdateManyWithWhereWithoutUserInput | PasswordResetUpdateManyWithWhereWithoutUserInput[]
-    deleteMany?: PasswordResetScalarWhereInput | PasswordResetScalarWhereInput[]
-  }
-
-  export type EmailVerificationUncheckedUpdateManyWithoutUserNestedInput = {
-    create?: XOR<EmailVerificationCreateWithoutUserInput, EmailVerificationUncheckedCreateWithoutUserInput> | EmailVerificationCreateWithoutUserInput[] | EmailVerificationUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: EmailVerificationCreateOrConnectWithoutUserInput | EmailVerificationCreateOrConnectWithoutUserInput[]
-    upsert?: EmailVerificationUpsertWithWhereUniqueWithoutUserInput | EmailVerificationUpsertWithWhereUniqueWithoutUserInput[]
-    createMany?: EmailVerificationCreateManyUserInputEnvelope
-    set?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-    disconnect?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-    delete?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-    connect?: EmailVerificationWhereUniqueInput | EmailVerificationWhereUniqueInput[]
-    update?: EmailVerificationUpdateWithWhereUniqueWithoutUserInput | EmailVerificationUpdateWithWhereUniqueWithoutUserInput[]
-    updateMany?: EmailVerificationUpdateManyWithWhereWithoutUserInput | EmailVerificationUpdateManyWithWhereWithoutUserInput[]
-    deleteMany?: EmailVerificationScalarWhereInput | EmailVerificationScalarWhereInput[]
-  }
-
   export type AuditLogUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<AuditLogCreateWithoutUserInput, AuditLogUncheckedCreateWithoutUserInput> | AuditLogCreateWithoutUserInput[] | AuditLogUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AuditLogCreateOrConnectWithoutUserInput | AuditLogCreateOrConnectWithoutUserInput[]
@@ -43083,34 +39656,6 @@ export namespace Prisma {
     upsert?: UserUpsertWithoutSessionsInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutSessionsInput, UserUpdateWithoutSessionsInput>, UserUncheckedUpdateWithoutSessionsInput>
-  }
-
-  export type UserCreateNestedOneWithoutPasswordResetsInput = {
-    create?: XOR<UserCreateWithoutPasswordResetsInput, UserUncheckedCreateWithoutPasswordResetsInput>
-    connectOrCreate?: UserCreateOrConnectWithoutPasswordResetsInput
-    connect?: UserWhereUniqueInput
-  }
-
-  export type UserUpdateOneRequiredWithoutPasswordResetsNestedInput = {
-    create?: XOR<UserCreateWithoutPasswordResetsInput, UserUncheckedCreateWithoutPasswordResetsInput>
-    connectOrCreate?: UserCreateOrConnectWithoutPasswordResetsInput
-    upsert?: UserUpsertWithoutPasswordResetsInput
-    connect?: UserWhereUniqueInput
-    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutPasswordResetsInput, UserUpdateWithoutPasswordResetsInput>, UserUncheckedUpdateWithoutPasswordResetsInput>
-  }
-
-  export type UserCreateNestedOneWithoutEmailVerificationsInput = {
-    create?: XOR<UserCreateWithoutEmailVerificationsInput, UserUncheckedCreateWithoutEmailVerificationsInput>
-    connectOrCreate?: UserCreateOrConnectWithoutEmailVerificationsInput
-    connect?: UserWhereUniqueInput
-  }
-
-  export type UserUpdateOneRequiredWithoutEmailVerificationsNestedInput = {
-    create?: XOR<UserCreateWithoutEmailVerificationsInput, UserUncheckedCreateWithoutEmailVerificationsInput>
-    connectOrCreate?: UserCreateOrConnectWithoutEmailVerificationsInput
-    upsert?: UserUpsertWithoutEmailVerificationsInput
-    connect?: UserWhereUniqueInput
-    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutEmailVerificationsInput, UserUpdateWithoutEmailVerificationsInput>, UserUncheckedUpdateWithoutEmailVerificationsInput>
   }
 
   export type UserCreateNestedOneWithoutAuditLogsInput = {
@@ -44353,13 +40898,6 @@ export namespace Prisma {
     not?: NestedUuidNullableFilter<$PrismaModel> | string | null
   }
 
-  export type NestedEnumUserRoleFilter<$PrismaModel = never> = {
-    equals?: $Enums.UserRole | EnumUserRoleFieldRefInput<$PrismaModel>
-    in?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
-    notIn?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
-    not?: NestedEnumUserRoleFilter<$PrismaModel> | $Enums.UserRole
-  }
-
   export type NestedUuidNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel> | null
     in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
@@ -44372,16 +40910,6 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type NestedEnumUserRoleWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: $Enums.UserRole | EnumUserRoleFieldRefInput<$PrismaModel>
-    in?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
-    notIn?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
-    not?: NestedEnumUserRoleWithAggregatesFilter<$PrismaModel> | $Enums.UserRole
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedEnumUserRoleFilter<$PrismaModel>
-    _max?: NestedEnumUserRoleFilter<$PrismaModel>
   }
 
   export type NestedEnumAuditActionFilter<$PrismaModel = never> = {
@@ -44907,7 +41435,6 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     sales?: SaleCreateNestedManyWithoutStoreInput
-    users?: UserCreateNestedManyWithoutStoreInput
     memberships?: MembershipCreateNestedManyWithoutDefaultStoreInput
   }
 
@@ -44927,7 +41454,6 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     sales?: SaleUncheckedCreateNestedManyWithoutStoreInput
-    users?: UserUncheckedCreateNestedManyWithoutStoreInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutDefaultStoreInput
   }
 
@@ -45054,74 +41580,6 @@ export namespace Prisma {
 
   export type UnitMeasureCreateManyOrganizationInputEnvelope = {
     data: UnitMeasureCreateManyOrganizationInput | UnitMeasureCreateManyOrganizationInput[]
-    skipDuplicates?: boolean
-  }
-
-  export type UserCreateWithoutOrganizationInput = {
-    id?: string
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
-    sales?: SaleCreateNestedManyWithoutUserInput
-    stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    store?: StoreCreateNestedOneWithoutUsersInput
-    sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
-    auditLogs?: AuditLogCreateNestedManyWithoutUserInput
-    memberships?: MembershipCreateNestedManyWithoutUserInput
-    accounts?: AccountCreateNestedManyWithoutUserInput
-  }
-
-  export type UserUncheckedCreateWithoutOrganizationInput = {
-    id?: string
-    storeId?: string | null
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
-    sales?: SaleUncheckedCreateNestedManyWithoutUserInput
-    stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
-    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
-    auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
-    memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
-    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
-  }
-
-  export type UserCreateOrConnectWithoutOrganizationInput = {
-    where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutOrganizationInput, UserUncheckedCreateWithoutOrganizationInput>
-  }
-
-  export type UserCreateManyOrganizationInputEnvelope = {
-    data: UserCreateManyOrganizationInput | UserCreateManyOrganizationInput[]
     skipDuplicates?: boolean
   }
 
@@ -45507,47 +41965,6 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"UnitMeasure"> | Date | string | null
   }
 
-  export type UserUpsertWithWhereUniqueWithoutOrganizationInput = {
-    where: UserWhereUniqueInput
-    update: XOR<UserUpdateWithoutOrganizationInput, UserUncheckedUpdateWithoutOrganizationInput>
-    create: XOR<UserCreateWithoutOrganizationInput, UserUncheckedCreateWithoutOrganizationInput>
-  }
-
-  export type UserUpdateWithWhereUniqueWithoutOrganizationInput = {
-    where: UserWhereUniqueInput
-    data: XOR<UserUpdateWithoutOrganizationInput, UserUncheckedUpdateWithoutOrganizationInput>
-  }
-
-  export type UserUpdateManyWithWhereWithoutOrganizationInput = {
-    where: UserScalarWhereInput
-    data: XOR<UserUpdateManyMutationInput, UserUncheckedUpdateManyWithoutOrganizationInput>
-  }
-
-  export type UserScalarWhereInput = {
-    AND?: UserScalarWhereInput | UserScalarWhereInput[]
-    OR?: UserScalarWhereInput[]
-    NOT?: UserScalarWhereInput | UserScalarWhereInput[]
-    id?: UuidFilter<"User"> | string
-    organizationId?: UuidNullableFilter<"User"> | string | null
-    storeId?: UuidNullableFilter<"User"> | string | null
-    email?: StringFilter<"User"> | string
-    password?: StringFilter<"User"> | string
-    username?: StringFilter<"User"> | string
-    firstName?: StringFilter<"User"> | string
-    lastName?: StringFilter<"User"> | string
-    role?: EnumUserRoleFilter<"User"> | $Enums.UserRole
-    emailVerified?: BoolFilter<"User"> | boolean
-    isActive?: BoolFilter<"User"> | boolean
-    isDeleted?: BoolFilter<"User"> | boolean
-    deletedAt?: DateTimeNullableFilter<"User"> | Date | string | null
-    createdAt?: DateTimeFilter<"User"> | Date | string
-    updatedAt?: DateTimeFilter<"User"> | Date | string
-    lastLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
-    passwordChangedAt?: DateTimeNullableFilter<"User"> | Date | string | null
-    loginAttempts?: IntFilter<"User"> | number
-    lockedUntil?: DateTimeNullableFilter<"User"> | Date | string | null
-  }
-
   export type SaleCreateWithoutStoreInput = {
     id?: string
     organizationId: string
@@ -45626,7 +42043,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutStoresInput = {
@@ -45655,80 +42071,11 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutStoresInput = {
     where: OrganizationWhereUniqueInput
     create: XOR<OrganizationCreateWithoutStoresInput, OrganizationUncheckedCreateWithoutStoresInput>
-  }
-
-  export type UserCreateWithoutStoreInput = {
-    id?: string
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
-    sales?: SaleCreateNestedManyWithoutUserInput
-    stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
-    auditLogs?: AuditLogCreateNestedManyWithoutUserInput
-    memberships?: MembershipCreateNestedManyWithoutUserInput
-    accounts?: AccountCreateNestedManyWithoutUserInput
-  }
-
-  export type UserUncheckedCreateWithoutStoreInput = {
-    id?: string
-    organizationId?: string | null
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
-    sales?: SaleUncheckedCreateNestedManyWithoutUserInput
-    stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
-    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
-    auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
-    memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
-    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
-  }
-
-  export type UserCreateOrConnectWithoutStoreInput = {
-    where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutStoreInput, UserUncheckedCreateWithoutStoreInput>
-  }
-
-  export type UserCreateManyStoreInputEnvelope = {
-    data: UserCreateManyStoreInput | UserCreateManyStoreInput[]
-    skipDuplicates?: boolean
   }
 
   export type MembershipCreateWithoutDefaultStoreInput = {
@@ -45843,7 +42190,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutStoresInput = {
@@ -45872,23 +42218,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
-  }
-
-  export type UserUpsertWithWhereUniqueWithoutStoreInput = {
-    where: UserWhereUniqueInput
-    update: XOR<UserUpdateWithoutStoreInput, UserUncheckedUpdateWithoutStoreInput>
-    create: XOR<UserCreateWithoutStoreInput, UserUncheckedCreateWithoutStoreInput>
-  }
-
-  export type UserUpdateWithWhereUniqueWithoutStoreInput = {
-    where: UserWhereUniqueInput
-    data: XOR<UserUpdateWithoutStoreInput, UserUncheckedUpdateWithoutStoreInput>
-  }
-
-  export type UserUpdateManyWithWhereWithoutStoreInput = {
-    where: UserScalarWhereInput
-    data: XOR<UserUpdateManyMutationInput, UserUncheckedUpdateManyWithoutStoreInput>
   }
 
   export type MembershipUpsertWithWhereUniqueWithoutDefaultStoreInput = {
@@ -45997,117 +42326,9 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
-  export type OrganizationCreateWithoutUsersInput = {
-    id?: string
-    slug?: string
-    name: string
-    email: string
-    nit?: string | null
-    phone?: string | null
-    address?: string | null
-    city?: string | null
-    department?: string | null
-    taxId?: string | null
-    isActive?: boolean
-    isDeleted?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    deletedAt?: Date | string | null
-    brands?: BrandCreateNestedManyWithoutOrganizationInput
-    categories?: CategoryCreateNestedManyWithoutOrganizationInput
-    customers?: CustomerCreateNestedManyWithoutOrganizationInput
-    memberships?: MembershipCreateNestedManyWithoutOrganizationInput
-    paymentMethods?: PaymentMethodCreateNestedManyWithoutOrganizationInput
-    products?: ProductCreateNestedManyWithoutOrganizationInput
-    stockMovements?: StockMovementCreateNestedManyWithoutOrganizationInput
-    stores?: StoreCreateNestedManyWithoutOrganizationInput
-    suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
-    systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
-    unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-  }
-
-  export type OrganizationUncheckedCreateWithoutUsersInput = {
-    id?: string
-    slug?: string
-    name: string
-    email: string
-    nit?: string | null
-    phone?: string | null
-    address?: string | null
-    city?: string | null
-    department?: string | null
-    taxId?: string | null
-    isActive?: boolean
-    isDeleted?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    deletedAt?: Date | string | null
-    brands?: BrandUncheckedCreateNestedManyWithoutOrganizationInput
-    categories?: CategoryUncheckedCreateNestedManyWithoutOrganizationInput
-    customers?: CustomerUncheckedCreateNestedManyWithoutOrganizationInput
-    memberships?: MembershipUncheckedCreateNestedManyWithoutOrganizationInput
-    paymentMethods?: PaymentMethodUncheckedCreateNestedManyWithoutOrganizationInput
-    products?: ProductUncheckedCreateNestedManyWithoutOrganizationInput
-    stockMovements?: StockMovementUncheckedCreateNestedManyWithoutOrganizationInput
-    stores?: StoreUncheckedCreateNestedManyWithoutOrganizationInput
-    suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
-    systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
-    unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-  }
-
-  export type OrganizationCreateOrConnectWithoutUsersInput = {
-    where: OrganizationWhereUniqueInput
-    create: XOR<OrganizationCreateWithoutUsersInput, OrganizationUncheckedCreateWithoutUsersInput>
-  }
-
-  export type StoreCreateWithoutUsersInput = {
-    id?: string
-    name: string
-    description?: string | null
-    address: string
-    city?: string | null
-    department?: string | null
-    phone?: string | null
-    saleNumberPrefix?: string
-    lastSaleNumber?: number
-    isActive?: boolean
-    isDeleted?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    deletedAt?: Date | string | null
-    sales?: SaleCreateNestedManyWithoutStoreInput
-    organization: OrganizationCreateNestedOneWithoutStoresInput
-    memberships?: MembershipCreateNestedManyWithoutDefaultStoreInput
-  }
-
-  export type StoreUncheckedCreateWithoutUsersInput = {
-    id?: string
-    organizationId: string
-    name: string
-    description?: string | null
-    address: string
-    city?: string | null
-    department?: string | null
-    phone?: string | null
-    saleNumberPrefix?: string
-    lastSaleNumber?: number
-    isActive?: boolean
-    isDeleted?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    deletedAt?: Date | string | null
-    sales?: SaleUncheckedCreateNestedManyWithoutStoreInput
-    memberships?: MembershipUncheckedCreateNestedManyWithoutDefaultStoreInput
-  }
-
-  export type StoreCreateOrConnectWithoutUsersInput = {
-    where: StoreWhereUniqueInput
-    create: XOR<StoreCreateWithoutUsersInput, StoreUncheckedCreateWithoutUsersInput>
-  }
-
   export type SessionCreateWithoutUserInput = {
     id?: string
-    token: string
+    tokenHash: string
     refreshTokenHash?: string | null
     rotatedFrom?: string | null
     expiresAt: Date | string
@@ -46124,7 +42345,7 @@ export namespace Prisma {
 
   export type SessionUncheckedCreateWithoutUserInput = {
     id?: string
-    token: string
+    tokenHash: string
     refreshTokenHash?: string | null
     rotatedFrom?: string | null
     expiresAt: Date | string
@@ -46149,82 +42370,18 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
-  export type PasswordResetCreateWithoutUserInput = {
-    id?: string
-    token: string
-    expiresAt: Date | string
-    used?: boolean
-    usedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type PasswordResetUncheckedCreateWithoutUserInput = {
-    id?: string
-    token: string
-    expiresAt: Date | string
-    used?: boolean
-    usedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type PasswordResetCreateOrConnectWithoutUserInput = {
-    where: PasswordResetWhereUniqueInput
-    create: XOR<PasswordResetCreateWithoutUserInput, PasswordResetUncheckedCreateWithoutUserInput>
-  }
-
-  export type PasswordResetCreateManyUserInputEnvelope = {
-    data: PasswordResetCreateManyUserInput | PasswordResetCreateManyUserInput[]
-    skipDuplicates?: boolean
-  }
-
-  export type EmailVerificationCreateWithoutUserInput = {
-    id?: string
-    token: string
-    expiresAt: Date | string
-    email: string
-    verified?: boolean
-    verifiedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type EmailVerificationUncheckedCreateWithoutUserInput = {
-    id?: string
-    token: string
-    expiresAt: Date | string
-    email: string
-    verified?: boolean
-    verifiedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type EmailVerificationCreateOrConnectWithoutUserInput = {
-    where: EmailVerificationWhereUniqueInput
-    create: XOR<EmailVerificationCreateWithoutUserInput, EmailVerificationUncheckedCreateWithoutUserInput>
-  }
-
-  export type EmailVerificationCreateManyUserInputEnvelope = {
-    data: EmailVerificationCreateManyUserInput | EmailVerificationCreateManyUserInput[]
-    skipDuplicates?: boolean
-  }
-
   export type AuditLogCreateWithoutUserInput = {
     id?: string
     action: $Enums.AuditAction
-    entity: string
-    entityId?: string | null
+    targetType?: string | null
+    targetId?: string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: string | null
     userAgent?: string | null
     organizationId?: string | null
+    storeId?: string | null
+    correlationId?: string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
   }
@@ -46232,13 +42389,15 @@ export namespace Prisma {
   export type AuditLogUncheckedCreateWithoutUserInput = {
     id?: string
     action: $Enums.AuditAction
-    entity: string
-    entityId?: string | null
+    targetType?: string | null
+    targetId?: string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: string | null
     userAgent?: string | null
     organizationId?: string | null
+    storeId?: string | null
+    correlationId?: string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
   }
@@ -46355,126 +42514,6 @@ export namespace Prisma {
     data: XOR<StockMovementUpdateManyMutationInput, StockMovementUncheckedUpdateManyWithoutUserInput>
   }
 
-  export type OrganizationUpsertWithoutUsersInput = {
-    update: XOR<OrganizationUpdateWithoutUsersInput, OrganizationUncheckedUpdateWithoutUsersInput>
-    create: XOR<OrganizationCreateWithoutUsersInput, OrganizationUncheckedCreateWithoutUsersInput>
-    where?: OrganizationWhereInput
-  }
-
-  export type OrganizationUpdateToOneWithWhereWithoutUsersInput = {
-    where?: OrganizationWhereInput
-    data: XOR<OrganizationUpdateWithoutUsersInput, OrganizationUncheckedUpdateWithoutUsersInput>
-  }
-
-  export type OrganizationUpdateWithoutUsersInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    slug?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    nit?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    address?: NullableStringFieldUpdateOperationsInput | string | null
-    city?: NullableStringFieldUpdateOperationsInput | string | null
-    department?: NullableStringFieldUpdateOperationsInput | string | null
-    taxId?: NullableStringFieldUpdateOperationsInput | string | null
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    brands?: BrandUpdateManyWithoutOrganizationNestedInput
-    categories?: CategoryUpdateManyWithoutOrganizationNestedInput
-    customers?: CustomerUpdateManyWithoutOrganizationNestedInput
-    memberships?: MembershipUpdateManyWithoutOrganizationNestedInput
-    paymentMethods?: PaymentMethodUpdateManyWithoutOrganizationNestedInput
-    products?: ProductUpdateManyWithoutOrganizationNestedInput
-    stockMovements?: StockMovementUpdateManyWithoutOrganizationNestedInput
-    stores?: StoreUpdateManyWithoutOrganizationNestedInput
-    suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
-    systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
-    unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-  }
-
-  export type OrganizationUncheckedUpdateWithoutUsersInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    slug?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    nit?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    address?: NullableStringFieldUpdateOperationsInput | string | null
-    city?: NullableStringFieldUpdateOperationsInput | string | null
-    department?: NullableStringFieldUpdateOperationsInput | string | null
-    taxId?: NullableStringFieldUpdateOperationsInput | string | null
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    brands?: BrandUncheckedUpdateManyWithoutOrganizationNestedInput
-    categories?: CategoryUncheckedUpdateManyWithoutOrganizationNestedInput
-    customers?: CustomerUncheckedUpdateManyWithoutOrganizationNestedInput
-    memberships?: MembershipUncheckedUpdateManyWithoutOrganizationNestedInput
-    paymentMethods?: PaymentMethodUncheckedUpdateManyWithoutOrganizationNestedInput
-    products?: ProductUncheckedUpdateManyWithoutOrganizationNestedInput
-    stockMovements?: StockMovementUncheckedUpdateManyWithoutOrganizationNestedInput
-    stores?: StoreUncheckedUpdateManyWithoutOrganizationNestedInput
-    suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
-    systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
-    unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-  }
-
-  export type StoreUpsertWithoutUsersInput = {
-    update: XOR<StoreUpdateWithoutUsersInput, StoreUncheckedUpdateWithoutUsersInput>
-    create: XOR<StoreCreateWithoutUsersInput, StoreUncheckedCreateWithoutUsersInput>
-    where?: StoreWhereInput
-  }
-
-  export type StoreUpdateToOneWithWhereWithoutUsersInput = {
-    where?: StoreWhereInput
-    data: XOR<StoreUpdateWithoutUsersInput, StoreUncheckedUpdateWithoutUsersInput>
-  }
-
-  export type StoreUpdateWithoutUsersInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    description?: NullableStringFieldUpdateOperationsInput | string | null
-    address?: StringFieldUpdateOperationsInput | string
-    city?: NullableStringFieldUpdateOperationsInput | string | null
-    department?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    saleNumberPrefix?: StringFieldUpdateOperationsInput | string
-    lastSaleNumber?: IntFieldUpdateOperationsInput | number
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUpdateManyWithoutStoreNestedInput
-    organization?: OrganizationUpdateOneRequiredWithoutStoresNestedInput
-    memberships?: MembershipUpdateManyWithoutDefaultStoreNestedInput
-  }
-
-  export type StoreUncheckedUpdateWithoutUsersInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    organizationId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    description?: NullableStringFieldUpdateOperationsInput | string | null
-    address?: StringFieldUpdateOperationsInput | string
-    city?: NullableStringFieldUpdateOperationsInput | string | null
-    department?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    saleNumberPrefix?: StringFieldUpdateOperationsInput | string
-    lastSaleNumber?: IntFieldUpdateOperationsInput | number
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUncheckedUpdateManyWithoutStoreNestedInput
-    memberships?: MembershipUncheckedUpdateManyWithoutDefaultStoreNestedInput
-  }
-
   export type SessionUpsertWithWhereUniqueWithoutUserInput = {
     where: SessionWhereUniqueInput
     update: XOR<SessionUpdateWithoutUserInput, SessionUncheckedUpdateWithoutUserInput>
@@ -46497,7 +42536,7 @@ export namespace Prisma {
     NOT?: SessionScalarWhereInput | SessionScalarWhereInput[]
     id?: UuidFilter<"Session"> | string
     userId?: UuidFilter<"Session"> | string
-    token?: StringFilter<"Session"> | string
+    tokenHash?: StringFilter<"Session"> | string
     refreshTokenHash?: StringNullableFilter<"Session"> | string | null
     rotatedFrom?: UuidNullableFilter<"Session"> | string | null
     expiresAt?: DateTimeFilter<"Session"> | Date | string
@@ -46510,69 +42549,6 @@ export namespace Prisma {
     lastActivityAt?: DateTimeFilter<"Session"> | Date | string
     createdAt?: DateTimeFilter<"Session"> | Date | string
     updatedAt?: DateTimeFilter<"Session"> | Date | string
-  }
-
-  export type PasswordResetUpsertWithWhereUniqueWithoutUserInput = {
-    where: PasswordResetWhereUniqueInput
-    update: XOR<PasswordResetUpdateWithoutUserInput, PasswordResetUncheckedUpdateWithoutUserInput>
-    create: XOR<PasswordResetCreateWithoutUserInput, PasswordResetUncheckedCreateWithoutUserInput>
-  }
-
-  export type PasswordResetUpdateWithWhereUniqueWithoutUserInput = {
-    where: PasswordResetWhereUniqueInput
-    data: XOR<PasswordResetUpdateWithoutUserInput, PasswordResetUncheckedUpdateWithoutUserInput>
-  }
-
-  export type PasswordResetUpdateManyWithWhereWithoutUserInput = {
-    where: PasswordResetScalarWhereInput
-    data: XOR<PasswordResetUpdateManyMutationInput, PasswordResetUncheckedUpdateManyWithoutUserInput>
-  }
-
-  export type PasswordResetScalarWhereInput = {
-    AND?: PasswordResetScalarWhereInput | PasswordResetScalarWhereInput[]
-    OR?: PasswordResetScalarWhereInput[]
-    NOT?: PasswordResetScalarWhereInput | PasswordResetScalarWhereInput[]
-    id?: UuidFilter<"PasswordReset"> | string
-    userId?: UuidFilter<"PasswordReset"> | string
-    token?: StringFilter<"PasswordReset"> | string
-    expiresAt?: DateTimeFilter<"PasswordReset"> | Date | string
-    used?: BoolFilter<"PasswordReset"> | boolean
-    usedAt?: DateTimeNullableFilter<"PasswordReset"> | Date | string | null
-    ipAddress?: StringNullableFilter<"PasswordReset"> | string | null
-    userAgent?: StringNullableFilter<"PasswordReset"> | string | null
-    createdAt?: DateTimeFilter<"PasswordReset"> | Date | string
-  }
-
-  export type EmailVerificationUpsertWithWhereUniqueWithoutUserInput = {
-    where: EmailVerificationWhereUniqueInput
-    update: XOR<EmailVerificationUpdateWithoutUserInput, EmailVerificationUncheckedUpdateWithoutUserInput>
-    create: XOR<EmailVerificationCreateWithoutUserInput, EmailVerificationUncheckedCreateWithoutUserInput>
-  }
-
-  export type EmailVerificationUpdateWithWhereUniqueWithoutUserInput = {
-    where: EmailVerificationWhereUniqueInput
-    data: XOR<EmailVerificationUpdateWithoutUserInput, EmailVerificationUncheckedUpdateWithoutUserInput>
-  }
-
-  export type EmailVerificationUpdateManyWithWhereWithoutUserInput = {
-    where: EmailVerificationScalarWhereInput
-    data: XOR<EmailVerificationUpdateManyMutationInput, EmailVerificationUncheckedUpdateManyWithoutUserInput>
-  }
-
-  export type EmailVerificationScalarWhereInput = {
-    AND?: EmailVerificationScalarWhereInput | EmailVerificationScalarWhereInput[]
-    OR?: EmailVerificationScalarWhereInput[]
-    NOT?: EmailVerificationScalarWhereInput | EmailVerificationScalarWhereInput[]
-    id?: UuidFilter<"EmailVerification"> | string
-    userId?: UuidFilter<"EmailVerification"> | string
-    token?: StringFilter<"EmailVerification"> | string
-    expiresAt?: DateTimeFilter<"EmailVerification"> | Date | string
-    email?: StringFilter<"EmailVerification"> | string
-    verified?: BoolFilter<"EmailVerification"> | boolean
-    verifiedAt?: DateTimeNullableFilter<"EmailVerification"> | Date | string | null
-    ipAddress?: StringNullableFilter<"EmailVerification"> | string | null
-    userAgent?: StringNullableFilter<"EmailVerification"> | string | null
-    createdAt?: DateTimeFilter<"EmailVerification"> | Date | string
   }
 
   export type AuditLogUpsertWithWhereUniqueWithoutUserInput = {
@@ -46596,15 +42572,17 @@ export namespace Prisma {
     OR?: AuditLogScalarWhereInput[]
     NOT?: AuditLogScalarWhereInput | AuditLogScalarWhereInput[]
     id?: UuidFilter<"AuditLog"> | string
-    userId?: UuidNullableFilter<"AuditLog"> | string | null
+    actorUserId?: UuidNullableFilter<"AuditLog"> | string | null
     action?: EnumAuditActionFilter<"AuditLog"> | $Enums.AuditAction
-    entity?: StringFilter<"AuditLog"> | string
-    entityId?: StringNullableFilter<"AuditLog"> | string | null
+    targetType?: StringNullableFilter<"AuditLog"> | string | null
+    targetId?: UuidNullableFilter<"AuditLog"> | string | null
     oldValues?: JsonNullableFilter<"AuditLog">
     newValues?: JsonNullableFilter<"AuditLog">
     ipAddress?: StringNullableFilter<"AuditLog"> | string | null
     userAgent?: StringNullableFilter<"AuditLog"> | string | null
     organizationId?: UuidNullableFilter<"AuditLog"> | string | null
+    storeId?: UuidNullableFilter<"AuditLog"> | string | null
+    correlationId?: StringNullableFilter<"AuditLog"> | string | null
     metadata?: JsonNullableFilter<"AuditLog">
     createdAt?: DateTimeFilter<"AuditLog"> | Date | string
   }
@@ -46660,11 +42638,9 @@ export namespace Prisma {
   export type UserCreateWithoutSessionsInput = {
     id?: string
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -46677,10 +42653,6 @@ export namespace Prisma {
     lockedUntil?: Date | string | null
     sales?: SaleCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
     accounts?: AccountCreateNestedManyWithoutUserInput
@@ -46688,14 +42660,10 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutSessionsInput = {
     id?: string
-    organizationId?: string | null
-    storeId?: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -46708,8 +42676,6 @@ export namespace Prisma {
     lockedUntil?: Date | string | null
     sales?: SaleUncheckedCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
@@ -46734,11 +42700,9 @@ export namespace Prisma {
   export type UserUpdateWithoutSessionsInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -46751,10 +42715,6 @@ export namespace Prisma {
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
     accounts?: AccountUpdateManyWithoutUserNestedInput
@@ -46762,14 +42722,10 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutSessionsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -46782,272 +42738,6 @@ export namespace Prisma {
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
-    auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
-    memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
-    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserCreateWithoutPasswordResetsInput = {
-    id?: string
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
-    sales?: SaleCreateNestedManyWithoutUserInput
-    stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
-    sessions?: SessionCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
-    auditLogs?: AuditLogCreateNestedManyWithoutUserInput
-    memberships?: MembershipCreateNestedManyWithoutUserInput
-    accounts?: AccountCreateNestedManyWithoutUserInput
-  }
-
-  export type UserUncheckedCreateWithoutPasswordResetsInput = {
-    id?: string
-    organizationId?: string | null
-    storeId?: string | null
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
-    sales?: SaleUncheckedCreateNestedManyWithoutUserInput
-    stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
-    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
-    auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
-    memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
-    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
-  }
-
-  export type UserCreateOrConnectWithoutPasswordResetsInput = {
-    where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutPasswordResetsInput, UserUncheckedCreateWithoutPasswordResetsInput>
-  }
-
-  export type UserUpsertWithoutPasswordResetsInput = {
-    update: XOR<UserUpdateWithoutPasswordResetsInput, UserUncheckedUpdateWithoutPasswordResetsInput>
-    create: XOR<UserCreateWithoutPasswordResetsInput, UserUncheckedCreateWithoutPasswordResetsInput>
-    where?: UserWhereInput
-  }
-
-  export type UserUpdateToOneWithWhereWithoutPasswordResetsInput = {
-    where?: UserWhereInput
-    data: XOR<UserUpdateWithoutPasswordResetsInput, UserUncheckedUpdateWithoutPasswordResetsInput>
-  }
-
-  export type UserUpdateWithoutPasswordResetsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUpdateManyWithoutUserNestedInput
-    stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
-    sessions?: SessionUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
-    auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
-    memberships?: MembershipUpdateManyWithoutUserNestedInput
-    accounts?: AccountUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateWithoutPasswordResetsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
-    stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
-    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
-    auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
-    memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
-    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserCreateWithoutEmailVerificationsInput = {
-    id?: string
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
-    sales?: SaleCreateNestedManyWithoutUserInput
-    stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
-    sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    auditLogs?: AuditLogCreateNestedManyWithoutUserInput
-    memberships?: MembershipCreateNestedManyWithoutUserInput
-    accounts?: AccountCreateNestedManyWithoutUserInput
-  }
-
-  export type UserUncheckedCreateWithoutEmailVerificationsInput = {
-    id?: string
-    organizationId?: string | null
-    storeId?: string | null
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
-    sales?: SaleUncheckedCreateNestedManyWithoutUserInput
-    stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
-    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
-    memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
-    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
-  }
-
-  export type UserCreateOrConnectWithoutEmailVerificationsInput = {
-    where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutEmailVerificationsInput, UserUncheckedCreateWithoutEmailVerificationsInput>
-  }
-
-  export type UserUpsertWithoutEmailVerificationsInput = {
-    update: XOR<UserUpdateWithoutEmailVerificationsInput, UserUncheckedUpdateWithoutEmailVerificationsInput>
-    create: XOR<UserCreateWithoutEmailVerificationsInput, UserUncheckedCreateWithoutEmailVerificationsInput>
-    where?: UserWhereInput
-  }
-
-  export type UserUpdateToOneWithWhereWithoutEmailVerificationsInput = {
-    where?: UserWhereInput
-    data: XOR<UserUpdateWithoutEmailVerificationsInput, UserUncheckedUpdateWithoutEmailVerificationsInput>
-  }
-
-  export type UserUpdateWithoutEmailVerificationsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUpdateManyWithoutUserNestedInput
-    stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
-    sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
-    memberships?: MembershipUpdateManyWithoutUserNestedInput
-    accounts?: AccountUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateWithoutEmailVerificationsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
-    stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
-    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
@@ -47056,11 +42746,9 @@ export namespace Prisma {
   export type UserCreateWithoutAuditLogsInput = {
     id?: string
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -47073,25 +42761,17 @@ export namespace Prisma {
     lockedUntil?: Date | string | null
     sales?: SaleCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
     sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
     accounts?: AccountCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAuditLogsInput = {
     id?: string
-    organizationId?: string | null
-    storeId?: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -47105,8 +42785,6 @@ export namespace Prisma {
     sales?: SaleUncheckedCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
   }
@@ -47130,11 +42808,9 @@ export namespace Prisma {
   export type UserUpdateWithoutAuditLogsInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -47147,25 +42823,17 @@ export namespace Prisma {
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
     sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
     accounts?: AccountUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAuditLogsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -47179,8 +42847,6 @@ export namespace Prisma {
     sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -47211,7 +42877,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutCategoriesInput = {
@@ -47240,7 +42905,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutCategoriesInput = {
@@ -47353,7 +43017,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutCategoriesInput = {
@@ -47382,7 +43045,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type ProductUpsertWithWhereUniqueWithoutCategoryInput = {
@@ -47427,7 +43089,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutBrandsInput = {
@@ -47456,7 +43117,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutBrandsInput = {
@@ -47569,7 +43229,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutBrandsInput = {
@@ -47598,7 +43257,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type ProductUpsertWithWhereUniqueWithoutBrandInput = {
@@ -47747,7 +43405,6 @@ export namespace Prisma {
     stores?: StoreCreateNestedManyWithoutOrganizationInput
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutUnitMeasuresInput = {
@@ -47776,7 +43433,6 @@ export namespace Prisma {
     stores?: StoreUncheckedCreateNestedManyWithoutOrganizationInput
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutUnitMeasuresInput = {
@@ -47870,7 +43526,6 @@ export namespace Prisma {
     stores?: StoreUpdateManyWithoutOrganizationNestedInput
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutUnitMeasuresInput = {
@@ -47899,7 +43554,6 @@ export namespace Prisma {
     stores?: StoreUncheckedUpdateManyWithoutOrganizationNestedInput
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type BrandCreateWithoutProductsInput = {
@@ -47988,7 +43642,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutProductsInput = {
@@ -48017,7 +43670,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutProductsInput = {
@@ -48273,7 +43925,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutProductsInput = {
@@ -48302,7 +43953,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type UnitMeasureUpsertWithoutProductsInput = {
@@ -48432,7 +44082,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutCustomersInput = {
@@ -48461,7 +44110,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutCustomersInput = {
@@ -48558,7 +44206,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutCustomersInput = {
@@ -48587,7 +44234,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type SaleUpsertWithWhereUniqueWithoutCustomerInput = {
@@ -48674,7 +44320,6 @@ export namespace Prisma {
     stores?: StoreCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutSuppliersInput = {
@@ -48703,7 +44348,6 @@ export namespace Prisma {
     stores?: StoreUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutSuppliersInput = {
@@ -48783,7 +44427,6 @@ export namespace Prisma {
     stores?: StoreUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutSuppliersInput = {
@@ -48812,7 +44455,6 @@ export namespace Prisma {
     stores?: StoreUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationCreateWithoutPaymentMethodsInput = {
@@ -48841,7 +44483,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutPaymentMethodsInput = {
@@ -48870,7 +44511,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutPaymentMethodsInput = {
@@ -48951,7 +44591,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutPaymentMethodsInput = {
@@ -48980,7 +44619,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type SalePaymentUpsertWithWhereUniqueWithoutPaymentMethodInput = {
@@ -49147,7 +44785,6 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     organization: OrganizationCreateNestedOneWithoutStoresInput
-    users?: UserCreateNestedManyWithoutStoreInput
     memberships?: MembershipCreateNestedManyWithoutDefaultStoreInput
   }
 
@@ -49167,7 +44804,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
-    users?: UserUncheckedCreateNestedManyWithoutStoreInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutDefaultStoreInput
   }
 
@@ -49179,11 +44815,9 @@ export namespace Prisma {
   export type UserCreateWithoutSalesInput = {
     id?: string
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -49195,11 +44829,7 @@ export namespace Prisma {
     loginAttempts?: number
     lockedUntil?: Date | string | null
     stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
     sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
     accounts?: AccountCreateNestedManyWithoutUserInput
@@ -49207,14 +44837,10 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutSalesInput = {
     id?: string
-    organizationId?: string | null
-    storeId?: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -49227,8 +44853,6 @@ export namespace Prisma {
     lockedUntil?: Date | string | null
     stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
@@ -49347,7 +44971,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     organization?: OrganizationUpdateOneRequiredWithoutStoresNestedInput
-    users?: UserUpdateManyWithoutStoreNestedInput
     memberships?: MembershipUpdateManyWithoutDefaultStoreNestedInput
   }
 
@@ -49367,7 +44990,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    users?: UserUncheckedUpdateManyWithoutStoreNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutDefaultStoreNestedInput
   }
 
@@ -49385,11 +45007,9 @@ export namespace Prisma {
   export type UserUpdateWithoutSalesInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -49401,11 +45021,7 @@ export namespace Prisma {
     loginAttempts?: IntFieldUpdateOperationsInput | number
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
     sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
     accounts?: AccountUpdateManyWithoutUserNestedInput
@@ -49413,14 +45029,10 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutSalesInput = {
     id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -49433,8 +45045,6 @@ export namespace Prisma {
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
@@ -50280,7 +45890,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutStockMovementsInput = {
@@ -50309,7 +45918,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutStockMovementsInput = {
@@ -50383,11 +45991,9 @@ export namespace Prisma {
   export type UserCreateWithoutStockMovementsInput = {
     id?: string
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -50399,11 +46005,7 @@ export namespace Prisma {
     loginAttempts?: number
     lockedUntil?: Date | string | null
     sales?: SaleCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
     sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
     accounts?: AccountCreateNestedManyWithoutUserInput
@@ -50411,14 +46013,10 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutStockMovementsInput = {
     id?: string
-    organizationId?: string | null
-    storeId?: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -50431,8 +46029,6 @@ export namespace Prisma {
     lockedUntil?: Date | string | null
     sales?: SaleUncheckedCreateNestedManyWithoutUserInput
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
@@ -50480,7 +46076,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutStockMovementsInput = {
@@ -50509,7 +46104,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type ProductUpsertWithoutStockMovementsInput = {
@@ -50595,11 +46189,9 @@ export namespace Prisma {
   export type UserUpdateWithoutStockMovementsInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -50611,11 +46203,7 @@ export namespace Prisma {
     loginAttempts?: IntFieldUpdateOperationsInput | number
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
     sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
     accounts?: AccountUpdateManyWithoutUserNestedInput
@@ -50623,14 +46211,10 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutStockMovementsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -50643,8 +46227,6 @@ export namespace Prisma {
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
@@ -50676,7 +46258,6 @@ export namespace Prisma {
     stores?: StoreCreateNestedManyWithoutOrganizationInput
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutSystemConfigsInput = {
@@ -50705,7 +46286,6 @@ export namespace Prisma {
     stores?: StoreUncheckedCreateNestedManyWithoutOrganizationInput
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutSystemConfigsInput = {
@@ -50750,7 +46330,6 @@ export namespace Prisma {
     stores?: StoreUpdateManyWithoutOrganizationNestedInput
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutSystemConfigsInput = {
@@ -50779,17 +46358,14 @@ export namespace Prisma {
     stores?: StoreUncheckedUpdateManyWithoutOrganizationNestedInput
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type UserCreateWithoutMembershipsInput = {
     id?: string
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -50802,25 +46378,17 @@ export namespace Prisma {
     lockedUntil?: Date | string | null
     sales?: SaleCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
     sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
     accounts?: AccountCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutMembershipsInput = {
     id?: string
-    organizationId?: string | null
-    storeId?: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -50834,8 +46402,6 @@ export namespace Prisma {
     sales?: SaleUncheckedCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
   }
@@ -50871,7 +46437,6 @@ export namespace Prisma {
     suppliers?: SupplierCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureCreateNestedManyWithoutOrganizationInput
-    users?: UserCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutMembershipsInput = {
@@ -50900,7 +46465,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedCreateNestedManyWithoutOrganizationInput
     systemConfigs?: SystemConfigUncheckedCreateNestedManyWithoutOrganizationInput
     unitMeasures?: UnitMeasureUncheckedCreateNestedManyWithoutOrganizationInput
-    users?: UserUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutMembershipsInput = {
@@ -50925,7 +46489,6 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     sales?: SaleCreateNestedManyWithoutStoreInput
     organization: OrganizationCreateNestedOneWithoutStoresInput
-    users?: UserCreateNestedManyWithoutStoreInput
   }
 
   export type StoreUncheckedCreateWithoutMembershipsInput = {
@@ -50945,7 +46508,6 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     sales?: SaleUncheckedCreateNestedManyWithoutStoreInput
-    users?: UserUncheckedCreateNestedManyWithoutStoreInput
   }
 
   export type StoreCreateOrConnectWithoutMembershipsInput = {
@@ -50967,11 +46529,9 @@ export namespace Prisma {
   export type UserUpdateWithoutMembershipsInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -50984,25 +46544,17 @@ export namespace Prisma {
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
     sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
     accounts?: AccountUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutMembershipsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -51016,8 +46568,6 @@ export namespace Prisma {
     sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -51059,7 +46609,6 @@ export namespace Prisma {
     suppliers?: SupplierUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUpdateManyWithoutOrganizationNestedInput
-    users?: UserUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutMembershipsInput = {
@@ -51088,7 +46637,6 @@ export namespace Prisma {
     suppliers?: SupplierUncheckedUpdateManyWithoutOrganizationNestedInput
     systemConfigs?: SystemConfigUncheckedUpdateManyWithoutOrganizationNestedInput
     unitMeasures?: UnitMeasureUncheckedUpdateManyWithoutOrganizationNestedInput
-    users?: UserUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type StoreUpsertWithoutMembershipsInput = {
@@ -51119,7 +46667,6 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutStoreNestedInput
     organization?: OrganizationUpdateOneRequiredWithoutStoresNestedInput
-    users?: UserUpdateManyWithoutStoreNestedInput
   }
 
   export type StoreUncheckedUpdateWithoutMembershipsInput = {
@@ -51139,17 +46686,14 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUncheckedUpdateManyWithoutStoreNestedInput
-    users?: UserUncheckedUpdateManyWithoutStoreNestedInput
   }
 
   export type UserCreateWithoutAccountsInput = {
     id?: string
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -51162,25 +46706,17 @@ export namespace Prisma {
     lockedUntil?: Date | string | null
     sales?: SaleCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementCreateNestedManyWithoutUserInput
-    organization?: OrganizationCreateNestedOneWithoutUsersInput
-    store?: StoreCreateNestedOneWithoutUsersInput
     sessions?: SessionCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAccountsInput = {
     id?: string
-    organizationId?: string | null
-    storeId?: string | null
     email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
+    passwordHash?: string | null
+    name: string
+    image?: string | null
     emailVerified?: boolean
     isActive?: boolean
     isDeleted?: boolean
@@ -51194,8 +46730,6 @@ export namespace Prisma {
     sales?: SaleUncheckedCreateNestedManyWithoutUserInput
     stockMovements?: StockMovementUncheckedCreateNestedManyWithoutUserInput
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
-    passwordResets?: PasswordResetUncheckedCreateNestedManyWithoutUserInput
-    emailVerifications?: EmailVerificationUncheckedCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
   }
@@ -51219,11 +46753,9 @@ export namespace Prisma {
   export type UserUpdateWithoutAccountsInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -51236,25 +46768,17 @@ export namespace Prisma {
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
     sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAccountsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    image?: NullableStringFieldUpdateOperationsInput | string | null
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
@@ -51268,8 +46792,6 @@ export namespace Prisma {
     sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
     stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -51434,27 +46956,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
-  }
-
-  export type UserCreateManyOrganizationInput = {
-    id?: string
-    storeId?: string | null
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
   }
 
   export type BrandUpdateWithoutOrganizationInput = {
@@ -51802,7 +47303,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUpdateManyWithoutStoreNestedInput
-    users?: UserUpdateManyWithoutStoreNestedInput
     memberships?: MembershipUpdateManyWithoutDefaultStoreNestedInput
   }
 
@@ -51822,7 +47322,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sales?: SaleUncheckedUpdateManyWithoutStoreNestedInput
-    users?: UserUncheckedUpdateManyWithoutStoreNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutDefaultStoreNestedInput
   }
 
@@ -51969,85 +47468,6 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
-  export type UserUpdateWithoutOrganizationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUpdateManyWithoutUserNestedInput
-    stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    store?: StoreUpdateOneWithoutUsersNestedInput
-    sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
-    auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
-    memberships?: MembershipUpdateManyWithoutUserNestedInput
-    accounts?: AccountUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateWithoutOrganizationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
-    stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
-    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
-    auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
-    memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
-    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateManyWithoutOrganizationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    storeId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  }
-
   export type SaleCreateManyStoreInput = {
     id?: string
     organizationId: string
@@ -52065,27 +47485,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
-  }
-
-  export type UserCreateManyStoreInput = {
-    id?: string
-    organizationId?: string | null
-    email: string
-    password: string
-    username: string
-    firstName: string
-    lastName: string
-    role?: $Enums.UserRole
-    emailVerified?: boolean
-    isActive?: boolean
-    isDeleted?: boolean
-    deletedAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lastLoginAt?: Date | string | null
-    passwordChangedAt?: Date | string | null
-    loginAttempts?: number
-    lockedUntil?: Date | string | null
   }
 
   export type MembershipCreateManyDefaultStoreInput = {
@@ -52162,85 +47561,6 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
-  export type UserUpdateWithoutStoreInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUpdateManyWithoutUserNestedInput
-    stockMovements?: StockMovementUpdateManyWithoutUserNestedInput
-    organization?: OrganizationUpdateOneWithoutUsersNestedInput
-    sessions?: SessionUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUpdateManyWithoutUserNestedInput
-    auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
-    memberships?: MembershipUpdateManyWithoutUserNestedInput
-    accounts?: AccountUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateWithoutStoreInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sales?: SaleUncheckedUpdateManyWithoutUserNestedInput
-    stockMovements?: StockMovementUncheckedUpdateManyWithoutUserNestedInput
-    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
-    passwordResets?: PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-    emailVerifications?: EmailVerificationUncheckedUpdateManyWithoutUserNestedInput
-    auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
-    memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
-    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateManyWithoutStoreInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    organizationId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    firstName?: StringFieldUpdateOperationsInput | string
-    lastName?: StringFieldUpdateOperationsInput | string
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    emailVerified?: BoolFieldUpdateOperationsInput | boolean
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isDeleted?: BoolFieldUpdateOperationsInput | boolean
-    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    passwordChangedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    loginAttempts?: IntFieldUpdateOperationsInput | number
-    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  }
-
   export type MembershipUpdateWithoutDefaultStoreInput = {
     id?: StringFieldUpdateOperationsInput | string
     role?: EnumMembershipRoleFieldUpdateOperationsInput | $Enums.MembershipRole
@@ -52315,7 +47635,7 @@ export namespace Prisma {
 
   export type SessionCreateManyUserInput = {
     id?: string
-    token: string
+    tokenHash: string
     refreshTokenHash?: string | null
     rotatedFrom?: string | null
     expiresAt: Date | string
@@ -52330,39 +47650,18 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type PasswordResetCreateManyUserInput = {
-    id?: string
-    token: string
-    expiresAt: Date | string
-    used?: boolean
-    usedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
-  export type EmailVerificationCreateManyUserInput = {
-    id?: string
-    token: string
-    expiresAt: Date | string
-    email: string
-    verified?: boolean
-    verifiedAt?: Date | string | null
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt?: Date | string
-  }
-
   export type AuditLogCreateManyUserInput = {
     id?: string
     action: $Enums.AuditAction
-    entity: string
-    entityId?: string | null
+    targetType?: string | null
+    targetId?: string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: string | null
     userAgent?: string | null
     organizationId?: string | null
+    storeId?: string | null
+    correlationId?: string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
   }
@@ -52497,7 +47796,7 @@ export namespace Prisma {
 
   export type SessionUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
     refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     rotatedFrom?: NullableStringFieldUpdateOperationsInput | string | null
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -52514,7 +47813,7 @@ export namespace Prisma {
 
   export type SessionUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
     refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     rotatedFrom?: NullableStringFieldUpdateOperationsInput | string | null
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -52531,7 +47830,7 @@ export namespace Prisma {
 
   export type SessionUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
+    tokenHash?: StringFieldUpdateOperationsInput | string
     refreshTokenHash?: NullableStringFieldUpdateOperationsInput | string | null
     rotatedFrom?: NullableStringFieldUpdateOperationsInput | string | null
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -52546,85 +47845,18 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type PasswordResetUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    used?: BoolFieldUpdateOperationsInput | boolean
-    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type PasswordResetUncheckedUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    used?: BoolFieldUpdateOperationsInput | boolean
-    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type PasswordResetUncheckedUpdateManyWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    used?: BoolFieldUpdateOperationsInput | boolean
-    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type EmailVerificationUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    email?: StringFieldUpdateOperationsInput | string
-    verified?: BoolFieldUpdateOperationsInput | boolean
-    verifiedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type EmailVerificationUncheckedUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    email?: StringFieldUpdateOperationsInput | string
-    verified?: BoolFieldUpdateOperationsInput | boolean
-    verifiedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type EmailVerificationUncheckedUpdateManyWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    token?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    email?: StringFieldUpdateOperationsInput | string
-    verified?: BoolFieldUpdateOperationsInput | boolean
-    verifiedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
-    userAgent?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
   export type AuditLogUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     action?: EnumAuditActionFieldUpdateOperationsInput | $Enums.AuditAction
-    entity?: StringFieldUpdateOperationsInput | string
-    entityId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetType?: NullableStringFieldUpdateOperationsInput | string | null
+    targetId?: NullableStringFieldUpdateOperationsInput | string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     userAgent?: NullableStringFieldUpdateOperationsInput | string | null
     organizationId?: NullableStringFieldUpdateOperationsInput | string | null
+    storeId?: NullableStringFieldUpdateOperationsInput | string | null
+    correlationId?: NullableStringFieldUpdateOperationsInput | string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -52632,13 +47864,15 @@ export namespace Prisma {
   export type AuditLogUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     action?: EnumAuditActionFieldUpdateOperationsInput | $Enums.AuditAction
-    entity?: StringFieldUpdateOperationsInput | string
-    entityId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetType?: NullableStringFieldUpdateOperationsInput | string | null
+    targetId?: NullableStringFieldUpdateOperationsInput | string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     userAgent?: NullableStringFieldUpdateOperationsInput | string | null
     organizationId?: NullableStringFieldUpdateOperationsInput | string | null
+    storeId?: NullableStringFieldUpdateOperationsInput | string | null
+    correlationId?: NullableStringFieldUpdateOperationsInput | string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -52646,13 +47880,15 @@ export namespace Prisma {
   export type AuditLogUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     action?: EnumAuditActionFieldUpdateOperationsInput | $Enums.AuditAction
-    entity?: StringFieldUpdateOperationsInput | string
-    entityId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetType?: NullableStringFieldUpdateOperationsInput | string | null
+    targetId?: NullableStringFieldUpdateOperationsInput | string | null
     oldValues?: NullableJsonNullValueInput | InputJsonValue
     newValues?: NullableJsonNullValueInput | InputJsonValue
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     userAgent?: NullableStringFieldUpdateOperationsInput | string | null
     organizationId?: NullableStringFieldUpdateOperationsInput | string | null
+    storeId?: NullableStringFieldUpdateOperationsInput | string | null
+    correlationId?: NullableStringFieldUpdateOperationsInput | string | null
     metadata?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

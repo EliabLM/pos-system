@@ -42,8 +42,8 @@ export async function refreshToken(userId: string): Promise<ActionResponse<Refre
       };
     }
 
-    // Obtener usuario actualizado de la base de datos
-    const user = await prisma.user.findFirst({
+    // Obtener usuario actualizado + tenancy del membership ACTIVO (D3.3)
+    const userRow = await prisma.user.findFirst({
       where: {
         id: userId,
         isDeleted: false,
@@ -51,32 +51,42 @@ export async function refreshToken(userId: string): Promise<ActionResponse<Refre
       },
       select: {
         id: true,
-        firstName: true,
-        lastName: true,
+        name: true,
         email: true,
-        username: true,
-        role: true,
-        organizationId: true,
-        storeId: true,
         isActive: true,
         emailVerified: true,
         createdAt: true,
-        organization: {
+        memberships: {
+          where: { deletedAt: null, status: 'ACTIVE' },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
           select: {
-            id: true,
-            name: true,
-            isActive: true,
-          },
-        },
-        store: {
-          select: {
-            id: true,
-            name: true,
-            isActive: true,
+            role: true,
+            organizationId: true,
+            defaultStoreId: true,
+            organization: { select: { id: true, name: true, isActive: true } },
+            defaultStore: { select: { id: true, name: true, isActive: true } },
           },
         },
       },
     });
+
+    const membership = userRow?.memberships[0] ?? null;
+    const user = userRow
+      ? {
+          id: userRow.id,
+          name: userRow.name,
+          email: userRow.email,
+          role: membership?.role ?? 'ADMIN',
+          organizationId: membership?.organizationId ?? null,
+          storeId: membership?.defaultStoreId ?? null,
+          isActive: userRow.isActive,
+          emailVerified: userRow.emailVerified,
+          createdAt: userRow.createdAt,
+          organization: membership?.organization ?? null,
+          store: membership?.defaultStore ?? null,
+        }
+      : null;
 
     if (!user) {
       console.error('[RefreshToken] Usuario no encontrado o inactivo:', userId);

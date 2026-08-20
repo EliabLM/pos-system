@@ -1,7 +1,7 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { User } from '@/generated/prisma';
+import type { UserWithTenancy as User } from '@/actions/user/user.actions';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -66,10 +66,7 @@ export const getColumns = ({
         return (
           <div className="flex flex-col min-w-0">
             <span className="font-medium text-sm sm:text-base truncate">
-              {user.firstName} {user.lastName}
-            </span>
-            <span className="text-xs text-muted-foreground truncate">
-              @{user.username}
+              {user.name}
             </span>
           </div>
         );

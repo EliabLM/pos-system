@@ -75,7 +75,7 @@ pnpm lint           # expo lint
 
 - Server actions per entity in `src/actions/<entity>/` returning `ActionResponse<T>` (`{ status, message, data }`); shared Prisma instance and auth helpers (`checkAdminRole`, `checkOrgId`) in `src/actions/utils.ts` — never `new PrismaClient()`.
 - Prisma client generates to a custom path: import from `@/generated/prisma`, never `@prisma/client`. The generated client is **committed to git** — expect diff churn after `prisma generate`; don't delete it.
-- Custom JWT auth (migrated off Clerk): `src/middleware.ts` verifies the `auth-token` cookie with `jose` and injects `x-user-id` / `x-organization-id` / `x-store-id` headers. RBAC roles: ADMIN, SELLER.
+- Custom JWT auth (migrated off Clerk): `src/middleware.ts` verifies the `auth-token` cookie with `jose` and injects `x-user-id` / `x-organization-id` / `x-store-id` headers. RBAC roles: ADMIN, SELLER — stored on `memberships` (users are global identities since Fase 1 paso 3; auth actions compose the user+membership view).
 - Multi-tenant + soft delete: almost every query filters `organizationId` and `isDeleted: false`; deletes are `update({ isDeleted: true, deletedAt: new Date() })`.
 - Client data flow: TanStack Query hooks in `src/hooks/use<Entity>.ts` wrap the server actions; Zustand store persists to sessionStorage.
 - Feature pages follow `page.tsx` + `features/` subfolder — mirror an existing module (e.g. `src/app/dashboard/categories/`).
