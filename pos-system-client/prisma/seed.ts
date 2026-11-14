@@ -8,11 +8,11 @@
  * corrida. Ver `docs/features/testing/playwright-test-plan.md` §5.
  *
  * Estrategia: deleteMany en orden inverso a las FKs y luego create en orden
- * correcto. Los IDs cambian por corrida (cuid) — los specs deben resolver IDs
+ * correcto. Los IDs cambian por corrida (UUIDv7) — los specs deben resolver IDs
  * por UI o por consulta, nunca hardcodearlos.
  *
  * Ejecutar desde `pos-system-client/`:
- *   pnpm db:seed               # ← idempotente (borra y recrea)
+ *   POS_SEED_ALLOW_RESET=1 pnpm db:seed # borra y recrea SOLO datos sintéticos
  *
  * Conexión: usa `process.env.DATABASE_URL`. Cuando se corre desde el host contra
  * el stack docker debe apuntar a `postgresql://pos:pos@localhost:5432/pos`.
@@ -26,10 +26,11 @@
  *   trash@pos.test     → Trash123!   (isDeleted=true)
  */
 
-import { PrismaClient, MembershipRole, MembershipStatus, SaleStatus, PaymentType, StockMovementType, AuditAction, PurchaseStatus } from '../src/generated/prisma';
+import { Prisma, PrismaClient, MembershipRole, MembershipStatus, SaleStatus, PaymentType, StockMovementType, AuditAction, PurchaseStatus } from '../src/generated/prisma';
 import bcrypt from 'bcrypt';
+import { assertSeedTarget, SeedTargetError } from './seed-guard';
 
-const prisma = new PrismaClient();
+const client = new PrismaClient();
 
 const SEED_ORG_NAME = 'Pos Demo Org';
 const SEED_STORE_CENTRAL = 'Store Central';
@@ -39,8 +40,8 @@ async function hash(plain: string): Promise<string> {
   return bcrypt.hash(plain, 12);
 }
 
-async function main() {
-  console.info('🌱 Seed: iniciando (idempotente)...');
+async function seed(prisma: Prisma.TransactionClient) {
+  console.info('🌱 Seed: iniciando (reemplazo transaccional)...');
 
   // ============================================================
   // 1. BORRAR (orden inverso a FKs)
@@ -63,9 +64,11 @@ async function main() {
   await prisma.auditLog.deleteMany({});
   await prisma.systemConfig.deleteMany({});
   await prisma.membership.deleteMany({});
+  await prisma.account.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.store.deleteMany({});
   await prisma.organization.deleteMany({});
+  await prisma.legacyIdMap.deleteMany({});
   console.info('🧹 Seed: registros previos eliminados.');
 
   // ============================================================
@@ -441,7 +444,46 @@ async function main() {
     },
   });
 
-  console.info('✅ Seed: completado.');
+  // Segunda organización independiente para regresión de autorización/tenant.
+  // Nombres y códigos iguales son intencionales: deben poder coexistir por org.
+  const isolationOrg = await prisma.organization.create({
+    data: { name: 'Pos Isolation Org', email: 'isolation@pos.test', nit: '900654321-0' },
+  });
+  const isolationStore = await prisma.store.create({
+    data: { organizationId: isolationOrg.id, name: SEED_STORE_CENTRAL,
+      address: 'Dirección sintética', saleNumberPrefix: 'SI' },
+  });
+  for (const input of [
+    { email: 'admin.isolation@pos.test', name: 'Admin Aislamiento', role: MembershipRole.ADMIN, passwordHash: adminPass },
+    { email: 'seller.isolation@pos.test', name: 'Seller Aislamiento', role: MembershipRole.SELLER, passwordHash: sellerPass },
+  ]) {
+    await prisma.user.create({ data: {
+      email: input.email, name: input.name, passwordHash: input.passwordHash,
+      emailVerified: true, passwordChangedAt: new Date(),
+      memberships: { create: { organizationId: isolationOrg.id,
+        defaultStoreId: isolationStore.id, role: input.role,
+        status: MembershipStatus.ACTIVE, acceptedAt: new Date() } },
+    } });
+  }
+  const isolationCategory = await prisma.category.create({
+    data: { organizationId: isolationOrg.id, name: 'Bebidas' },
+  });
+  const isolationProduct = await prisma.product.create({
+    data: { organizationId: isolationOrg.id, name: 'Producto A', barcode: 'BC001',
+      sku: 'SKU001', categoryId: isolationCategory.id, costPrice: '1200.25',
+      salePrice: '2000.50', currentStock: 12, minStock: 2 },
+  });
+  const isolationSupplier = await prisma.supplier.create({
+    data: { organizationId: isolationOrg.id, name: 'Distrib SA', taxId: '1111' },
+  });
+  await prisma.purchase.create({ data: {
+    organizationId: isolationOrg.id, supplierId: isolationSupplier.id,
+    purchaseNumber: 'COMP-000001', total: '2400.50', status: PurchaseStatus.PENDING,
+    purchaseItems: { create: { productId: isolationProduct.id,
+      quantity: 2, unitPrice: '1200.25', subtotal: '2400.50' } },
+  } });
+
+  console.info('Seed: fixtures creados; confirmación de transacción pendiente.');
   console.info(`   Org: ${org.name} (${org.id})`);
   console.info(`   Stores: ${storeCentral.name} (SC, lastSale=1), ${storeNorte.name} (SN, lastSale=0)`);
   console.info(`   Users: admin@pos.test / Admin123!  (ADMIN)`);
@@ -451,11 +493,17 @@ async function main() {
   console.info(`   Sale histórica: SC-000001 — PAID, ${saleItems.length} items, total=${total}`);
 }
 
+async function main() {
+  assertSeedTarget(process.env);
+  await client.$transaction(seed, { timeout: 120_000, maxWait: 10_000 });
+  console.info('✅ Seed: transacción confirmada; dos organizaciones sintéticas listas.');
+}
+
 main()
   .catch((e) => {
-    console.error('❌ Seed: error fatal.', e);
-    process.exit(1);
+    console.error('❌ Seed: error fatal.', e instanceof SeedTargetError ? e.message : e instanceof Error ? e.name : 'UnknownError');
+    process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await client.$disconnect();
   });

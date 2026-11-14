@@ -59,6 +59,9 @@ async function runSeed(): Promise<void> {
 }
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
+  if (process.env.E2E_SKIP_SEED !== '1' && process.env.POS_SEED_ALLOW_RESET !== '1') {
+    throw new Error('E2E reseed requires POS_SEED_ALLOW_RESET=1 on a disposable local database.');
+  }
   console.info('🌐 globalSetup: esperando stack docker...');
   await waitForApp();
 
