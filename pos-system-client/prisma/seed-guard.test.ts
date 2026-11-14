@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { assertSeedTarget } from './seed-guard';
 
-const allowed = {
+const allowed: NodeJS.ProcessEnv = {
   NODE_ENV: 'test',
   POS_SEED_ALLOW_RESET: '1',
   DATABASE_URL: 'postgresql://pos:pos@localhost:55432/pos_seed?schema=public',
@@ -16,7 +16,7 @@ test('allows an explicit disposable local target', () => {
 test('rejects missing consent, production and unknown targets without echoing the URL', () => {
   for (const overrides of [
     { POS_SEED_ALLOW_RESET: undefined },
-    { NODE_ENV: 'production' },
+    { NODE_ENV: 'production' as const },
     { DATABASE_URL: undefined },
     { DATABASE_URL: 'not-a-url' },
     { DATABASE_URL: 'postgresql://user:secret@remote.example/pos_seed' },
