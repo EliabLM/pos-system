@@ -15,7 +15,6 @@ import {
   emptyOrgIdResponse,
   serializeDecimals,
 } from '../utils';
-import { createStockMovement } from '../stock-movement';
 
 // PURCHASE INCLUDES
 const purchaseInclude: Prisma.PurchaseInclude = {
@@ -344,7 +343,7 @@ export const getPurchasesByOrgId = async (
 };
 
 // Definir el tipo de include sin where clauses para correcta inferencia de tipos
-const purchaseIncludeForType = {
+type PurchaseIncludeForType = {
   supplier: true,
   purchaseItems: {
     include: {
@@ -360,11 +359,11 @@ const purchaseIncludeForType = {
   _count: {
     select: { purchaseItems: true },
   },
-} as const satisfies Prisma.PurchaseInclude;
+};
 
 // Tipo para compra con todas las relaciones incluidas
 export type PurchaseWithRelations = Prisma.PurchaseGetPayload<{
-  include: typeof purchaseIncludeForType;
+  include: PurchaseIncludeForType;
 }>;
 
 // GET PURCHASE BY ID
