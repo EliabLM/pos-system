@@ -4,7 +4,7 @@
 
 ## Estado actual
 
-**Fase: Migración de monolito a 3 proyectos — Fase 0 y Pre-Fase 1 cerradas. Arrancando Fase 1 (DB foundation).**
+**Fase: Migración de monolito a 3 proyectos — Fase 0 y Pre-Fase 1 cerradas. Fase 1 pasos 1–3 implementados; validando instalación limpia con seed sintético.**
 
 - Monorepo git con `pnpm-workspace.yaml` activo. Miembro `pos-system-client/` se gestiona con su propio `pnpm-lock.yaml` durante la migración strangler-fig; se absorbe al workspace en Fase 5.
 - `pos-system-client/` — Next.js 15 + Prisma/PostgreSQL + auth JWT custom (app POS operativa). Desde el 2026-08-20 ya **no es dueño del schema Prisma**: solo regenera/consume el cliente generado (`src/generated/prisma`) apuntando al schema del server.
@@ -23,6 +23,7 @@
 
 | Fecha | Hito |
 |-------|------|
+| 2026-11-14 | Seed de instalación limpia ampliado a dos tenants con carga transaccional, guard de destino/consentimiento y verificador. Validación en contenedores temporales ARM64: PostgreSQL 17 vacío, las 13 migraciones aplicadas, dos cargas/verificaciones correctas, TypeScript strict del seed, tests del guard, rechazo sin consentimiento sin mutación y fallo inyectado con rollback preservando IDs. Se usó harness mínimo con Prisma 6.14.0/pnpm 10.7.1; NO se ejecutaron build/lint completos de la app ni Playwright en esta revisión. No se declara Fase 1 cerrada por estos checks. |
 | 2026-08-09 | Documentación centralizada en el repo padre y organizada por categorías |
 | 2026-08-09 | Auth JWT custom (migrada desde Clerk) + RBAC Admin/Seller — ver [`auth/`](./auth/) |
 | 2026-08-09 | Stack de los 3 proyectos definido + 7 skills de soporte creadas |
@@ -49,8 +50,10 @@
 1. ~~Mover `prisma/schema.prisma` del client al server~~ ✅ Hecho el 2026-08-20 (sin cambios de schema; stack docker + smoke E2E 17/17 verdes).
 2. ~~Aplicar targets de `postgresql-table-design`~~ ✅ Hecho el 2026-08-20 en 6 migraciones (snake_case, uniques parciales, timestamptz+trigger, índices, Decimal, UUIDv7, RLS). Pendientes que quedan de este paso para Fase 2: `FORCE ROW LEVEL SECURITY` + runtime con rol `pos_app` non-owner + `SET LOCAL app.tenant_id` por request.
 3. ~~Aplicar schema auth target (R6, R7)~~ ✅ Hecho el 2026-08-20 en 2 bloques: (3a aditivo) `memberships` poblada, `verifications` con merge de las 2 tablas viejas, `accounts` skeleton, `organizations.slug` con trigger de slugify (R7), `sessions.refresh_token_hash`/`rotated_from`; (3b/3c destructivo + refactor client ~30 archivos) users = identidad global (`name`, `passwordHash` nullable, sin `username`/org/store/role — tenancy en memberships), `sessions.token`→`token_hash`, `audit_logs` actor-action-target (+`store_id`, `correlation_id`; enum extendido), drop de `password_resets`/`email_verifications` y `user_role`. Las auth actions componen la vista legacy (role/org/store) desde el membership ACTIVO → JWT claims y middleware sin cambios; usuario sin membership = dueño en onboarding (ADMIN). Smoke E2E 17/17 (login + RBAC vía memberships). ⚠️ Register ahora pide un solo campo `name` (D3.5) — sin spec E2E aún.
-4. **← SIGUIENTE:** ensayar la cadena completa de migraciones sobre un **dump de la Supabase legacy** (datos reales) en staging local: `pg_dump` → restore → `migrate deploy` → verificaciones R1/R2/R6 (counts, redondeos, memberships por user). La cadena ya corrió limpia sobre los datos del seed local.
-5. Definition of done: ~~`prisma migrate deploy` verde~~ ✅ · ~~tests RLS de aislamiento~~ ✅ (`scripts/db/rls-test.sql`) · ~~schema matchea `AUTH_TARGET_SCHEMA.md`~~ ✅ (con desvíos deliberados documentados: FORCE RLS diferido a Fase 2, enum audit extendido en vez de reemplazado, `isDeleted` conservado) · falta solo el ensayo sobre dump de prod (paso 4).
+4. **Decisión 2026-11-14:** el usuario confirma que POS no tiene datos reales ni backups a migrar. Se retira el ensayo sobre dump legacy del alcance actual y se adopta instalación desde cero con datos sintéticos. No se afirma haber probado una migración de datos reales.
+5. **← SIGUIENTE:** aplicar todas las migraciones a PostgreSQL 17 vacío y ejecutar/verificar el seed dos veces; validar smoke P0 con la app apuntada a esa misma base. Ver [`features/testing/SEED-DESDE-CERO.md`](./features/testing/SEED-DESDE-CERO.md). No consolidar ni borrar migraciones existentes.
+6. Seed ampliado: dos organizaciones independientes con admin/seller, memberships y compras/productos propios; carga transaccional con confirmación explícita de reemplazo y rechazo de destinos ajenos a desarrollo local. Nuevos scripts `test:seed:guard` y `db:seed:verify`.
+7. Definition of done vigente: migraciones desde vacío, verificaciones del seed y repetición sin duplicados; regresión de aplicación y pruebas negativas cross-tenant. El seed no resuelve por sí mismo gaps de autorización, JWT o FORCE RLS.
 
 > Antes de ejecutar, confirmar el alcance exacto y el orden de sub-tareas de la fase (regla del plan).
 

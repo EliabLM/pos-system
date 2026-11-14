@@ -33,6 +33,11 @@ Toda la documentación vive en `docs/`. Empezar por [`docs/STATUS.md`](docs/STAT
 
 ## Estado
 
-Fase 0 completada — monorepo git, scaffolds de server/app/packages, repo remoto en GitHub. Próximo: Fase 1 (CI del monorepo + shared packages con contenido real + primer módulo de dominio del server).
+Fase 1 pasos 1–3 implementados: schema del server, Decimal/UUIDv7/RLS y auth basada en memberships. Sin datos reales que migrar; el siguiente hito es validar instalación limpia con migraciones y seed sintético de dos organizaciones, seguido por regresión de aplicación y aislamiento entre tenants.
 
 Ver [`docs/STATUS.md`](docs/STATUS.md) para el detalle y la deuda técnica conocida (Float→Decimal, cuid→UUID v7, RLS en Postgres).
+
+
+## Inicialización con datos sintéticos
+
+Ver [SEED-DESDE-CERO.md](docs/features/testing/SEED-DESDE-CERO.md): PostgreSQL 17 dedicado, migraciones existentes, seed transaccional con dos tenants y verificación repetible. El seed reemplaza datos de prueba y requiere `POS_SEED_ALLOW_RESET=1`; no se ejecuta automáticamente al iniciar la aplicación.

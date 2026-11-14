@@ -15,9 +15,9 @@
    corepack pnpm install
    corepack pnpm exec playwright install chromium
    ```
-4. **No hace falta `.env` en el client para la suite**: `globalSetup` inyecta `DATABASE_URL`/`DIRECT_URL` con default a la DB del compose (`postgresql://pos:pos@localhost:5432/pos`) al correr el seed. Para apuntar a otra DB, exportá esas variables antes de `pnpm test:e2e`. Si corrés `pnpm db:seed` a mano (fuera de la suite), sí tenés que pasarlas inline:
+4. **No hace falta `.env` en el client para la suite**: `globalSetup` inyecta `DATABASE_URL`/`DIRECT_URL` con default a la DB del compose (`postgresql://pos:pos@localhost:5432/pos`) al correr el seed. Para apuntar a otra DB, exportá esas variables antes de `POS_SEED_ALLOW_RESET=1 pnpm test:e2e`. Si corrés `POS_SEED_ALLOW_RESET=1 pnpm db:seed` a mano (fuera de la suite), sí tenés que pasarlas inline:
    ```bash
-   DATABASE_URL="postgresql://pos:pos@localhost:5432/pos" DIRECT_URL="postgresql://pos:pos@localhost:5432/pos" corepack pnpm db:seed
+   DATABASE_URL="postgresql://pos:pos@localhost:5432/pos" DIRECT_URL="postgresql://pos:pos@localhost:5432/pos" corepack POS_SEED_ALLOW_RESET=1 pnpm db:seed
    ```
 
 > PTSD pnpm: en este host `pnpm` no está en PATH global. Usar siempre `corepack pnpm ...`.
@@ -33,16 +33,16 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/auth/login    # d
 
 # 3. Sembrar (idempotente) desde el directorio del client
 cd pos-system-client
-DATABASE_URL="postgresql://pos:pos@localhost:5432/pos" DIRECT_URL="postgresql://pos:pos@localhost:5432/pos" corepack pnpm db:seed
+DATABASE_URL="postgresql://pos:pos@localhost:5432/pos" DIRECT_URL="postgresql://pos:pos@localhost:5432/pos" corepack POS_SEED_ALLOW_RESET=1 pnpm db:seed
 
 # 4. Correr la suite
-corepack pnpm test:e2e                    # headless, sirve para CI
-corepack pnpm test:e2e:ui                 # mode UI (Inspector + watch)
-corepack pnpm test:e2e:debug              #uncia test en modo debug
-corepack pnpm test:e2e:report             # abrir último reporte HTML
+corepack POS_SEED_ALLOW_RESET=1 pnpm test:e2e                    # headless, sirve para CI
+corepack POS_SEED_ALLOW_RESET=1 pnpm test:e2e:ui                 # mode UI (Inspector + watch)
+corepack POS_SEED_ALLOW_RESET=1 pnpm test:e2e:debug              #uncia test en modo debug
+corepack POS_SEED_ALLOW_RESET=1 pnpm test:e2e:report             # abrir último reporte HTML
 
 # 5. Iterar sin reseed entre corridas (mantiene estado para debug manual)
-E2E_SKIP_SEED=1 corepack pnpm test:e2e
+E2E_SKIP_SEED=1 corepack POS_SEED_ALLOW_RESET=1 pnpm test:e2e
 ```
 
 > Nota: por defecto `globalSetup` espera el stack y resiembra antes de cada corrida. Si el stack ya está up y querés iterar specs sin perder estado, seteá `E2E_SKIP_SEED=1`.
@@ -64,7 +64,7 @@ Organización: `Pos Demo Org` · Stores: `Store Central` (prefix `SC`, `lastSale
 ```
 pos-system-client/
 ├── prisma/
-│   └── seed.ts            # seed idempotente (pnpm db:seed)
+│   └── seed.ts            # seed idempotente (POS_SEED_ALLOW_RESET=1 pnpm db:seed)
 ├── playwright.config.ts   # config (base URL :3000, 1 worker chromium, globalSetup)
 ├── package.json           # scripts test:e2e*, db:seed, prisma.seed
 ├── tsconfig.json          # exclude e2e + playwright.config (no rompe next build)
@@ -102,3 +102,8 @@ pos-system-client/
 - Specs de mutación de la misma entidad: `test.describe.configure({ mode: 'serial' })` para evitar race conditions.
 - Selectores por role/label/texto (no CSS frágiles) — ver §2.6 del plan.
 - Nombres de entidades test creadas con sufijo `Test-${runId}` para no colisionar con el seed.
+
+
+## Instalación limpia y segundo tenant (2026-11-14)
+
+Ver [SEED-DESDE-CERO.md](./SEED-DESDE-CERO.md). Se requiere confirmación explícita `POS_SEED_ALLOW_RESET=1` para el reseed automático de Playwright. El seed conserva los fixtures originales y añade `Pos Isolation Org`, con admin/seller de aislamiento y datos propios. No ejecutar contra bases con datos de usuario.
