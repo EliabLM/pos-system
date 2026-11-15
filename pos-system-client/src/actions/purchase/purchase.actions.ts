@@ -53,7 +53,7 @@ const generatePurchaseNumber = async (
   // Read all matching numbers, including soft-deleted rows and historical gaps.
   // Numeric (not bigint) preserves arbitrarily large valid suffixes.
   const [row] = await tx.$queryRaw<{ ordinal: Prisma.Decimal }[]>`
-    SELECT COALESCE(MAX(SUBSTRING(purchase_number FROM ${prefix.length + 1})::numeric), 0) AS ordinal
+    SELECT COALESCE(MAX(SUBSTRING(purchase_number FROM ${prefix.length + 1}::integer)::numeric), 0) AS ordinal
     FROM purchases
     WHERE organization_id = ${organizationId}::uuid
       AND purchase_number ~ ${pattern}
