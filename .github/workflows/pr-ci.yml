@@ -1,0 +1,105 @@
+name: PR CI
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  pos-p0:
+    name: POS lint, build, server y P0 (PostgreSQL 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pos_ci
+          POSTGRES_PASSWORD: pos_ci_only
+          POSTGRES_DB: pos_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pos_ci -d pos_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      CI: 'true'
+      DATABASE_URL: postgresql://pos_ci:pos_ci_only@127.0.0.1:5432/pos_test
+      DIRECT_URL: postgresql://pos_ci:pos_ci_only@127.0.0.1:5432/pos_test
+      JWT_SECRET: synthetic-ci-jwt-secret-not-for-any-real-deployment-123456
+      HTTPS_ENABLED: 'false'
+      E2E_BASE_URL: http://127.0.0.1:3000
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Corepack pnpm 10.7.1
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.7.1 --activate
+          pnpm --version
+      - name: Instalar workspace (lockfile raíz)
+        run: pnpm install --frozen-lockfile
+      - name: Instalar client independiente (lockfile client y schema server)
+        working-directory: pos-system-client
+        run: pnpm install --ignore-workspace --frozen-lockfile
+      - name: Build paquetes compartidos
+        run: pnpm -r --filter './packages/*' build
+      - name: Typecheck, descubrimiento, test y lint server
+        run: |
+          pnpm --filter @pos/server typecheck
+          (cd pos-system-server && ./node_modules/.bin/vitest list --json > ../server-tests.json)
+          node scripts/ci/assert-tests.mjs server-tests.json vitest
+          pnpm --filter @pos/server test
+          pnpm --filter @pos/server lint
+      - name: Lint y build client (Next producción, solo runner GitHub)
+        working-directory: pos-system-client
+        run: |
+          pnpm --ignore-workspace lint
+          pnpm --ignore-workspace exec tsc -p e2e/tsconfig.json
+          pnpm --ignore-workspace build
+      - name: Migrar PostgreSQL efímero
+        run: pnpm --filter @pos/server db:deploy
+      - name: Seed sintético en pos_test local efímera
+        working-directory: pos-system-client
+        env:
+          NODE_ENV: test
+          POS_SEED_ALLOW_RESET: '1'
+        run: |
+          pnpm --ignore-workspace db:seed
+          pnpm --ignore-workspace db:seed:verify
+      - name: Instalar navegador Chromium
+        working-directory: pos-system-client
+        run: pnpm --ignore-workspace exec playwright install --with-deps chromium
+      - name: Descubrimiento E2E P0 no vacío
+        working-directory: pos-system-client
+        run: |
+          ./node_modules/.bin/playwright test --project=chromium --grep='P0' --list --reporter=json > ../e2e-tests.json
+          node ../scripts/ci/assert-tests.mjs ../e2e-tests.json playwright
+      - name: Levantar Next en PostgreSQL efímero y correr P0
+        working-directory: pos-system-client
+        env:
+          POS_SEED_ALLOW_RESET: '1'
+          E2E_SKIP_SEED: '1'
+        run: |
+          pnpm --ignore-workspace start > next-ci.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 90); do
+            if curl --silent --fail --output /dev/null "$E2E_BASE_URL/auth/login"; then break; fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then echo 'Next terminó antes de readiness'; exit 1; fi
+            if [ "$attempt" -eq 90 ]; then echo 'Next no respondió en 90 intentos'; exit 1; fi
+            sleep 2
+          done
+          pnpm --ignore-workspace test:e2e --project=chromium --grep='P0' --workers=1
+      - name: Artefactos de fallo E2E
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-p0-failure
+          path: |
+            pos-system-client/e2e/.results/
+            pos-system-client/e2e/.report/
+            pos-system-client/next-ci.log
+          if-no-files-found: ignore
+          retention-days: 7

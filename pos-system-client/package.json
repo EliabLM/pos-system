@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "prisma generate --schema=../pos-system-server/prisma/schema.prisma && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "postinstall": "prisma generate --schema=../pos-system-server/prisma/schema.prisma",
     "db:generate": "prisma generate --schema=../pos-system-server/prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
