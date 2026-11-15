@@ -29,6 +29,7 @@ docs/
 |-----------|-------------|--------|
 | [features/offline-mode/](./features/offline-mode/PLAN_IMPLEMENTACION_OFFLINE_MODE.md) | Plan en 5 fases para capacidad offline (PWA) | 📋 Pendiente — prioridad alta |
 | [features/purchase/](./features/purchase/PLAN_MODULO_COMPRAS.md) | Plan del módulo de compras | 📋 Pendiente |
+| [features/purchase/CONSECUTIVO_COMPRAS.md](./features/purchase/CONSECUTIVO_COMPRAS.md) | Especificación del consecutivo diario UTC por organización y límites de concurrencia | POS-02a en revisión |
 | [features/testing/playwright-test-plan.md](./features/testing/playwright-test-plan.md) | Plan de pruebas E2E (Playwright): matriz de 180 escenarios, suites, seed idempotente, RBAC dual-layer (middleware + server actions) | ✅ Plan cerrado (suposiciones verificadas contra código) — faltan probar stack + specs P1/P2 |
 | [features/testing/SEED-DESDE-CERO.md](./features/testing/SEED-DESDE-CERO.md) | Instalación limpia con migraciones, fixtures de dos tenants y verificación repetible | Implementado; validación descrita en STATUS |
 | [features/testing/RUNBOOK.md](./features/testing/RUNBOOK.md) | Cómo correr la suite E2E: docker compose + seed + specs, credenciales sembradas, troubleshooting | ✅ Listo — pendiente primera corrida contra el stack |
