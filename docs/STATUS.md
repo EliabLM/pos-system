@@ -14,6 +14,7 @@
 - Repo remoto: `https://github.com/EliabLM/pos-system` (privado, branch `main`).
 - Decisiones estratégicas confirmadas: **D1 = monorepo pnpm workspaces**, **D2 = migración incremental strangler-fig**, **D3 = custom JWT + schema auth target** (ver [`auth/AUTH_TARGET_SCHEMA.md`](./auth/AUTH_TARGET_SCHEMA.md)).
 - Toda la documentación vive en `docs/` de este repo padre.
+- **POS-01 (en revisión, 2026-11-15):** acciones de compras e ítems del cliente acotadas a cookie/JWT, sesión persistida y membresía activa; admin muta y seller solo lee. Pruebas de contrato con Prisma/auth simulados: 13/13, baseline de acciones de `origin/main`: 6/6 fallan frente a los nuevos criterios. Lint y `tsc --noEmit` del cliente verdes; no se ejecutó integración con PostgreSQL aislado ni smoke de la app, por lo que el aislamiento end-to-end y ausencia de efectos en BD real siguen pendientes de validación. Sin cambios de schema, RLS ni consecutivo POS-02.
 - **Estrategia de despliegue definida** (ver [`deployment/estrategia-despliegue.md`](./deployment/estrategia-despliegue.md)), ajustada el 2026-08-20:
   - **Local:** `docker compose up` levanta db + server + client (+ app web opcional). Ver [`deployment/docker-local.md`](./deployment/docker-local.md). **Es el único entorno de la migración hasta el deploy a VPS.**
   - **Testing/staging (legacy, congelado):** el deploy Vercel + Supabase existente sigue apuntando al **repo anterior** (pre-monorepo) y no se toca. El monorepo NO se deploya a Vercel.
@@ -53,7 +54,7 @@
 4. **Decisión 2026-11-14:** el usuario confirma que POS no tiene datos reales ni backups a migrar. Se retira el ensayo sobre dump legacy del alcance actual y se adopta instalación desde cero con datos sintéticos. No se afirma haber probado una migración de datos reales.
 5. **← SIGUIENTE:** aplicar todas las migraciones a PostgreSQL 17 vacío y ejecutar/verificar el seed dos veces; validar smoke P0 con la app apuntada a esa misma base. Ver [`features/testing/SEED-DESDE-CERO.md`](./features/testing/SEED-DESDE-CERO.md). No consolidar ni borrar migraciones existentes.
 6. Seed ampliado: dos organizaciones independientes con admin/seller, memberships y compras/productos propios; carga transaccional con confirmación explícita de reemplazo y rechazo de destinos ajenos a desarrollo local. Nuevos scripts `test:seed:guard` y `db:seed:verify`.
-7. Definition of done vigente: migraciones desde vacío, verificaciones del seed y repetición sin duplicados; regresión de aplicación y pruebas negativas cross-tenant. El seed no resuelve por sí mismo gaps de autorización, JWT o FORCE RLS.
+7. Definition of done vigente: migraciones desde vacío, verificaciones del seed y repetición sin duplicados; regresión de aplicación y pruebas negativas cross-tenant. POS-01 añade pruebas de contrato de compras sin PostgreSQL real: antes de dar por verificado el aislamiento end-to-end faltan pruebas negativas con dos tenants en BD aislada y smoke P0 de la aplicación. El seed no resuelve por sí mismo gaps de autorización, JWT o FORCE RLS.
 
 > Antes de ejecutar, confirmar el alcance exacto y el orden de sub-tareas de la fase (regla del plan).
 

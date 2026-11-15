@@ -15,7 +15,8 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "db:seed:verify": "tsx prisma/seed-verify.ts",
-    "test:seed:guard": "tsx --test prisma/seed-guard.test.ts"
+    "test:seed:guard": "tsx --test prisma/seed-guard.test.ts",
+    "test:purchase:access": "node --test src/actions/purchase/*.test.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -86,6 +87,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
     "prisma": "^6.14.0",

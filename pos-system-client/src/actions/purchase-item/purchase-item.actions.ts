@@ -4,10 +4,9 @@ import { PurchaseItem, Prisma } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
 import {
   prisma,
-  checkAdminRole,
-  unauthorizedResponse,
   serializeDecimals,
 } from '../utils';
+import { getPurchaseActor, purchaseAccessError } from '../purchase/purchase-access';
 
 // PURCHASE ITEM INCLUDES
 const purchaseItemInclude: Prisma.PurchaseItemInclude = {
@@ -42,8 +41,9 @@ export const createPurchaseItem = async (
   >
 ): Promise<ActionResponse<Serialized<PurchaseItem> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const access = await getPurchaseActor(true);
+    if (!access.actor) return purchaseAccessError(access.status);
+    void userId;
 
     if (!purchaseId) {
       return {
@@ -55,7 +55,7 @@ export const createPurchaseItem = async (
 
     // Verificar que la compra existe y está en estado PENDING
     const purchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, isDeleted: false },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
     });
 
     if (!purchase) {
@@ -91,6 +91,9 @@ export const createPurchaseItem = async (
       };
     }
 
+    const product = await prisma.product.findFirst({ where: { id: itemData.productId, organizationId: access.actor.organizationId, isDeleted: false } });
+    if (!product) return { status: 400, message: 'Producto no encontrado', data: null };
+
     // Crear el item
     const newItem = await prisma.purchaseItem.create({
       data: {
@@ -103,13 +106,13 @@ export const createPurchaseItem = async (
 
     // Recalcular totales de la compra
     const items = await prisma.purchaseItem.findMany({
-      where: { purchaseId, isDeleted: false },
+      where: { purchaseId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
     });
 
     const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
 
     await prisma.purchase.update({
-      where: { id: purchaseId },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
       data: {
         total,
         updatedAt: new Date(),
@@ -143,6 +146,8 @@ export const getPurchaseItemsByPurchaseId = async (
   purchaseId: string
 ): Promise<ActionResponse<Serialized<PurchaseItem>[] | null>> => {
   try {
+    const access = await getPurchaseActor();
+    if (!access.actor) return purchaseAccessError(access.status);
     if (!purchaseId) {
       return {
         status: 400,
@@ -155,6 +160,7 @@ export const getPurchaseItemsByPurchaseId = async (
       where: {
         purchaseId,
         isDeleted: false,
+        purchase: { organizationId: access.actor.organizationId, isDeleted: false },
       },
       include: purchaseItemInclude,
       orderBy: { createdAt: 'asc' },
@@ -181,8 +187,9 @@ export const updatePurchaseItem = async (
   }>
 ): Promise<ActionResponse<Serialized<PurchaseItem> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const access = await getPurchaseActor(true);
+    if (!access.actor) return purchaseAccessError(access.status);
+    void userId;
 
     if (!itemId) {
       return {
@@ -193,7 +200,7 @@ export const updatePurchaseItem = async (
     }
 
     const existingItem = await prisma.purchaseItem.findFirst({
-      where: { id: itemId, isDeleted: false },
+      where: { id: itemId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
       include: { purchase: true },
     });
 
@@ -233,7 +240,7 @@ export const updatePurchaseItem = async (
     const newSubtotal = newQuantity * newUnitPrice;
 
     const updatedItem = await prisma.purchaseItem.update({
-      where: { id: itemId },
+      where: { id: itemId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
       data: {
         quantity: newQuantity,
         unitPrice: newUnitPrice,
@@ -245,7 +252,7 @@ export const updatePurchaseItem = async (
 
     // Recalcular totales de la compra
     const items = await prisma.purchaseItem.findMany({
-      where: { purchaseId: existingItem.purchaseId, isDeleted: false },
+      where: { purchaseId: existingItem.purchaseId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
     });
 
     const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
@@ -282,8 +289,9 @@ export const softDeletePurchaseItem = async (
   userId: string
 ): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const access = await getPurchaseActor(true);
+    if (!access.actor) return purchaseAccessError(access.status);
+    void userId;
 
     if (!itemId) {
       return {
@@ -294,7 +302,7 @@ export const softDeletePurchaseItem = async (
     }
 
     const existingItem = await prisma.purchaseItem.findFirst({
-      where: { id: itemId, isDeleted: false },
+      where: { id: itemId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
       include: { purchase: true },
     });
 
@@ -328,7 +336,7 @@ export const softDeletePurchaseItem = async (
     }
 
     await prisma.purchaseItem.update({
-      where: { id: itemId },
+      where: { id: itemId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
@@ -338,7 +346,7 @@ export const softDeletePurchaseItem = async (
 
     // Recalcular totales de la compra
     const items = await prisma.purchaseItem.findMany({
-      where: { purchaseId: existingItem.purchaseId, isDeleted: false },
+      where: { purchaseId: existingItem.purchaseId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
     });
 
     const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);

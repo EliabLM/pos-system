@@ -9,12 +9,9 @@ import {
 import { ActionResponse, Serialized } from '@/interfaces';
 import {
   prisma,
-  checkAdminRole,
-  unauthorizedResponse,
-  checkOrgId,
-  emptyOrgIdResponse,
   serializeDecimals,
 } from '../utils';
+import { getPurchaseActor, purchaseAccessError } from './purchase-access';
 
 // PURCHASE INCLUDES
 const purchaseInclude: Prisma.PurchaseInclude = {
@@ -119,10 +116,12 @@ export const createPurchase = async (
   >[]
 ): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const access = await getPurchaseActor(true);
+    if (!access.actor) return purchaseAccessError(access.status);
+    void userId;
 
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
+    orgId = access.actor.organizationId;
 
     validatePurchaseItems(purchaseItems);
 
@@ -261,7 +260,10 @@ export const getPurchasesByOrgId = async (
   ActionResponse<{ purchases: Serialized<Purchase>[]; total: number } | null>
 > => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const access = await getPurchaseActor();
+    if (!access.actor) return purchaseAccessError(access.status);
+    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
+    orgId = access.actor.organizationId;
 
     const whereClause: Prisma.PurchaseWhereInput = {
       organizationId: orgId,
@@ -371,6 +373,8 @@ export const getPurchaseById = async (
   purchaseId: string
 ): Promise<ActionResponse<Serialized<PurchaseWithRelations> | null>> => {
   try {
+    const access = await getPurchaseActor();
+    if (!access.actor) return purchaseAccessError(access.status);
     if (!purchaseId) {
       return {
         status: 400,
@@ -380,7 +384,7 @@ export const getPurchaseById = async (
     }
 
     const purchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, isDeleted: false },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
       include: purchaseInclude,
     });
 
@@ -405,7 +409,10 @@ export const getPurchaseByNumber = async (
   purchaseNumber: string
 ): Promise<ActionResponse<Serialized<PurchaseWithRelations> | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const access = await getPurchaseActor();
+    if (!access.actor) return purchaseAccessError(access.status);
+    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
+    orgId = access.actor.organizationId;
 
     if (!purchaseNumber) {
       return {
@@ -448,8 +455,9 @@ export const updatePurchase = async (
   }>
 ): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const access = await getPurchaseActor(true);
+    if (!access.actor) return purchaseAccessError(access.status);
+    void userId;
 
     if (!purchaseId) {
       return {
@@ -460,7 +468,7 @@ export const updatePurchase = async (
     }
 
     const existingPurchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, isDeleted: false },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
     });
 
     if (!existingPurchase) {
@@ -468,9 +476,9 @@ export const updatePurchase = async (
     }
 
     const updatedPurchase = await prisma.purchase.update({
-      where: { id: purchaseId },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
       data: {
-        ...updateData,
+        notes: updateData.notes,
         updatedAt: new Date(),
       },
       include: purchaseInclude,
@@ -500,8 +508,9 @@ export const receivePurchase = async (
   userId: string
 ): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const access = await getPurchaseActor(true);
+    if (!access.actor) return purchaseAccessError(access.status);
+    void userId;
 
     if (!purchaseId) {
       return {
@@ -512,7 +521,7 @@ export const receivePurchase = async (
     }
 
     const existingPurchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, isDeleted: false },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
       include: { purchaseItems: { where: { isDeleted: false } } },
     });
 
@@ -533,7 +542,7 @@ export const receivePurchase = async (
       async (tx) => {
         // Actualizar status de la compra
         await tx.purchase.update({
-          where: { id: purchaseId },
+          where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false, status: 'PENDING' },
           data: {
             status: 'RECEIVED',
             receivedDate: new Date(),
@@ -545,7 +554,7 @@ export const receivePurchase = async (
         for (const item of existingPurchase.purchaseItems) {
           // Obtener stock actual del producto
           const product = await tx.product.findUnique({
-            where: { id: item.productId },
+            where: { id: item.productId, organizationId: access.actor.organizationId, isDeleted: false },
             select: { currentStock: true },
           });
 
@@ -560,7 +569,7 @@ export const receivePurchase = async (
           await tx.stockMovement.create({
             data: {
               productId: item.productId,
-              userId: userId,
+              userId: access.actor.userId,
               storeId: null, // Las compras son a nivel de organización, no de tienda específica
               type: 'IN',
               quantity: item.quantity,
@@ -568,13 +577,13 @@ export const receivePurchase = async (
               newStock: newStock,
               reason: `Recepción de compra ${existingPurchase.purchaseNumber}`,
               reference: purchaseId,
-              organizationId: existingPurchase.organizationId,
+              organizationId: access.actor.organizationId,
             },
           });
 
           // Actualizar stock del producto
           await tx.product.update({
-            where: { id: item.productId },
+            where: { id: item.productId, organizationId: access.actor.organizationId, isDeleted: false },
             data: {
               currentStock: newStock,
               updatedAt: new Date(),
@@ -583,7 +592,7 @@ export const receivePurchase = async (
         }
 
         return tx.purchase.findUnique({
-          where: { id: purchaseId },
+          where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
           include: purchaseInclude,
         });
       },
@@ -601,6 +610,9 @@ export const receivePurchase = async (
   } catch (error) {
     console.error('Error receiving purchase:', error);
 
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return { status: 404, message: 'Compra no encontrada', data: null };
+    }
     if (error instanceof Error) {
       return {
         status: 400,
@@ -620,8 +632,9 @@ export const cancelPurchase = async (
   reason?: string
 ): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const access = await getPurchaseActor(true);
+    if (!access.actor) return purchaseAccessError(access.status);
+    void userId;
 
     if (!purchaseId) {
       return {
@@ -632,7 +645,7 @@ export const cancelPurchase = async (
     }
 
     const existingPurchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, isDeleted: false },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
     });
 
     if (!existingPurchase) {
@@ -649,7 +662,7 @@ export const cancelPurchase = async (
 
     // Cancelar compra (NO revertir stock - decisión de negocio)
     const cancelledPurchase = await prisma.purchase.update({
-      where: { id: purchaseId },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
       data: {
         status: 'CANCELLED',
         notes: reason
@@ -677,8 +690,9 @@ export const softDeletePurchase = async (
   userId: string
 ): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const access = await getPurchaseActor(true);
+    if (!access.actor) return purchaseAccessError(access.status);
+    void userId;
 
     if (!purchaseId) {
       return {
@@ -689,7 +703,7 @@ export const softDeletePurchase = async (
     }
 
     const existingPurchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, isDeleted: false },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
     });
 
     if (!existingPurchase) {
@@ -706,7 +720,7 @@ export const softDeletePurchase = async (
     }
 
     await prisma.purchase.update({
-      where: { id: purchaseId },
+      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
@@ -747,7 +761,10 @@ export const getPurchasesAnalytics = async (
   } | null>
 > => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const access = await getPurchaseActor();
+    if (!access.actor) return purchaseAccessError(access.status);
+    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
+    orgId = access.actor.organizationId;
 
     const whereClause: Prisma.PurchaseWhereInput = {
       organizationId: orgId,
@@ -807,7 +824,10 @@ export const getPendingPurchases = async (
   orgId: string
 ): Promise<ActionResponse<Serialized<Purchase>[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const access = await getPurchaseActor();
+    if (!access.actor) return purchaseAccessError(access.status);
+    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
+    orgId = access.actor.organizationId;
 
     const pendingPurchases = await prisma.purchase.findMany({
       where: {
@@ -835,7 +855,10 @@ export const getReceivedPurchases = async (
   orgId: string
 ): Promise<ActionResponse<Serialized<Purchase>[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const access = await getPurchaseActor();
+    if (!access.actor) return purchaseAccessError(access.status);
+    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
+    orgId = access.actor.organizationId;
 
     const receivedPurchases = await prisma.purchase.findMany({
       where: {
