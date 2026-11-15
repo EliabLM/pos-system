@@ -37,27 +37,29 @@ const purchaseInclude: Prisma.PurchaseInclude = {
 // UTILITY FUNCTIONS
 // ===========================
 
-// GENERATE PURCHASE NUMBER
-const generatePurchaseNumber = async (): Promise<string> => {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+// Generate after acquiring the transaction lock: the date may change while waiting.
+const generatePurchaseNumber = async (
+  tx: Prisma.TransactionClient,
+  organizationId: string
+): Promise<{ purchaseNumber: string; createdAt: Date }> => {
+  // A stable per-tenant lock also serializes different days of this tenant.
+  // Hash collisions only add contention; the MAX query remains tenant-scoped.
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${organizationId}::text, 0))::text`;
 
-  // Get the count of purchases created today
-  const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(now.setHours(23, 59, 59, 999));
-
-  const count = await prisma.purchase.count({
-    where: {
-      createdAt: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
-    },
-  });
-
-  const sequenceNumber = String(count + 1).padStart(4, '0');
-
-  return `COMP-${dateStr}-${sequenceNumber}`;
+  const createdAt = new Date();
+  const day = createdAt.toISOString().slice(0, 10).replace(/-/g, '');
+  const prefix = `COMP-${day}-`;
+  const pattern = `^COMP-${day}-[0-9]{4,}$`;
+  // Read all matching numbers, including soft-deleted rows and historical gaps.
+  // Numeric (not bigint) preserves arbitrarily large valid suffixes.
+  const [row] = await tx.$queryRaw<{ ordinal: Prisma.Decimal }[]>`
+    SELECT COALESCE(MAX(SUBSTRING(purchase_number FROM ${prefix.length + 1}::integer)::numeric), 0) AS ordinal
+    FROM purchases
+    WHERE organization_id = ${organizationId}::uuid
+      AND purchase_number ~ ${pattern}
+  `;
+  const next = BigInt(row.ordinal.toString()) + BigInt(1);
+  return { purchaseNumber: `${prefix}${String(next).padStart(4, '0')}`, createdAt };
 };
 
 // VALIDATE PURCHASE ITEMS
@@ -164,18 +166,16 @@ export const createPurchase = async (
     // Calcular totales
     const { total } = await calculatePurchaseTotals(purchaseItems);
 
-    // Generar número de compra
-    const purchaseNumber = await generatePurchaseNumber();
-
-    // Crear compra en transacción con timeout aumentado
+    // Number, purchase and items share a transaction and its advisory lock.
     const newPurchase = await prisma.$transaction(
       async (tx) => {
-        // Crear la compra
+        const { purchaseNumber, createdAt } = await generatePurchaseNumber(tx, orgId);
         const purchase = await tx.purchase.create({
           data: {
             ...purchaseData,
             organizationId: orgId,
             purchaseNumber,
+            createdAt,
             total,
           },
         });

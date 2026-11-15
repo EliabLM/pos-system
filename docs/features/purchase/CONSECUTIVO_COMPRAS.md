@@ -1,0 +1,11 @@
+# Consecutivo de órdenes de compra (POS-02a)
+
+**Objetivo:** definir la numeración del flujo `createPurchase` existente. **Estado:** implementado en el cliente; pendiente revisión y validación de integración en CI. **Fecha:** 2026-11-15.
+
+- Formato `COMP-YYYYMMDD-NNNN`: día UTC del instante de creación, **no** `purchaseDate` editable. Se guarda exactamente ese instante en `createdAt` para evitar discrepancias al cruzar medianoche o ejecutar en otra zona horaria. El sufijo tiene mínimo cuatro dígitos; después de 9999 crece sin truncamiento.
+- La secuencia se reinicia cada día UTC **por `organizationId`**, no por tienda. Se toma el mayor sufijo decimal válido de ese prefijo y organización, incluso de compras soft-deleted. No se reciclan números al borrar ni se renumeran compras históricas; los números legacy sin ese formato no participan.
+- Tras autenticar, validar membresía ADMIN y verificar `orgId`, proveedor y productos del tenant, la transacción de Prisma adquiere un `pg_advisory_xact_lock` derivado de la organización, calcula el máximo y crea compra e ítems. El lock se libera al commit/rollback. Una colisión del hash solo retrasa otra organización: la consulta conserva el filtro de tenant. No hay SELECT del ordinal antes del lock.
+- **Límite de garantía:** `purchase_number` no tiene restricción única en PostgreSQL. Solo escritores que respetan este mismo protocolo de lock evitan la carrera; SQL externo o rutas que omitan el lock pueden generar duplicados. Una garantía para todos los escritores necesitaría evaluar una restricción/contador y migración con aprobación previa. El cálculo del MAX escanea filas sin índice dedicado y su coste crecerá con el volumen.
+- Si el negocio requiere día en zona horaria específica por tenant, antes de cambiar esta regla UTC debe decidirse cómo guardar la zona y qué hacer con números históricos y horario de verano; no está implementado aquí.
+
+**Verificación:** contrato mock (`pnpm --ignore-workspace test:purchase:access`, incluye test de medianoche en `TZ=America/Bogota` y baseline roja con `POS_02_BASELINE=1`); E2E `purchase-number-p0.spec.ts` usa la acción real vía Next y PostgreSQL descartable del job P0 existente, comprueba dos tenants, concurrencia y persistencia de ítems. No confundir contrato simulado con integración real.
