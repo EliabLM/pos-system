@@ -45,7 +45,11 @@ test('P0 consecutivo: dos tenants y dos creaciones concurrentes reales, soft-del
     await db.purchase.update({ where: { id: firstA.id }, data: { isDeleted: true, deletedAt: new Date() } });
     const a2 = await contextA.newPage();
     const a3 = await contextA.newPage();
-    await Promise.all([loginUI(a2, ADMIN), loginUI(a3, ADMIN)]);
+    // JWTs issued for the same user in one second are identical in the legacy
+    // auth flow; parallel logins violate sessions.token_hash uniqueness.
+    await loginUI(a2, ADMIN);
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    await loginUI(a3, ADMIN);
     await Promise.all([prepare(a2), prepare(a3)]);
     await Promise.all([save(a2), save(a3)]);
     const numbers = await db.purchase.findMany({ where: { organizationId: orgA.id, purchaseNumber: { startsWith: prefix } }, orderBy: { purchaseNumber: 'asc' }, include: { purchaseItems: true } });
