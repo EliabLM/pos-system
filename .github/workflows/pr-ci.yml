@@ -61,6 +61,7 @@ jobs:
       - name: Migrar PostgreSQL efímero
         run: pnpm --filter @pos/server db:deploy
       - name: Guard, dos cargas independientes y rollback transaccional en pos_test
+        id: seed
         env:
           NODE_ENV: test
           POS_SEED_ALLOW_RESET: '1'
@@ -98,4 +99,5 @@ jobs:
           done
           pnpm --ignore-workspace test:e2e --project=chromium --grep='P0' --workers=1
       - name: FORCE RLS temporal (después de P0, rollback y cleanup)
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
         run: psql "$DATABASE_URL" -X -q -v ON_ERROR_STOP=1 -f pos-system-server/scripts/db/force-rls-ci.sql
