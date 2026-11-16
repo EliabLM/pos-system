@@ -106,7 +106,7 @@ export async function createSession(
     // Generar JWT token — la tenancy viene del membership ACTIVO (D3.3).
     // Sin membership = usuario en onboarding: ADMIN sin org/store todavía.
     const membership = await getActiveMembership(user.id);
-    const token = generateToken({
+    const token = await generateToken({
       userId: user.id,
       email: user.email,
       role: membership?.role ?? MembershipRole.ADMIN,
@@ -178,7 +178,7 @@ export async function createSession(
 export async function validateSession(token: string): Promise<SessionData | null> {
   try {
     // Verificar y decodificar el token JWT
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
 
     if (!payload) {
       throw new AuthError(

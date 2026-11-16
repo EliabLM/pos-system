@@ -21,7 +21,7 @@ export const ourFileRouter = {
 
       if (!token) throw new Error("Unauthorized");
 
-      const payload = verifyToken(token);
+      const payload = await verifyToken(token);
 
       if (!payload || !payload.userId) throw new Error("Unauthorized");
 

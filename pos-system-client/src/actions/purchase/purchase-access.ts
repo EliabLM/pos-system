@@ -14,7 +14,7 @@ export async function getPurchaseActor(adminOnly = false): Promise<PurchaseAcces
   if (!token) return { status: 401 };
 
   try {
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     if (!payload?.userId) return { status: 401 };
     const session = await validateSession(token);
     if (!session || session.userId !== payload.userId) return { status: 401 };
