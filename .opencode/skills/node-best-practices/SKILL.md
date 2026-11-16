@@ -16,7 +16,7 @@ Source: goldbergyoni `nodebestpractices` (Spanish translation) — 102 items, la
 - **pnpm** — `pnpm install --frozen-lockfile` in CI (goldberg 5.19's `npm ci`, ported). Lockfile committed.
 - **Node.js 22 LTS** minimum (goldberg 5.17).
 - **Pino** logging via `pino-http` (goldberg 2.7's mature logger); never `console.log` in app code.
-- Reuse what the existing client already does when porting a concern: `bcrypt` for hashing, custom JWT with `jose`/`jsonwebtoken`. Don't introduce a second auth library.
+- Reuse what the existing client already does when porting a concern: `bcrypt` for hashing, custom JWT with `jose` (`jsonwebtoken` was removed in CC-POS-01). Don't introduce a second auth library.
 
 ## 1. Structure (goldberg §1)
 
