@@ -1,7 +1,7 @@
 /**
  * Excel Generator Utility
  *
- * Generates Excel files from data arrays using SheetJS (xlsx).
+ * Generates Excel files from data arrays using ExcelJS.
  * Client-side only - uses dynamic imports for browser compatibility.
  *
  * STRICT TYPING: Zero `any` types
@@ -14,6 +14,108 @@ import type {
   ExcelSheetConfig,
 } from '@/interfaces/reports';
 
+type ExcelRow = Record<string, string | number | boolean | null>;
+type ExcelJSModule = typeof import('exceljs');
+type ExcelWorkbook = InstanceType<ExcelJSModule['Workbook']>;
+
+/**
+ * Load ExcelJS on demand (client-side only, keeps it out of the main bundle)
+ */
+async function loadExcelJS(): Promise<ExcelJSModule> {
+  const mod = (await import('exceljs')) as ExcelJSModule & {
+    default?: ExcelJSModule;
+  };
+  return mod.default ?? mod;
+}
+
+/**
+ * Build the metadata rows ("Generado: <fecha>") placed before the data
+ */
+function buildDateRows(firstKey: string | undefined): ExcelRow[] {
+  const currentDate = new Date().toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const dateRow: ExcelRow = {};
+  if (firstKey !== undefined) {
+    dateRow[firstKey] = `Generado: ${currentDate}`;
+  }
+  return [{}, dateRow, {}];
+}
+
+/**
+ * Collect column keys: explicit headers first, then any other key in order of
+ * first appearance (same behaviour as SheetJS `json_to_sheet`).
+ */
+function collectColumns(rows: ExcelRow[], headers: string[] = []): string[] {
+  const columns = [...headers];
+  const seen = new Set(columns);
+  rows.forEach((row) => {
+    Object.keys(row).forEach((key) => {
+      if (!seen.has(key)) {
+        seen.add(key);
+        columns.push(key);
+      }
+    });
+  });
+  return columns;
+}
+
+/**
+ * Add a worksheet with the given rows to the workbook
+ */
+function addSheet(
+  workbook: ExcelWorkbook,
+  sheetName: string,
+  rows: ExcelRow[],
+  options: { headers?: string[]; includeHeaders: boolean; widths?: number[] }
+): void {
+  const worksheet = workbook.addWorksheet(sheetName);
+  const columns = collectColumns(rows, options.headers);
+
+  if (options.includeHeaders) {
+    worksheet.addRow(columns);
+  }
+
+  rows.forEach((row) => {
+    worksheet.addRow(
+      columns.map((key) => {
+        const value = row[key];
+        return value === undefined ? null : value;
+      })
+    );
+  });
+
+  options.widths?.forEach((width, index) => {
+    worksheet.getColumn(index + 1).width = width;
+  });
+}
+
+/**
+ * Serialize the workbook and trigger the browser download
+ */
+async function downloadWorkbook(
+  workbook: ExcelWorkbook,
+  filename: string
+): Promise<void> {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${filename}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 /**
  * Generate an Excel file from an array of data
  *
@@ -21,9 +123,10 @@ import type {
  * @param options - Excel generation options
  * @throws Error if generation fails
  */
-export async function generateExcel<
-  T extends Record<string, string | number | boolean | null>
->(data: T[], options: ExcelGeneratorOptions): Promise<void> {
+export async function generateExcel<T extends ExcelRow>(
+  data: T[],
+  options: ExcelGeneratorOptions
+): Promise<void> {
   const {
     filename,
     sheetName = 'Datos',
@@ -34,55 +137,24 @@ export async function generateExcel<
 
   try {
     // Dynamic import for client-side only library
-    const { utils, writeFile } = await import('xlsx');
+    const ExcelJS = await loadExcelJS();
 
     if (data.length === 0) {
       throw new Error('No hay datos para exportar');
     }
 
-    // Add metadata row if includeDate is true
-    let worksheetData: Array<
-      Record<string, string | number | boolean | null>
-    > = [];
+    const rows: ExcelRow[] = [
+      ...(includeDate ? buildDateRows(Object.keys(data[0])[0]) : []),
+      ...data,
+    ];
 
-    if (includeDate) {
-      const currentDate = new Date().toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-
-      // Add empty row and date row
-      const dateRow: Record<string, string | number | boolean | null> = {};
-      const keys = Object.keys(data[0]);
-      if (keys.length > 0) {
-        dateRow[keys[0]] = `Generado: ${currentDate}`;
-      }
-      worksheetData = [{}, dateRow, {}];
-    }
-
-    // Add data
-    worksheetData = [...worksheetData, ...data];
-
-    // Create worksheet
-    const worksheet = utils.json_to_sheet(worksheetData, {
-      skipHeader: !includeHeaders,
+    const workbook = new ExcelJS.Workbook();
+    addSheet(workbook, sheetName, rows, {
+      includeHeaders,
+      widths: autoWidth ? calculateColumnWidths(data) : undefined,
     });
 
-    // Auto-size columns
-    if (autoWidth && data.length > 0) {
-      const columnWidths = calculateColumnWidths(data);
-      worksheet['!cols'] = columnWidths.map((width) => ({ wch: width }));
-    }
-
-    // Create workbook
-    const workbook = utils.book_new();
-    utils.book_append_sheet(workbook, worksheet, sheetName);
-
-    // Save file
-    writeFile(workbook, `${filename}.xlsx`);
+    await downloadWorkbook(workbook, filename);
   } catch (error) {
     console.error('Error generating Excel:', error);
     throw new Error(
@@ -106,13 +178,13 @@ export async function generateMultiSheetExcel(
   includeDate: boolean = true
 ): Promise<void> {
   try {
-    const { utils, writeFile } = await import('xlsx');
+    const ExcelJS = await loadExcelJS();
 
     if (sheets.length === 0) {
       throw new Error('No hay hojas para exportar');
     }
 
-    const workbook = utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
     sheets.forEach((sheetConfig) => {
       const { name, data, headers } = sheetConfig;
@@ -122,42 +194,19 @@ export async function generateMultiSheetExcel(
         return;
       }
 
-      // Add metadata row if includeDate is true
-      let worksheetData: Array<
-        Record<string, string | number | boolean | null>
-      > = [];
+      const rows: ExcelRow[] = [
+        ...(includeDate ? buildDateRows(Object.keys(data[0])[0]) : []),
+        ...data,
+      ];
 
-      if (includeDate) {
-        const currentDate = new Date().toLocaleDateString('es-ES', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-
-        const dateRow: Record<string, string | number | boolean | null> = {};
-        const keys = Object.keys(data[0]);
-        if (keys.length > 0) {
-          dateRow[keys[0]] = `Generado: ${currentDate}`;
-        }
-        worksheetData = [{}, dateRow, {}];
-      }
-
-      worksheetData = [...worksheetData, ...data];
-
-      const worksheet = utils.json_to_sheet(worksheetData, {
-        header: headers,
+      addSheet(workbook, name, rows, {
+        headers,
+        includeHeaders: true,
+        widths: calculateColumnWidths(data),
       });
-
-      // Auto-size columns
-      const columnWidths = calculateColumnWidths(data);
-      worksheet['!cols'] = columnWidths.map((width) => ({ wch: width }));
-
-      utils.book_append_sheet(workbook, worksheet, name);
     });
 
-    writeFile(workbook, `${filename}.xlsx`);
+    await downloadWorkbook(workbook, filename);
   } catch (error) {
     console.error('Error generating multi-sheet Excel:', error);
     throw new Error(
