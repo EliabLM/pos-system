@@ -363,7 +363,6 @@ pnpm tsx test-auth-deps.ts
     "@prisma/client": "6.14.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@tanstack/react-query": "^5.85.6",
-    "@uploadthing/react": "^7.3.3",
     "bcrypt": "^6.0.0",                    // ← NUEVO
     "jose": "^6.1.0",                      // ← NUEVO
     "jsonwebtoken": "^9.0.2",              // ← NUEVO

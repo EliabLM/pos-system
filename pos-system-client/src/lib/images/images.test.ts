@@ -35,10 +35,21 @@ class MemoryStorage implements StorageProvider {
 
 const admin = async (): Promise<UploadAccess> => ({ actor: { organizationId: ORG_A, role: 'ADMIN' } });
 
-function uploadRequest(data: Uint8Array, name = 'foto.jpg', type = 'image/jpeg'): Request {
-  const body = new FormData();
-  body.append('file', new File([new Uint8Array(data)], name, { type }));
-  return new Request('http://localhost/api/images', { method: 'POST', body });
+// Serialized multipart body + headers, like a browser sends it.
+async function multipart(data: Uint8Array, name = 'foto.jpg', type = 'image/jpeg') {
+  const form = new FormData();
+  form.append('file', new File([new Uint8Array(data)], name, { type }));
+  const encoded = new Response(form);
+  return { body: new Uint8Array(await encoded.arrayBuffer()), contentType: encoded.headers.get('content-type') ?? '' };
+}
+
+async function uploadRequest(data: Uint8Array, name = 'foto.jpg', type = 'image/jpeg'): Promise<Request> {
+  const { body, contentType } = await multipart(data, name, type);
+  return new Request('http://localhost/api/images', {
+    method: 'POST',
+    headers: { 'content-type': contentType, 'content-length': String(body.length) },
+    body,
+  });
 }
 
 // Photo-like image (gradients + grain) so compression has real work to do.
@@ -77,16 +88,16 @@ test('SELLER o sin sesión no pueden subir; no se escribe nada', async () => {
   const seller = async (): Promise<UploadAccess> => ({ actor: { organizationId: ORG_A, role: 'SELLER' } });
   const forbidden = async (): Promise<UploadAccess> => ({ status: 403 });
   const anonymous = async (): Promise<UploadAccess> => ({ status: 401 });
-  assert.equal((await handleProductImageUpload(uploadRequest(png), { getActor: seller, storage })).status, 403);
-  assert.equal((await handleProductImageUpload(uploadRequest(png), { getActor: forbidden, storage })).status, 403);
-  assert.equal((await handleProductImageUpload(uploadRequest(png), { getActor: anonymous, storage })).status, 401);
+  assert.equal((await handleProductImageUpload(await uploadRequest(png), { getActor: seller, storage })).status, 403);
+  assert.equal((await handleProductImageUpload(await uploadRequest(png), { getActor: forbidden, storage })).status, 403);
+  assert.equal((await handleProductImageUpload(await uploadRequest(png), { getActor: anonymous, storage })).status, 401);
   assert.equal(storage.objects.size, 0);
 });
 
 test('archivo mayor del límite → 413', async () => {
   const storage = new MemoryStorage();
   const big = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(2048)]);
-  const result = await handleProductImageUpload(uploadRequest(big), { getActor: admin, storage, maxBytes: 1024 });
+  const result = await handleProductImageUpload(await uploadRequest(big), { getActor: admin, storage, maxBytes: 1024 });
   assert.equal(result.status, 413);
 
   const declared = new Request('http://localhost/api/images', {
@@ -98,14 +109,33 @@ test('archivo mayor del límite → 413', async () => {
   assert.equal(storage.objects.size, 0);
 });
 
+test('sin Content-Length → 411; Content-Length falso no evita el tope de lectura → 413', async () => {
+  const storage = new MemoryStorage();
+  const png = await noisyPng(10, 10);
+  const { body, contentType } = await multipart(png);
+
+  const chunked = new Request('http://localhost/api/images', { method: 'POST', headers: { 'content-type': contentType }, body });
+  assert.equal(chunked.headers.get('content-length'), null);
+  assert.equal((await handleProductImageUpload(chunked, { getActor: admin, storage })).status, 411);
+
+  const big = await multipart(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(200 * 1024)]));
+  const lying = new Request('http://localhost/api/images', {
+    method: 'POST',
+    headers: { 'content-type': big.contentType, 'content-length': '100' },
+    body: big.body,
+  });
+  assert.equal((await handleProductImageUpload(lying, { getActor: admin, storage, maxBytes: 1024 })).status, 413);
+  assert.equal(storage.objects.size, 0);
+});
+
 test('tipo no permitido (SVG o texto disfrazado de .jpg) → 415', async () => {
   const storage = new MemoryStorage();
   const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
-  assert.equal((await handleProductImageUpload(uploadRequest(svg, 'x.svg', 'image/svg+xml'), { getActor: admin, storage })).status, 415);
-  assert.equal((await handleProductImageUpload(uploadRequest(svg, 'foto.jpg', 'image/jpeg'), { getActor: admin, storage })).status, 415);
+  assert.equal((await handleProductImageUpload(await uploadRequest(svg, 'x.svg', 'image/svg+xml'), { getActor: admin, storage })).status, 415);
+  assert.equal((await handleProductImageUpload(await uploadRequest(svg, 'foto.jpg', 'image/jpeg'), { getActor: admin, storage })).status, 415);
   // Magic bytes válidos pero contenido corrupto
   const fakeJpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(100, 1)]);
-  assert.equal((await handleProductImageUpload(uploadRequest(fakeJpeg), { getActor: admin, storage })).status, 422);
+  assert.equal((await handleProductImageUpload(await uploadRequest(fakeJpeg), { getActor: admin, storage })).status, 422);
   assert.equal(storage.objects.size, 0);
 });
 
@@ -114,7 +144,7 @@ test('imagen válida queda en WebP, ≤1600 px, bajo el tamaño objetivo y con p
   // Phone-like photo: 3000x2000 JPEG with EXIF metadata, under the 5 MB limit.
   const input = await sharp(await noisyPng(3000, 2000)).jpeg({ quality: 90 }).withMetadata({ exif: { IFD0: { Copyright: 'test' } } }).toBuffer();
   assert.ok(input.length < 5 * 1024 * 1024, `input ${input.length}`);
-  const result = await handleProductImageUpload(uploadRequest(input), { getActor: admin, storage });
+  const result = await handleProductImageUpload(await uploadRequest(input), { getActor: admin, storage });
   assert.equal(result.status, 201);
   assert.match(result.body.url ?? '', new RegExp(`^/api/images/${ORG_A}/products/[0-9a-f-]{36}\\.webp$`));
 
@@ -133,7 +163,7 @@ test('imagen válida queda en WebP, ≤1600 px, bajo el tamaño objetivo y con p
 test('ruido extremo también termina bajo el tamaño objetivo (reduce calidad y dimensión)', async () => {
   const storage = new MemoryStorage();
   const input = await noisyPng(2000, 1500, 127);
-  const result = await handleProductImageUpload(uploadRequest(input, 'ruido.png', 'image/png'), { getActor: admin, storage, maxBytes: 20 * 1024 * 1024 });
+  const result = await handleProductImageUpload(await uploadRequest(input, 'ruido.png', 'image/png'), { getActor: admin, storage, maxBytes: 20 * 1024 * 1024 });
   assert.equal(result.status, 201);
   const stored = [...storage.objects.values()][0];
   assert.ok(stored.data.length <= TARGET_OUTPUT_BYTES, `size ${stored.data.length}`);

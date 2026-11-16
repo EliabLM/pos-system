@@ -13,7 +13,7 @@ Decisión del usuario 9 (issue #23): las imágenes de producto se guardan en el 
 | Subida (solo ADMIN) | `POST /api/images` → `src/lib/images/upload-product-image.ts` |
 | Servir imágenes | `GET /api/images/<orgId>/products/<uuid>.webp` |
 
-- **Subida:** multipart con un campo `file`. Solo un miembro ADMIN activo (cookie + sesión persistida + membresía). Tipos permitidos por contenido real: JPEG, PNG y WebP (SVG, GIF, HEIC… se rechazan con 415). Límite de entrada `MAX_IMAGE_UPLOAD_MB` (5 MB por defecto, 413 si se supera). Límite de 40 MP para evitar bombas de descompresión.
+- **Subida:** multipart con un campo `file`. Exige `Content-Length` (411 si falta) y corta la lectura del cuerpo al superar el límite. Solo un miembro ADMIN activo (cookie + sesión persistida + membresía). Tipos permitidos por contenido real: JPEG, PNG y WebP (SVG, GIF, HEIC… se rechazan con 415). Límite de entrada `MAX_IMAGE_UPLOAD_MB` (5 MB por defecto, 413 si se supera). Límite de 40 MP para evitar bombas de descompresión.
 - **Procesado:** se aplica la orientación EXIF, se quitan metadatos, se redimensiona a un máximo de 1600 px y se guarda en **WebP** por debajo de 400 KB (baja la calidad 80→50 si hace falta).
 - **Claves:** las genera el servidor: `<organizationId>/products/<uuid>.webp`. El cliente nunca elige la ruta; las claves se validan con una lista blanca de caracteres (sin `..`, `/` inicial ni `\`) y la implementación de disco comprueba además que la ruta final queda dentro de `UPLOADS_DIR`.
 - **Aislamiento:** un producto solo puede referenciar imágenes de su organización, y el borrado solo actúa sobre claves de esa organización.
@@ -37,7 +37,7 @@ En el recurso del client: **Persistent Storage → Add → Volume Mount**
 - Nombre: `pos-uploads` (cualquiera).
 - Destination path (en el contenedor): `/app/uploads`.
 
-El contenedor corre como `root`, así que no hace falta ajustar permisos. Con `docker compose` local el volumen `uploads` ya está declarado en `docker-compose.yml`.
+El contenedor corre como `root`, así que no hace falta ajustar permisos. Si el runner pasa a `USER node`, el Dockerfile debe crear `/app/uploads` y hacer `chown node:node` antes del `USER`. Con `docker compose` local el volumen `uploads` ya está declarado en `docker-compose.yml`.
 
 Espacio: cada imagen ocupa ≤ 400 KB; 1.000 productos con imagen son ≤ 400 MB. Vigilar el disco del VPS. Sin backups del volumen por ahora (decisión: sin backups mientras sea demo/MVP).
 

@@ -1,5 +1,9 @@
 import sharp from 'sharp';
 
+// Small VPS (2 CPU, shared RAM): one libvips thread per image and no op cache.
+sharp.concurrency(1);
+sharp.cache(false);
+
 export type DetectedImageType = 'jpeg' | 'png' | 'webp';
 
 export const MAX_IMAGE_DIMENSION = 1600;

@@ -10,13 +10,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ key:
   const key = parts.join('/');
   if (!isValidKey(key)) return new Response('Not found', { status: 404 });
 
+  const object = await getStorage().get(key);
+  if (!object) return new Response('Not found', { status: 404 });
+
   const etag = `"${key}"`;
   if (request.headers.get('if-none-match') === etag) {
     return new Response(null, { status: 304, headers: { ETag: etag, 'Cache-Control': CACHE_CONTROL } });
   }
-
-  const object = await getStorage().get(key);
-  if (!object) return new Response('Not found', { status: 404 });
 
   return new Response(new Uint8Array(object.data), {
     headers: {

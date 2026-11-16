@@ -17,6 +17,31 @@ export type UploadResult = { status: number; body: { message: string; url?: stri
 // multipart framing overhead allowed on top of the file size limit
 const MULTIPART_OVERHEAD = 64 * 1024;
 
+/** Reads the request body, aborting as soon as it exceeds `limit` bytes. */
+async function readBodyWithLimit(request: Request, limit: number): Promise<Uint8Array<ArrayBuffer> | 'too-large'> {
+  if (!request.body) return new Uint8Array(new ArrayBuffer(0));
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel().catch(() => undefined);
+      return 'too-large';
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(new ArrayBuffer(total));
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
 const fail = (status: number, message: string): UploadResult => ({ status, body: { message } });
 
 /**
@@ -34,12 +59,21 @@ export async function handleProductImageUpload(request: Request, deps: UploadDep
   const maxBytes = deps.maxBytes ?? maxUploadBytes();
   const tooLarge = () => fail(413, `La imagen supera el máximo de ${Math.round(maxBytes / 1024 / 1024)} MB`);
 
-  const declared = Number(request.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > maxBytes + MULTIPART_OVERHEAD) return tooLarge();
+  const bodyLimit = maxBytes + MULTIPART_OVERHEAD;
+  // Require a declared length (no unbounded chunked bodies) and reject early.
+  const lengthHeader = request.headers.get('content-length');
+  const declared = lengthHeader === null ? NaN : Number(lengthHeader);
+  if (!Number.isFinite(declared) || declared < 0) return fail(411, 'Falta Content-Length');
+  if (declared > bodyLimit) return tooLarge();
+
+  // Read with a hard cap, in case the declared length is wrong.
+  const body = await readBodyWithLimit(request, bodyLimit);
+  if (body === 'too-large') return tooLarge();
 
   let file: FormDataEntryValue | null;
   try {
-    file = (await request.formData()).get('file');
+    const contentType = request.headers.get('content-type') ?? '';
+    file = (await new Response(body, { headers: { 'content-type': contentType } }).formData()).get('file');
   } catch {
     return fail(400, 'Solicitud inválida');
   }
