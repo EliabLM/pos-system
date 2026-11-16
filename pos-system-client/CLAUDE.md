@@ -39,7 +39,7 @@ This is a **multi-tenant Point of Sale (POS) system** with the following stack:
 - **Forms**: React Hook Form 7.62.0 + Yup 1.7.0 / Zod 4.0.17 validation
 - **Styling**: Tailwind CSS v4 with tw-animate-css
 - **Icons**: Tabler Icons React 3.34.1 (not Lucide)
-- **File Uploads**: UploadThing 7.7.4
+- **File Uploads**: `StorageProvider` (`src/lib/storage/`) on a persistent volume + `sharp` (WebP)
 - **Notifications**: Sonner 2.0.7 & SweetAlert2 11.22.4
 - **Tables**: TanStack Table 8.21.3
 - **Charts**: Recharts 2.15.4
@@ -87,7 +87,7 @@ src/
 │   ├── user/          # User management actions
 │   └── utils.ts       # Shared Prisma instance and helper utilities
 ├── app/              # Next.js App Router pages
-│   ├── api/          # API routes (uploadthing)
+│   ├── api/          # API routes (images upload/serve)
 │   ├── auth/         # Authentication pages (login, register, etc.)
 │   ├── dashboard/    # Main app (protected routes)
 │   │   ├── brands/
@@ -136,7 +136,6 @@ src/
 │   ├── types.ts      # Store type definitions
 │   └── index.ts      # Store creation with middleware
 └── utils/            # Helper utilities
-    └── uploadthings.ts
 ```
 
 ## Database & Prisma
@@ -473,13 +472,11 @@ categories/
 
 ## Image Uploads
 
-Uses UploadThing with custom configuration:
-- Core config: `src/app/api/uploadthing/core.ts`
-- Route handler: `src/app/api/uploadthing/route.ts`
-- Utilities: `src/utils/uploadthings.ts`
-- Server utilities: `src/server/uploadThing.ts`
-
-Remote pattern configured in `next.config.ts` for UploadThing CDN.
+Product images live behind the `StorageProvider` interface (`src/lib/storage/`); today `LocalDiskStorage` writes to `UPLOADS_DIR` (a persistent volume). Business code never touches disk paths.
+- Upload: `POST /api/images` (multipart `file`, ADMIN only) → `src/lib/images/upload-product-image.ts` (magic-byte check, size limit, `sharp` → WebP ≤1600 px). Keys are `<orgId>/products/<uuid>.webp`.
+- Serve: `GET /api/images/<key>` with immutable cache headers.
+- Product actions validate that `image` belongs to the org and delete the old file via `src/lib/images/product-image-refs.ts`.
+- Client helper: `src/lib/images/upload-client.ts`. See `../docs/deployment/imagenes-producto.md`.
 
 ## UI Component Library
 
@@ -505,7 +502,7 @@ The project includes these shadcn/ui components:
 
 ### Custom UI Components
 
-- `image-picker.tsx` - Image upload with UploadThing integration
+- `image-picker.tsx` - Image picker (upload goes through `/api/images`)
 - `sonner.tsx` - Toast notifications configured from 'sonner' library
 - `data-table.tsx` - Reusable TanStack Table wrapper component
 - `product-filter-combobox.tsx` - Product search/filter dropdown
@@ -771,7 +768,8 @@ Required in `.env`:
 - `DATABASE_URL` - Postgres connection pooling URL (Supabase)
 - `DIRECT_URL` - Direct Postgres connection for migrations
 - `JWT_SECRET` - Secret key for JWT token signing
-- `UPLOADTHING_TOKEN` - UploadThing API token
+- `UPLOADS_DIR` - Directory for product images (persistent volume; required in production)
+- `MAX_IMAGE_UPLOAD_MB` - Upload size limit in MB (default 5)
 
 **Deprecated** (Clerk migration - remove these if still present):
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`

@@ -16,7 +16,8 @@
     "test:e2e:report": "playwright show-report",
     "db:seed:verify": "tsx prisma/seed-verify.ts",
     "test:seed:guard": "tsx --test prisma/seed-guard.test.ts",
-    "test:purchase:access": "node --test src/actions/purchase/*.test.mjs"
+    "test:purchase:access": "node --test src/actions/purchase/*.test.mjs",
+    "test:images": "tsx --test src/lib/images/images.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -47,7 +48,6 @@
     "@tabler/icons-react": "^3.34.1",
     "@tanstack/react-query": "^5.85.6",
     "@tanstack/react-table": "^8.21.3",
-    "@uploadthing/react": "^7.3.3",
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -66,10 +66,10 @@
     "react-number-format": "^5.4.4",
     "react-to-pdf": "^2.0.1",
     "recharts": "2.15.4",
+    "sharp": "^0.34.5",
     "sonner": "^2.0.7",
     "sweetalert2": "^11.22.4",
     "tailwind-merge": "^3.3.1",
-    "uploadthing": "^7.7.4",
     "vaul": "^1.1.2",
     "xlsx": "^0.18.5",
     "yup": "^1.7.0",

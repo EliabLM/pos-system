@@ -3,20 +3,7 @@ import { PrismaPlugin } from '@prisma/nextjs-monorepo-workaround-plugin';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'utfs.io',
-        pathname: '/f/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'toeustbcqq.ufs.sh',
-        pathname: '/f/**',
-      },
-    ],
-  },
+  // Product images are served locally from /api/images (see docs/deployment/imagenes-producto.md).
   serverExternalPackages: ['@prisma/client', 'prisma'],
   outputFileTracingIncludes: {
     '/**/*': ['./src/generated/prisma/**/*'],

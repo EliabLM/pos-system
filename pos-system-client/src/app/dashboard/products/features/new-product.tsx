@@ -39,7 +39,8 @@ import {
 } from '@tabler/icons-react';
 
 import { useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
-import { deleteImageFromUploadThing, uploadImage } from '@/actions/product';
+import { discardUploadedProductImage } from '@/actions/product';
+import { uploadProductImageFile } from '@/lib/images/upload-client';
 import { useActiveCategories } from '@/hooks/useCategories';
 import { useActiveBrands } from '@/hooks/useBrands';
 import { useActiveUnitMeasures } from '@/hooks/useUnitMeasures';
@@ -271,8 +272,12 @@ const NewProduct = ({
 
       //* Upload image and get the url
       if (file) {
-        const response = await uploadImage(file);
-        imageUrl = response?.ufsUrl;
+        try {
+          imageUrl = await uploadProductImageFile(file);
+        } catch (uploadError) {
+          toast.error(uploadError instanceof Error ? uploadError.message : 'No se pudo subir la imagen');
+          return;
+        }
       }
 
       //* Create product
@@ -363,7 +368,7 @@ const NewProduct = ({
       console.error('🚀 ~ onSubmit ~ error:', error);
 
       if (imageUrl) {
-        await deleteImageFromUploadThing(imageUrl);
+        await discardUploadedProductImage(imageUrl);
       }
 
       toast.error('Ha ocurrido un error creando el producto');
