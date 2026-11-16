@@ -8,7 +8,7 @@ jobs:
   pos-p0:
     name: POS lint, build, server y P0 (PostgreSQL 17)
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:17
@@ -60,14 +60,20 @@ jobs:
           pnpm --ignore-workspace build
       - name: Migrar PostgreSQL efímero
         run: pnpm --filter @pos/server db:deploy
-      - name: Seed sintético en pos_test local efímera
-        working-directory: pos-system-client
+      - name: Guard, dos cargas independientes y rollback transaccional en pos_test
+        id: seed
         env:
           NODE_ENV: test
           POS_SEED_ALLOW_RESET: '1'
         run: |
-          pnpm --ignore-workspace db:seed
-          pnpm --ignore-workspace db:seed:verify
+          pnpm -C pos-system-client --ignore-workspace test:seed:guard
+          pnpm -C pos-system-client --ignore-workspace db:seed
+          pnpm -C pos-system-client --ignore-workspace db:seed:verify
+          echo 'POS-03c verifier 1/2 passed'
+          pnpm -C pos-system-client --ignore-workspace db:seed
+          pnpm -C pos-system-client --ignore-workspace db:seed:verify
+          echo 'POS-03c verifier 2/2 passed'
+          bash scripts/ci/seed-rollback.sh
       - name: Instalar navegador Chromium
         working-directory: pos-system-client
         run: pnpm --ignore-workspace exec playwright install --with-deps chromium
@@ -82,7 +88,7 @@ jobs:
           POS_SEED_ALLOW_RESET: '1'
           E2E_SKIP_SEED: '1'
         run: |
-          pnpm --ignore-workspace start > next-ci.log 2>&1 &
+          pnpm --ignore-workspace start > /dev/null 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 90); do
@@ -92,14 +98,6 @@ jobs:
             sleep 2
           done
           pnpm --ignore-workspace test:e2e --project=chromium --grep='P0' --workers=1
-      - name: Artefactos de fallo E2E
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pos-p0-failure
-          path: |
-            pos-system-client/e2e/.results/
-            pos-system-client/e2e/.report/
-            pos-system-client/next-ci.log
-          if-no-files-found: ignore
-          retention-days: 7
+      - name: FORCE RLS temporal (después de P0, rollback y cleanup)
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: psql "$DATABASE_URL" -X -q -v ON_ERROR_STOP=1 -f pos-system-server/scripts/db/force-rls-ci.sql
