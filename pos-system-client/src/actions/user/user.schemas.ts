@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validatePassword } from '@/lib/auth/validation';
 
 /**
  * Input contracts for user management. Zod objects strip unknown keys, so
@@ -7,7 +8,16 @@ import { z } from 'zod';
  */
 const id = z.string().regex(/^[0-9a-f-]{36}$/i, 'ID inválido');
 const role = z.enum(['ADMIN', 'SELLER']);
-const password = z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(128);
+/** Misma política que el registro (validatePassword con sus requisitos por defecto). */
+const password = z
+  .string()
+  .max(128)
+  .superRefine((value, ctx) => {
+    const result = validatePassword(value);
+    if (!result.valid) {
+      ctx.addIssue({ code: 'custom', message: result.errors[0] ?? 'Contraseña inválida' });
+    }
+  });
 
 /** '' (select vacío) se trata como "sin tienda". */
 const optionalStoreId = z.preprocess((value) => (value === '' ? null : value), id.nullish());

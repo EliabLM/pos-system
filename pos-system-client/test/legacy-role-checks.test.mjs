@@ -11,6 +11,7 @@ const { checkAdminRole, checkAdminOrSellerRole } = await loadWithMocks('src/acti
   '@/generated/prisma': 'export const MembershipRole = { ADMIN: "ADMIN", SELLER: "SELLER" }; export const MembershipStatus = { ACTIVE: "ACTIVE" }; export const Prisma = { Decimal: class {} };',
   '@/lib/db': 'export const prisma = {};',
   '@/lib/auth/actor': `
+    export const ACTIVE_MEMBERSHIP_WHERE = {}; export const ACTIVE_MEMBERSHIP_ORDER = {};
     export class ActorError extends Error { constructor(code) { super(code); this.code = code; } }
     export const requireActor = async ({ roles } = {}) => {
       const actor = globalThis.__rolesTest.actor;

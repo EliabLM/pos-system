@@ -14,7 +14,7 @@ const ID = {
 const ADMIN_A = { userId: ID.adminA, organizationId: 'org-a', role: 'ADMIN', storeId: null };
 const SELLER_A = { userId: ID.sellerA, organizationId: 'org-a', role: 'SELLER', storeId: ID.storeA };
 
-const state = { actor: null, reads: [], writes: [] };
+const state = { actor: null, reads: [], writes: [], updateError: null };
 globalThis.__userTest = state;
 
 const userRow = (id, org) => ({
@@ -39,7 +39,10 @@ const prisma = {
     findMany: async (args) => { state.reads.push({ model: 'user', where: args.where }); return []; },
     findUniqueOrThrow: async ({ where }) => userRow(where.id, MEMBERS[where.id] ?? 'org-a'),
     create: write('user', 'create', ({ data }) => ({ id: 'new-user', ...data })),
-    update: write('user', 'update', ({ where }) => userRow(where.id, MEMBERS[where.id])),
+    update: async (args) => {
+      if (state.updateError) throw state.updateError;
+      return write('user', 'update', ({ where }) => userRow(where.id, MEMBERS[where.id]))(args);
+    },
     delete: write('user', 'delete'),
   },
   membership: {
@@ -57,7 +60,8 @@ globalThis.__userPrisma = prisma;
 
 const users = await loadWithMocks('src/actions/user/user.actions.ts', {
   '@/generated/prisma': `
-    export const Prisma = { PrismaClientKnownRequestError: class extends Error {} };
+    export const Prisma = { PrismaClientKnownRequestError: class extends Error { constructor(code) { super(code); this.code = code; } } };
+    globalThis.__userPrismaNs = Prisma;
     export const MembershipRole = { ADMIN: 'ADMIN', SELLER: 'SELLER' };
     export const MembershipStatus = { ACTIVE: 'ACTIVE' };`,
   '@/lib/auth/actor': `
@@ -75,7 +79,7 @@ const users = await loadWithMocks('src/actions/user/user.actions.ts', {
 });
 
 function reset(actor) {
-  Object.assign(state, { actor, reads: [], writes: [] });
+  Object.assign(state, { actor, reads: [], writes: [], updateError: null });
 }
 
 const foreign = { organizationId: 'org-b', orgId: 'org-b', userId: ID.userB };
@@ -167,4 +171,21 @@ test('SELLER: solo se ve a sí mismo', async () => {
   reset(SELLER_A);
   assert.equal((await users.getUserById(ID.sellerA)).status, 200);
   assert.equal((await users.getUserById(ID.adminA)).status, 404);
+});
+
+test('ADMIN: crear o editar usuarios exige la misma política de contraseña que el registro', async () => {
+  for (const weak of ['password1', 'Corta#1', 'sinmayuscula#2026', 'SinEspecial2026']) {
+    reset(ADMIN_A);
+    assert.equal((await users.createUser({ ...newUser(), password: weak })).status, 400, `create: ${weak}`);
+    assert.equal((await users.updateUser(ID.sellerA, { password: weak })).status, 400, `update: ${weak}`);
+    assert.deepEqual(state.writes, [], weak);
+  }
+  reset(ADMIN_A);
+  assert.equal((await users.updateUser(ID.sellerA, { password: 'Otra#Clave2026' })).status, 200);
+});
+
+test('ADMIN: restaurar un usuario cuyo email ya se reutilizó → 409 (no 500)', async () => {
+  reset(ADMIN_A);
+  state.updateError = new globalThis.__userPrismaNs.PrismaClientKnownRequestError('P2002');
+  assert.equal((await users.restoreUser(ID.sellerA)).status, 409);
 });

@@ -12,9 +12,14 @@
 import { cookies } from 'next/headers';
 import { prisma } from '@/actions/utils';
 import { ActionResponse } from '@/interfaces';
-import { createSession } from '@/lib/auth';
+import { createSession, invalidateSession } from '@/lib/auth';
 import { AuthError, AuthErrorCode } from '@/lib/auth/types';
-import { actorErrorResponse, requireSessionUserId } from '@/lib/auth/actor';
+import {
+  ACTIVE_MEMBERSHIP_ORDER,
+  ACTIVE_MEMBERSHIP_WHERE,
+  actorErrorResponse,
+  requireSessionUserId,
+} from '@/lib/auth/actor';
 
 const COOKIE_NAME = 'auth-token';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 días en segundos
@@ -36,6 +41,8 @@ interface RefreshTokenResponse {
 export async function refreshToken(): Promise<ActionResponse<RefreshTokenResponse>> {
   try {
     const userId = await requireSessionUserId();
+    // Token de la sesión actual (ya validado): se invalida al emitir el nuevo.
+    const previousToken = (await cookies()).get(COOKIE_NAME)?.value;
 
     // Obtener usuario actualizado + tenancy del membership ACTIVO (D3.3)
     const userRow = await prisma.user.findFirst({
@@ -52,8 +59,9 @@ export async function refreshToken(): Promise<ActionResponse<RefreshTokenRespons
         emailVerified: true,
         createdAt: true,
         memberships: {
-          where: { deletedAt: null, status: 'ACTIVE' },
-          orderBy: { createdAt: 'asc' },
+          // Mismo criterio que getActor() (resolveMembership)
+          where: ACTIVE_MEMBERSHIP_WHERE,
+          orderBy: ACTIVE_MEMBERSHIP_ORDER,
           take: 1,
           select: {
             role: true,
@@ -119,6 +127,11 @@ export async function refreshToken(): Promise<ActionResponse<RefreshTokenRespons
       maxAge: COOKIE_MAX_AGE,
       path: '/',
     });
+
+    // El token anterior deja de valer: una sola sesión viva por refresco.
+    if (previousToken && previousToken !== session.token) {
+      await invalidateSession(previousToken);
+    }
 
     return {
       status: 200,

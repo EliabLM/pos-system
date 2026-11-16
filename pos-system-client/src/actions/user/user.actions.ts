@@ -773,8 +773,16 @@ export const restoreUser = async (
 
     console.error('Error restoring user:', error);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      return notFound();
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') return notFound();
+      // Índice único parcial de email (usuarios vivos): se reutilizó mientras estaba borrado.
+      if (error.code === 'P2002') {
+        return {
+          status: 409,
+          message: 'Ya existe otro usuario con ese email; no se puede restaurar',
+          data: null,
+        };
+      }
     }
 
     return { status: 500, message: 'Error interno del servidor', data: null };

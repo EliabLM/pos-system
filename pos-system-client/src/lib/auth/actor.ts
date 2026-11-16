@@ -71,16 +71,23 @@ async function resolveSessionUserId(): Promise<string | null> {
   }
 }
 
+/**
+ * Membership selection criterion shared by every place that derives tenancy
+ * (actor, session refresh): the oldest ACTIVE membership of an active,
+ * non-deleted organization.
+ */
+export const ACTIVE_MEMBERSHIP_WHERE = {
+  deletedAt: null,
+  status: MembershipStatus.ACTIVE,
+  organization: { isDeleted: false, isActive: true },
+} as const;
+export const ACTIVE_MEMBERSHIP_ORDER = { createdAt: 'asc' } as const;
+
 /** Tenancy: the oldest ACTIVE membership of an active organization. */
 async function resolveMembership(userId: string) {
   return prisma.membership.findFirst({
-    where: {
-      userId,
-      deletedAt: null,
-      status: MembershipStatus.ACTIVE,
-      organization: { isDeleted: false, isActive: true },
-    },
-    orderBy: { createdAt: 'asc' },
+    where: { userId, ...ACTIVE_MEMBERSHIP_WHERE },
+    orderBy: ACTIVE_MEMBERSHIP_ORDER,
     select: { organizationId: true, role: true, defaultStoreId: true },
   });
 }

@@ -1,12 +1,16 @@
 import {
   Membership,
   MembershipRole,
-  MembershipStatus,
   Prisma,
 } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
 import { prisma } from '@/lib/db';
-import { ActorError, requireActor } from '@/lib/auth/actor';
+import {
+  ACTIVE_MEMBERSHIP_ORDER,
+  ACTIVE_MEMBERSHIP_WHERE,
+  ActorError,
+  requireActor,
+} from '@/lib/auth/actor';
 
 // Instancia única de Prisma Client (singleton en globalThis, ver lib/db.ts)
 export { prisma };
@@ -21,8 +25,9 @@ export const getActiveMembership = async (
 ): Promise<Membership | null> => {
   if (!userId) return null;
   return prisma.membership.findFirst({
-    where: { userId, deletedAt: null, status: MembershipStatus.ACTIVE },
-    orderBy: { createdAt: 'asc' },
+    // Mismo criterio que getActor() (organización activa y no borrada)
+    where: { userId, ...ACTIVE_MEMBERSHIP_WHERE },
+    orderBy: ACTIVE_MEMBERSHIP_ORDER,
   });
 };
 
