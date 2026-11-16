@@ -85,28 +85,56 @@ async function resolveMembership(userId: string) {
   });
 }
 
+/** Authenticated, active and non-deleted user id from the session, or null. */
+async function resolveActiveSessionUserId(): Promise<string | null> {
+  const sessionUserId = await resolveSessionUserId();
+  if (!sessionUserId) return null;
+  const user = await prisma.user.findFirst({
+    where: { id: sessionUserId, isDeleted: false, isActive: true },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+}
+
+/**
+ * Session user WITHOUT tenancy. Only for flows that run before the user has a
+ * membership (session refresh). Never use it to authorize tenant data.
+ * Throws UNAUTHENTICATED.
+ */
+export async function requireSessionUserId(): Promise<string> {
+  const userId = await resolveActiveSessionUserId();
+  if (!userId) throw new ActorError('UNAUTHENTICATED');
+  return userId;
+}
+
+/**
+ * Onboarding: the authenticated user that has NO active membership yet and may
+ * therefore create its own organization. A user that already belongs to an
+ * organization gets FORBIDDEN (it cannot create or join another one here).
+ */
+export async function requireOnboardingUser(): Promise<{ userId: string }> {
+  const userId = await requireSessionUserId();
+  const membership = await resolveMembership(userId);
+  if (membership) throw new ActorError('FORBIDDEN');
+  return { userId };
+}
+
 /**
  * Returns the authenticated actor or throws `ActorError`:
  * - UNAUTHENTICATED (401): no cookie, invalid/revoked session, inactive or deleted user.
  * - FORBIDDEN (403): no active membership in an active organization, or unknown role.
  */
 export async function getActor(): Promise<Actor> {
-  const sessionUserId = await resolveSessionUserId();
-  if (!sessionUserId) throw new ActorError('UNAUTHENTICATED');
+  const userId = await requireSessionUserId();
 
-  const user = await prisma.user.findFirst({
-    where: { id: sessionUserId, isDeleted: false, isActive: true },
-    select: { id: true },
-  });
-  if (!user) throw new ActorError('UNAUTHENTICATED');
-
-  const membership = await resolveMembership(user.id);
+  // No membership = no role at all (onboarding only, see requireOnboardingUser).
+  const membership = await resolveMembership(userId);
   if (!membership || !ALLOWED_ROLES.includes(membership.role)) {
     throw new ActorError('FORBIDDEN');
   }
 
   return {
-    userId: user.id,
+    userId,
     organizationId: membership.organizationId,
     role: membership.role,
     storeId: membership.defaultStoreId,

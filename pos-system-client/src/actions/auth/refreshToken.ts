@@ -14,6 +14,7 @@ import { prisma } from '@/actions/utils';
 import { ActionResponse } from '@/interfaces';
 import { createSession } from '@/lib/auth';
 import { AuthError, AuthErrorCode } from '@/lib/auth/types';
+import { actorErrorResponse, requireSessionUserId } from '@/lib/auth/actor';
 
 const COOKIE_NAME = 'auth-token';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 días en segundos
@@ -22,7 +23,8 @@ const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 días en segundos
  * Refresca el token JWT del usuario actual
  * Útil después de actualizar datos críticos como organizationId
  *
- * @param userId - ID del usuario
+ * El usuario sale SIEMPRE de la sesión de la cookie (nunca de un parámetro).
+ *
  * @returns ActionResponse con el usuario actualizado
  */
 interface RefreshTokenResponse {
@@ -31,16 +33,9 @@ interface RefreshTokenResponse {
   sessionId?: string;
 }
 
-export async function refreshToken(userId: string): Promise<ActionResponse<RefreshTokenResponse>> {
+export async function refreshToken(): Promise<ActionResponse<RefreshTokenResponse>> {
   try {
-    if (!userId) {
-      console.error('[RefreshToken] Error: userId no proporcionado');
-      return {
-        status: 400,
-        message: 'El ID de usuario es requerido',
-        data: null,
-      };
-    }
+    const userId = await requireSessionUserId();
 
     // Obtener usuario actualizado + tenancy del membership ACTIVO (D3.3)
     const userRow = await prisma.user.findFirst({
@@ -134,6 +129,9 @@ export async function refreshToken(userId: string): Promise<ActionResponse<Refre
       },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('[RefreshToken] Error en refresh token:', error);
 
     // Manejo específico de errores de autenticación

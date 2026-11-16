@@ -18,7 +18,7 @@ export const createCategory = async (
         // Validación de orgId
         if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
-        const isAdmin = await checkAdminRole(userId);
+        const isAdmin = await checkAdminRole(userId, orgId);
         if (!isAdmin) return unauthorizedResponse();
 
         const newCategory = await prisma.category.create({

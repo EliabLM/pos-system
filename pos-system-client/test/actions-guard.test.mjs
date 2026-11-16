@@ -5,6 +5,8 @@
  * - PENDING: módulos aún no migrados. Se vacía en #12–#15; si un módulo
  *   pendiente ya cumple, la prueba falla para que se saque de la lista.
  * - PUBLIC: acciones que por diseño corren sin sesión (login, registro...).
+ * - ONBOARDING: acciones del usuario con sesión pero SIN membresía; solo ahí
+ *   vale requireOnboardingUser() como guard (y en ningún otro archivo).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,7 +22,7 @@ const GUARDS = new Set(['getActor', 'requireActor']);
 const PENDING = {
   product: '#12', category: '#12', brand: '#12', 'unit-measure': '#12', 'stock-movement': '#12',
   customer: '#13', supplier: '#13', purchase: '#13', 'purchase-item': '#13', 'payment-methods': '#13',
-  user: '#14', organization: '#14', store: '#14', 'system-config': '#14',
+  store: '#14', 'system-config': '#14',
   reports: '#15', dashboard: '#15',
 };
 
@@ -32,6 +34,12 @@ const PUBLIC = {
   'auth/refreshToken.ts': 'renueva la sesión de la cookie',
   'auth/getCurrentUser.ts': 'lee la sesión de la cookie',
 };
+
+/** Onboarding: archivo → acciones que usan requireOnboardingUser(). */
+const ONBOARDING = {
+  'organization/organization.action.ts': ['createOrganization'],
+};
+const ONBOARDING_GUARD = 'requireOnboardingUser';
 
 function walk(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -46,11 +54,11 @@ function hasUseServer(source) {
   return !!first && ts.isExpressionStatement(first) && ts.isStringLiteral(first.expression) && first.expression.text === 'use server';
 }
 
-function callsGuard(node) {
+function callsGuard(node, guards = GUARDS) {
   let found = false;
   const visit = (n) => {
     if (found) return;
-    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && GUARDS.has(n.expression.text)) found = true;
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && guards.has(n.expression.text)) found = true;
     else ts.forEachChild(n, visit);
   };
   visit(node);
@@ -60,17 +68,19 @@ function callsGuard(node) {
 const isExported = (node) => !!ts.getModifiers?.(node)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
 
 /** Devuelve los nombres de funciones exportadas que no llaman al guard. Solo aplica a archivos 'use server'. */
-export function findUnguardedActions(text, fileName = 'action.ts') {
+export function findUnguardedActions(text, fileName = 'action.ts', onboarding = []) {
   const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   if (!hasUseServer(source)) return [];
   const unguarded = [];
   for (const statement of source.statements) {
+    const guardsFor = (name) => (onboarding.includes(name) ? new Set([ONBOARDING_GUARD]) : GUARDS);
     if (ts.isFunctionDeclaration(statement) && isExported(statement)) {
-      if (!callsGuard(statement)) unguarded.push(statement.name?.text ?? 'default');
+      const name = statement.name?.text ?? 'default';
+      if (!callsGuard(statement, guardsFor(name))) unguarded.push(name);
     } else if (ts.isVariableStatement(statement) && isExported(statement)) {
       for (const decl of statement.declarationList.declarations) {
         const init = decl.initializer;
-        if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) && !callsGuard(init)) {
+        if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) && !callsGuard(init, guardsFor(decl.name.getText(source)))) {
           unguarded.push(decl.name.getText(source));
         }
       }
@@ -91,7 +101,7 @@ function scan() {
     const text = readFileSync(file, 'utf8');
     const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
     if (!hasUseServer(source)) continue;
-    results.push({ rel, module: moduleOf(rel), unguarded: findUnguardedActions(text, file) });
+    results.push({ rel, module: moduleOf(rel), unguarded: findUnguardedActions(text, file, ONBOARDING[rel] ?? []), text });
   }
   return results;
 }
@@ -122,8 +132,18 @@ test('guardián: listas de pendientes y públicas al día', () => {
     const migrated = files.every((r) => r.unguarded.length === 0);
     assert.ok(!migrated, `${mod} ya usa el actor central: sácalo de PENDING (${issue})`);
   }
-  for (const mod of ['sale', 'sale-item', 'sale-payment']) {
+  for (const rel of Object.keys(ONBOARDING)) assert.ok(existsSync(join(ACTIONS_DIR, rel)), `ONBOARDING obsoleto: ${rel}`);
+  for (const mod of ['sale', 'sale-item', 'sale-payment', 'user', 'organization']) {
     assert.ok(!PENDING[mod], `${mod} no puede volver a PENDING`);
     assert.ok(results.some((r) => r.module === mod), `${mod} debe tener actions 'use server'`);
   }
+});
+
+test('guardián: requireOnboardingUser solo en las acciones de onboarding', () => {
+  const misuse = scan()
+    .filter((r) => !ONBOARDING[r.rel] && r.text.includes(ONBOARDING_GUARD))
+    .map((r) => r.rel);
+  assert.deepEqual(misuse, [], 'requireOnboardingUser no autoriza datos de una organización');
+  const onlyOnboarding = `'use server';\nexport const createOrganization = async () => { await requireActor(); };`;
+  assert.deepEqual(findUnguardedActions(onlyOnboarding, 'x.ts', ['createOrganization']), ['createOrganization']);
 });

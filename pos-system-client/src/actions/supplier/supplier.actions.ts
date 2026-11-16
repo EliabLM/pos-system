@@ -51,7 +51,7 @@ export const createSupplier = async (
   >
 ): Promise<ActionResponse<Supplier | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
+    const isAdmin = await checkAdminRole(userId, orgId);
     if (!isAdmin) return unauthorizedResponse();
 
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
