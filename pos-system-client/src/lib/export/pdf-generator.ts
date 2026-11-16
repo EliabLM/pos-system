@@ -10,6 +10,7 @@
 'use client';
 
 import type { PDFGeneratorOptions } from '@/interfaces/reports';
+import { BUSINESS_TIME_ZONE } from '@/lib/time';
 
 /**
  * Generate a PDF from an HTML element
@@ -98,6 +99,7 @@ export async function generatePDF(
     // Add date if requested
     if (includeDate) {
       const currentDate = new Date().toLocaleDateString('es-ES', {
+        timeZone: BUSINESS_TIME_ZONE,
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -173,6 +175,7 @@ export async function generateSimplePDF(
 
     // Add date
     const currentDate = new Date().toLocaleDateString('es-ES', {
+      timeZone: BUSINESS_TIME_ZONE,
       year: 'numeric',
       month: 'long',
       day: 'numeric',

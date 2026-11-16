@@ -1,15 +1,7 @@
 'use server';
 
-import {
-  startOfDay,
-  endOfDay,
-  format,
-  parseISO,
-  startOfMonth,
-  startOfWeek,
-  startOfYear,
-} from 'date-fns';
-import { es } from 'date-fns/locale';
+import { parseISO } from 'date-fns';
+import { businessDayRange, businessPeriodKey } from '@/lib/time';
 import { ActionResponse } from '@/interfaces';
 import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
 import { Prisma } from '@/generated/prisma';
@@ -164,18 +156,8 @@ export interface CashFlowData {
  * Generate period key based on date and period type
  */
 function getPeriodKey(date: Date, period: 'day' | 'week' | 'month' | 'year'): string {
-  switch (period) {
-    case 'day':
-      return format(startOfDay(date), 'yyyy-MM-dd');
-    case 'week':
-      return format(startOfWeek(date, { locale: es }), 'yyyy-MM-dd');
-    case 'month':
-      return format(startOfMonth(date), 'yyyy-MM-01');
-    case 'year':
-      return format(startOfYear(date), 'yyyy-01-01');
-    default:
-      return format(date, 'yyyy-MM-dd');
-  }
+  // Business periods in America/Bogota (weeks start on Monday)
+  return businessPeriodKey(date, period);
 }
 
 /**
@@ -209,8 +191,7 @@ function buildSalesWhereClause(filters: FinancialReportFilters): Prisma.SaleWher
     organizationId: filters.organizationId,
     isDeleted: false,
     saleDate: {
-      gte: parseDate(filters.startDate),
-      lte: endOfDay(parseDate(filters.endDate)),
+      ...businessDayRange(filters.startDate, filters.endDate),
     },
   };
 

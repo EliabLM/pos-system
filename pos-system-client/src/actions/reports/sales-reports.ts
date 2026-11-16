@@ -1,15 +1,5 @@
 'use server';
 
-import {
-  startOfDay,
-  endOfDay,
-  format,
-  parseISO,
-  startOfMonth,
-  startOfWeek,
-  startOfYear,
-} from 'date-fns';
-import { es } from 'date-fns/locale';
 import { ActionResponse } from '@/interfaces';
 import {
   SalesReportFilters,
@@ -17,6 +7,7 @@ import {
   SalesPeriodData,
   TopProductData,
 } from '@/interfaces/reports';
+import { businessDayRange, businessPeriodKey, startOfBusinessDay } from '@/lib/time';
 import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
 import { Prisma } from '@/generated/prisma';
 
@@ -35,29 +26,8 @@ import { Prisma } from '@/generated/prisma';
  * Generate period key based on date and period type
  */
 function getPeriodKey(date: Date, period: 'day' | 'week' | 'month' | 'year'): string {
-  switch (period) {
-    case 'day':
-      return format(startOfDay(date), 'yyyy-MM-dd');
-    case 'week':
-      return format(startOfWeek(date, { locale: es }), 'yyyy-MM-dd');
-    case 'month':
-      return format(startOfMonth(date), 'yyyy-MM-01');
-    case 'year':
-      return format(startOfYear(date), 'yyyy-01-01');
-    default:
-      return format(date, 'yyyy-MM-dd');
-  }
-}
-
-/**
- * Parse date string to Date object
- */
-function parseDate(dateString: string): Date {
-  try {
-    return parseISO(dateString);
-  } catch {
-    return new Date(dateString);
-  }
+  // Business periods in America/Bogota (weeks start on Monday)
+  return businessPeriodKey(date, period);
 }
 
 /**
@@ -68,8 +38,7 @@ function buildSalesWhereClause(filters: SalesReportFilters): Prisma.SaleWhereInp
     organizationId: filters.organizationId,
     isDeleted: false,
     saleDate: {
-      gte: parseDate(filters.dateRange.startDate.toISOString()),
-      lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+      ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
     },
   };
 
@@ -196,7 +165,7 @@ export async function getSalesReport(
 
       return {
         period,
-        date: parseDate(period),
+        date: startOfBusinessDay(period),
         salesCount: values.salesCount,
         revenue: Number(values.revenue.toFixed(2)),
         cost: Number(values.cost.toFixed(2)),

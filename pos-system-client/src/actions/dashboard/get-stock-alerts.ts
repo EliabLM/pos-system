@@ -1,6 +1,6 @@
 'use server';
 
-import { startOfDay, subDays } from 'date-fns';
+import { addBusinessDays, startOfBusinessDay } from '@/lib/time';
 import { StockAlert, ActionResponse } from '@/interfaces';
 import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
 
@@ -59,7 +59,7 @@ export const getStockAlerts = async (
     }
 
     // Calculate date range for sales analysis (last 30 days)
-    const thirtyDaysAgo = startOfDay(subDays(new Date(), 30));
+    const thirtyDaysAgo = startOfBusinessDay(addBusinessDays(new Date(), -30));
     const today = new Date();
 
     // Get all product IDs for sales query

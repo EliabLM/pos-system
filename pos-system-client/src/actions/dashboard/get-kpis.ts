@@ -1,6 +1,6 @@
 'use server';
 
-import { startOfDay, endOfDay, subDays } from 'date-fns';
+import { addBusinessDays, businessDayRange } from '@/lib/time';
 import { DashboardKPIs, ActionResponse } from '@/interfaces';
 import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
 import { Prisma } from '@/generated/prisma';
@@ -25,11 +25,12 @@ export const getDashboardKPIs = async (
     // Validate organization ID
     if (checkOrgId(organizationId)) return emptyOrgIdResponse();
 
-    // Define date ranges for today and yesterday
-    const todayStart = startOfDay(new Date());
-    const todayEnd = endOfDay(new Date());
-    const yesterdayStart = startOfDay(subDays(new Date(), 1));
-    const yesterdayEnd = endOfDay(subDays(new Date(), 1));
+    // Today and yesterday as America/Bogota business days
+    const now = new Date();
+    const { gte: todayStart, lte: todayEnd } = businessDayRange(now);
+    const { gte: yesterdayStart, lte: yesterdayEnd } = businessDayRange(
+      addBusinessDays(now, -1)
+    );
 
     // Base where clause for queries
     const baseWhereClause: Prisma.SaleWhereInput = {

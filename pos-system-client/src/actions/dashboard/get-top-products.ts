@@ -1,6 +1,6 @@
 'use server';
 
-import { startOfDay, endOfDay, subDays } from 'date-fns';
+import { addBusinessDays, endOfBusinessDay, startOfBusinessDay } from '@/lib/time';
 import { TopProduct, ActionResponse } from '@/interfaces';
 import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
 
@@ -29,23 +29,23 @@ export const getTopProducts = async (
     // Calculate date range based on period
     const today = new Date();
     let startDate: Date;
-    const endDate: Date = endOfDay(today);
+    const endDate: Date = endOfBusinessDay(today);
 
     switch (period) {
       case 'today':
-        startDate = startOfDay(today);
+        startDate = startOfBusinessDay(today);
         break;
       case 'week':
-        startDate = startOfDay(subDays(today, 7));
+        startDate = startOfBusinessDay(addBusinessDays(today, -7));
         break;
       case 'month':
-        startDate = startOfDay(subDays(today, 30));
+        startDate = startOfBusinessDay(addBusinessDays(today, -30));
         break;
       case 'year':
-        startDate = startOfDay(subDays(today, 365));
+        startDate = startOfBusinessDay(addBusinessDays(today, -365));
         break;
       default:
-        startDate = startOfDay(today);
+        startDate = startOfBusinessDay(today);
     }
 
     // Query all sale items with filters and related data

@@ -1,10 +1,7 @@
 'use server';
 
-import {
-  endOfDay,
-  parseISO,
-  format,
-} from 'date-fns';
+import { format } from 'date-fns';
+import { businessDayRange, businessPeriodKey, businessDateTime, startOfBusinessDay } from '@/lib/time';
 import { es } from 'date-fns/locale';
 import { ActionResponse } from '@/interfaces';
 import {
@@ -28,17 +25,6 @@ import { Prisma } from '@/generated/prisma';
 // ===========================
 // HELPER FUNCTIONS
 // ===========================
-
-/**
- * Parse date string to Date object
- */
-function parseDate(dateString: string): Date {
-  try {
-    return parseISO(dateString);
-  } catch {
-    return new Date(dateString);
-  }
-}
 
 /**
  * Build base where clause for customer queries
@@ -101,8 +87,7 @@ export async function getCustomerSummary(
           some: {
             isDeleted: false,
             saleDate: {
-              gte: parseDate(filters.dateRange.startDate.toISOString()),
-              lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+              ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
             },
           },
         },
@@ -117,8 +102,7 @@ export async function getCustomerSummary(
       where: {
         ...whereClause,
         createdAt: {
-          gte: parseDate(filters.dateRange.startDate.toISOString()),
-          lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+          ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
         },
       },
     });
@@ -129,8 +113,7 @@ export async function getCustomerSummary(
         organizationId: filters.organizationId,
         isDeleted: false,
         saleDate: {
-          gte: parseDate(filters.dateRange.startDate.toISOString()),
-          lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+          ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
         },
         ...(filters.storeId && { storeId: filters.storeId }),
         ...(filters.customerId && { customerId: filters.customerId }),
@@ -184,8 +167,7 @@ export async function getTopCustomers(
         organizationId: filters.organizationId,
         isDeleted: false,
         saleDate: {
-          gte: parseDate(filters.dateRange.startDate.toISOString()),
-          lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+          ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
         },
         ...(filters.storeId && { storeId: filters.storeId }),
         ...(filters.customerId && { customerId: filters.customerId }),
@@ -346,8 +328,7 @@ export async function getCustomerPurchaseHistory(
         organizationId: filters.organizationId,
         isDeleted: false,
         saleDate: {
-          gte: parseDate(filters.dateRange.startDate.toISOString()),
-          lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+          ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
         },
         ...(filters.storeId && { storeId: filters.storeId }),
       },
@@ -559,8 +540,7 @@ export async function getCustomerRetention(
           where: {
             isDeleted: false,
             saleDate: {
-              gte: parseDate(filters.dateRange.startDate.toISOString()),
-              lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+              ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
             },
           },
           orderBy: { saleDate: 'asc' },
@@ -590,7 +570,7 @@ export async function getCustomerRetention(
       // Check if customer is new (first purchase in period)
       const firstSale = sales[0];
       if (
-        firstSale.saleDate >= parseDate(filters.dateRange.startDate.toISOString()) &&
+        firstSale.saleDate >= startOfBusinessDay(filters.dateRange.startDate) &&
         sales.length === 1
       ) {
         newCustomers++;
@@ -690,7 +670,7 @@ export async function getCohortAnalysis(
       if (customer.sales.length === 0) continue;
 
       const firstPurchase = customer.sales[0].saleDate;
-      const cohortKey = format(firstPurchase, 'yyyy-MM');
+      const cohortKey = businessPeriodKey(firstPurchase, 'month').slice(0, 7);
 
       const allPurchases = customer.sales.map(s => s.saleDate);
 
@@ -708,21 +688,16 @@ export async function getCohortAnalysis(
 
     for (const [cohortMonth, cohortInfo] of cohortMap.entries()) {
       const cohortSize = cohortInfo.customers.length;
-      const cohortStartDate = parseISO(`${cohortMonth}-01`);
+      const [cohortYear, cohortMonthNumber] = cohortMonth.split('-').map(Number);
 
       // Calculate retention for up to 12 months
       const retentionByMonth: CohortData['retentionByMonth'] = [];
 
       for (let monthOffset = 0; monthOffset <= 12; monthOffset++) {
-        const monthStart = new Date(
-          cohortStartDate.getFullYear(),
-          cohortStartDate.getMonth() + monthOffset,
-          1
-        );
+        // Business months in America/Bogota: [monthStart, monthEnd]
+        const monthStart = businessDateTime(cohortYear, cohortMonthNumber + monthOffset, 1);
         const monthEnd = new Date(
-          cohortStartDate.getFullYear(),
-          cohortStartDate.getMonth() + monthOffset + 1,
-          0
+          businessDateTime(cohortYear, cohortMonthNumber + monthOffset + 1, 1).getTime() - 1
         );
 
         // Count customers who made a purchase in this month
@@ -798,8 +773,7 @@ export async function getCustomerActivitySegments(
           where: {
             isDeleted: false,
             saleDate: {
-              gte: parseDate(filters.dateRange.startDate.toISOString()),
-              lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+              ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
             },
           },
           orderBy: { saleDate: 'desc' },

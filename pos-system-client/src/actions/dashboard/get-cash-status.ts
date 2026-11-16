@@ -1,6 +1,6 @@
 'use server';
 
-import { startOfDay, endOfDay, parseISO } from 'date-fns';
+import { businessDayRange } from '@/lib/time';
 import { CashStatus, ActionResponse } from '@/interfaces';
 import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
 
@@ -28,9 +28,11 @@ export const getCashStatus = async (
     if (checkOrgId(organizationId)) return emptyOrgIdResponse();
 
     // Calculate date range
-    let referenceDate: Date;
+    // A YYYY-MM-DD date is taken as that America/Bogota business day.
+    let startDate: Date;
+    let endDate: Date;
     try {
-      referenceDate = date ? parseISO(date) : new Date();
+      ({ gte: startDate, lte: endDate } = businessDayRange(date ?? new Date()));
     } catch (error) {
       console.error('Error parsing date:', error);
       return {
@@ -39,9 +41,6 @@ export const getCashStatus = async (
         data: null,
       };
     }
-
-    const startDate = startOfDay(referenceDate);
-    const endDate = endOfDay(referenceDate);
 
     // Query all sale payments with filters
     const salePayments = await prisma.salePayment.findMany({
