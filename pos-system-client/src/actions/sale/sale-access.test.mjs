@@ -35,7 +35,7 @@ const scopedOrg = (where = {}) => where.organizationId ?? where.sale?.organizati
 const visibleToB = (where) => scopedOrg(where) === undefined || scopedOrg(where) === 'org-b';
 
 const read = (model, method, handler) => async (args = {}) => {
-  state.calls.push({ model, method, where: args.where });
+  state.calls.push({ model, method, where: args.where, include: args.include });
   return handler(args);
 };
 const write = (model, method, result = () => ({})) => async (args = {}) => {
@@ -219,6 +219,30 @@ test('createSale: ignora organizationId/userId/totales enviados por el cliente',
   assert.deepEqual(state.stock.map((s) => [s.orgId, s.userId, s.data.userId]), [['org-a', 'seller-a', 'seller-a']]);
   for (const call of state.calls.filter((c) => ['store', 'product', 'paymentMethod'].includes(c.model) && c.method !== 'findUnique')) {
     assert.equal(call.where.organizationId, 'org-a');
+  }
+});
+
+test('createSale: seller con tienda asignada no vende en otra tienda de su organización', async () => {
+  reset(SELLER_A);
+  const otherStoreA = '00000000-0000-4000-8000-0000000000a9';
+  const result = await sale.createSale({
+    saleData: { storeId: otherStoreA },
+    saleItems: [{ productId: ID.productA, quantity: 1, unitPrice: 5 }],
+  });
+  assert.equal(result.status, 403);
+  assert.deepEqual(state.writes, []);
+  assert.deepEqual(state.stock, []);
+});
+
+test('respuestas de ventas: el vendedor incluido solo expone id, nombre y email', async () => {
+  reset(ADMIN_B);
+  await sale.getSaleById(ID.saleB);
+  await sale.getSales();
+  await sale.getPendingSales();
+  const includes = state.calls.filter((c) => c.model === 'sale' && c.include).map((c) => c.include);
+  assert.ok(includes.length >= 3);
+  for (const include of includes) {
+    assert.deepEqual(include.user, { select: { id: true, name: true, email: true } });
   }
 });
 

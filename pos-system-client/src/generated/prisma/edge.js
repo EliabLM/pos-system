@@ -578,7 +578,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\elopez\\workspace\\projects\\pos-system\\pos-system-client\\src\\generated\\prisma",
+      "value": "/home/claude-agents/proyectos/wt-pos/10/pos-system-client/src/generated/prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -587,7 +587,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "windows",
+        "value": "linux-arm64-openssl-3.0.x",
         "native": true
       },
       {
@@ -596,7 +596,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\Users\\elopez\\workspace\\projects\\pos-system\\pos-system-server\\prisma\\schema.prisma",
+    "sourceFilePath": "/home/claude-agents/proyectos/wt-pos/10/pos-system-server/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {

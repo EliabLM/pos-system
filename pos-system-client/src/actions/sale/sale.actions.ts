@@ -29,10 +29,13 @@ const saleNotFound = () =>
   ({ status: 404, message: 'Venta no encontrada', data: null }) as const;
 
 // SALE INCLUDES
+/** Campos del vendedor que salen al navegador: nunca credenciales ni datos de seguridad de la cuenta. */
+const saleUserSelect = { id: true, name: true, email: true } as const satisfies Prisma.UserSelect;
+
 const saleInclude: Prisma.SaleInclude = {
   store: true,
   customer: true, // Include complete customer data for detail view
-  user: true, // Include complete user data for detail view
+  user: { select: saleUserSelect }, // Solo datos públicos del vendedor
   saleItems: {
     where: {
       isDeleted: false,
@@ -95,6 +98,19 @@ export const createSale = async (
     }
     const { saleData, saleItems, salePayments } = parsed.data;
     const orgId = actor.organizationId;
+
+    // Un vendedor con tienda asignada solo vende en su tienda
+    if (
+      actor.role === MembershipRole.SELLER &&
+      actor.storeId &&
+      saleData.storeId !== actor.storeId
+    ) {
+      return {
+        status: 403,
+        message: 'Solo puedes registrar ventas en tu tienda asignada',
+        data: null,
+      };
+    }
 
     // Verificar que la tienda existe y pertenece a la organización
     const store = await prisma.store.findFirst({
@@ -443,7 +459,7 @@ export const getSales = async (
 const saleIncludeForType = {
   store: true,
   customer: true,
-  user: true,
+  user: { select: saleUserSelect },
   saleItems: {
     include: {
       product: {
