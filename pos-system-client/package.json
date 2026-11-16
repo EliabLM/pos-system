@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "prisma generate --schema=../pos-system-server/prisma/schema.prisma && next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "eslint . && pnpm --ignore-workspace run test",
     "postinstall": "prisma generate --schema=../pos-system-server/prisma/schema.prisma",
     "db:generate": "prisma generate --schema=../pos-system-server/prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
@@ -16,7 +16,10 @@
     "test:e2e:report": "playwright show-report",
     "db:seed:verify": "tsx prisma/seed-verify.ts",
     "test:seed:guard": "tsx --test prisma/seed-guard.test.ts",
-    "test:purchase:access": "node --test src/actions/purchase/*.test.mjs"
+    "test:purchase:access": "node --test src/actions/purchase/*.test.mjs",
+    "test": "node --test test/*.test.mjs src/lib/auth/*.test.mjs src/actions/*/*.test.mjs",
+    "test:actions:guard": "node --test test/actions-guard.test.mjs",
+    "test:sale:access": "node --test src/lib/auth/actor.test.mjs src/actions/sale/*.test.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

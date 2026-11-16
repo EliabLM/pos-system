@@ -3,12 +3,12 @@ import {
   MembershipRole,
   MembershipStatus,
   Prisma,
-  PrismaClient,
 } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
+import { prisma } from '@/lib/db';
 
-// Instancia única de Prisma Client para ser usada en todas las actions
-export const prisma = new PrismaClient();
+// Instancia única de Prisma Client (singleton en globalThis, ver lib/db.ts)
+export { prisma };
 
 /**
  * Devuelve el membership ACTIVO del usuario (D3.3: la tenancy vive en

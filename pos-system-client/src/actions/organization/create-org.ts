@@ -1,6 +1,6 @@
 'use server';
 
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/db';
 
 interface OrgRequest {
   clerkOrgId: string;
@@ -11,8 +11,6 @@ interface OrgRequest {
   city?: string;
   department?: string;
 }
-
-const prisma = new PrismaClient();
 
 export const createOrgAction = async (org: OrgRequest) => {
   try {

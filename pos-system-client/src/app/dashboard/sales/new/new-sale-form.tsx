@@ -52,7 +52,7 @@ import { useStores } from '@/hooks/useStores';
 import { useActiveProducts } from '@/hooks/useProducts';
 import { useActivePaymentMethods } from '@/hooks/usePaymentMethods';
 import { useCreateSale } from '@/hooks/useSales';
-import type { Product, SaleStatus, UnitMeasure } from '@/generated/prisma';
+import type { Product, UnitMeasure } from '@/generated/prisma';
 import type { Serialized } from '@/interfaces';
 import { isSeller } from '@/lib/rbac';
 import { useBusinessType } from '@/hooks/useSystemConfig';
@@ -369,7 +369,6 @@ export const NewSaleForm = () => {
         unitMeasureId: item.unitMeasureId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        subtotal: item.subtotal,
       }));
 
       const salePayments = payments.map((payment) => ({
@@ -383,17 +382,13 @@ export const NewSaleForm = () => {
       await createSaleMutation.mutateAsync({
         saleData: {
           storeId: data.store,
-          userId: user.id,
           customerId: selectedCustomerId,
-          subtotal: totals.subtotal,
-          total: totals.subtotal,
-          status: data.status as SaleStatus,
+          status: data.status as 'PAID' | 'PENDING',
           saleDate: parseLocalDateTime(data.saleDate),
           dueDate:
             data.status === 'PENDING' && data.dueDate
               ? parseLocalDateTime(data.dueDate + 'T00:00')
               : null,
-          paidDate: data.status === 'PAID' ? new Date() : null,
           notes: data.notes || null,
         },
         saleItems,

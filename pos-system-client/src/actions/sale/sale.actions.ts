@@ -1,22 +1,32 @@
 'use server';
 
-import {
-  Sale,
-  SaleItem,
-  SalePayment,
-  Prisma,
-  SaleStatus,
-} from '@/generated/prisma';
+import { Sale, Prisma, SaleStatus, MembershipRole } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
-import {
-  prisma,
-  checkAdminRole,
-  unauthorizedResponse,
-  checkOrgId,
-  emptyOrgIdResponse,
-  serializeDecimals,
-} from '../utils';
+import { actorErrorResponse, requireActor, type Actor } from '@/lib/auth/actor';
+import { prisma, serializeDecimals } from '../utils';
 import { createStockMovement } from '../stock-movement';
+import { calculateSaleTotals } from './sale-totals';
+import {
+  analyticsInputSchema,
+  createSaleInputSchema,
+  idSchema,
+  paginationSchema,
+  saleFiltersSchema,
+  updateSaleInputSchema,
+  type CreateSaleInput,
+  type PaginationInput,
+  type SaleFiltersInput,
+  type UpdateSaleInput,
+} from './sale.schemas';
+
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
+
+const invalidInput = (message = 'Datos inválidos') =>
+  ({ status: 400, message, data: null }) as const;
+const internalError = () =>
+  ({ status: 500, message: 'Error interno del servidor', data: null }) as const;
+const saleNotFound = () =>
+  ({ status: 404, message: 'Venta no encontrada', data: null }) as const;
 
 // SALE INCLUDES
 const saleInclude: Prisma.SaleInclude = {
@@ -69,67 +79,22 @@ const generateSaleNumber = async (storeId: string): Promise<string> => {
   return `${store?.saleNumberPrefix}-${String(nextNumber).padStart(6, '0')}`;
 };
 
-const validateSaleItems = (
-  items: Omit<
-    Serialized<SaleItem>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >[]
-) => {
-  if (!items || items.length === 0) {
-    throw new Error('La venta debe tener al menos un item');
-  }
-
-  for (const item of items) {
-    if (item.quantity <= 0) {
-      throw new Error('La cantidad de cada item debe ser mayor a 0');
-    }
-    if (item.unitPrice < 0) {
-      throw new Error('El precio unitario no puede ser negativo');
-    }
-  }
-};
-
-export const calculateSaleTotals = async (
-  items: { quantity: number; unitPrice: number }[]
-) => {
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0
-  );
-  return { subtotal, total: subtotal }; // Se puede agregar lógica de descuentos/impuestos aquí
-};
-
 // ===========================
 // SALE ACTIONS
 // ===========================
 
 // CREATE SALE
 export const createSale = async (
-  orgId: string,
-  userId: string,
-  saleData: Omit<
-    Serialized<Sale>,
-    | 'id'
-    | 'organizationId'
-    | 'saleNumber'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'isDeleted'
-    | 'deletedAt'
-  >,
-  saleItems: Omit<
-    Serialized<SaleItem>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >[],
-  salePayments?: Omit<
-    Serialized<SalePayment>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >[]
+  input: CreateSaleInput
 ): Promise<ActionResponse<Serialized<Sale> | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    validateSaleItems(saleItems);
+    const actor = await requireActor();
+    const parsed = createSaleInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return invalidInput(parsed.error.issues[0]?.message ?? 'Datos de venta inválidos');
+    }
+    const { saleData, saleItems, salePayments } = parsed.data;
+    const orgId = actor.organizationId;
 
     // Verificar que la tienda existe y pertenece a la organización
     const store = await prisma.store.findFirst({
@@ -149,26 +114,27 @@ export const createSale = async (
     }
 
     // Verificar cliente si se especifica
-    // if (saleData.customerId) {
-    //   const customer = await prisma.customer.findFirst({
-    //     where: {
-    //       id: saleData.customerId,
-    //       organizationId: orgId,
-    //       isDeleted: false,
-    //     },
-    //   });
+    if (saleData.customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: saleData.customerId,
+          organizationId: orgId,
+          isDeleted: false,
+        },
+        select: { id: true },
+      });
 
-    //   if (!customer) {
-    //     return {
-    //       status: 400,
-    //       message: 'El cliente especificado no existe',
-    //       data: null,
-    //     };
-    //   }
-    // }
+      if (!customer) {
+        return {
+          status: 400,
+          message: 'El cliente especificado no existe',
+          data: null,
+        };
+      }
+    }
 
     // Verificar productos y stock disponible
-    const productIds = saleItems.map((item) => item.productId);
+    const productIds = [...new Set(saleItems.map((item) => item.productId))];
     const products = await prisma.product.findMany({
       where: {
         id: { in: productIds },
@@ -192,7 +158,7 @@ export const createSale = async (
       if (!product) {
         return {
           status: 400,
-          message: `Producto con ID ${item.productId} no encontrado`,
+          message: 'Uno o más productos no existen o están inactivos',
           data: null,
         };
       }
@@ -206,8 +172,8 @@ export const createSale = async (
       }
     }
 
-    // Calcular totales
-    const { subtotal, total } = await calculateSaleTotals(saleItems);
+    // Calcular totales (siempre en el servidor)
+    const { subtotal, total } = calculateSaleTotals(saleItems);
 
     // Validar pagos si se proporcionan
     if (salePayments && salePayments.length > 0) {
@@ -224,7 +190,7 @@ export const createSale = async (
       }
 
       // Verificar métodos de pago
-      const paymentMethodIds = salePayments.map((p) => p.paymentMethodId);
+      const paymentMethodIds = [...new Set(salePayments.map((p) => p.paymentMethodId))];
       const paymentMethods = await prisma.paymentMethod.findMany({
         where: {
           id: { in: paymentMethodIds },
@@ -249,11 +215,18 @@ export const createSale = async (
     // Crear venta en transacción con timeout aumentado
     const newSale = await prisma.$transaction(
       async (tx) => {
-        // Crear la venta
+        // Crear la venta (lista blanca de campos; identidad y tenant del actor)
         const sale = await tx.sale.create({
           data: {
-            ...saleData,
             organizationId: orgId,
+            storeId: saleData.storeId,
+            userId: actor.userId,
+            customerId: saleData.customerId ?? null,
+            status: saleData.status,
+            saleDate: saleData.saleDate ?? new Date(),
+            dueDate: saleData.status === 'PENDING' ? saleData.dueDate ?? null : null,
+            paidDate: saleData.status === 'PAID' ? new Date() : null,
+            notes: saleData.notes ?? null,
             saleNumber,
             subtotal,
             total,
@@ -264,16 +237,19 @@ export const createSale = async (
         for (const itemData of saleItems) {
           await tx.saleItem.create({
             data: {
-              ...itemData,
               saleId: sale.id,
+              productId: itemData.productId,
+              unitMeasureId: itemData.unitMeasureId ?? null,
+              quantity: itemData.quantity,
+              unitPrice: itemData.unitPrice,
               subtotal: itemData.quantity * itemData.unitPrice,
             },
           });
 
           // Crear movimiento y actualizar producto
-          await createStockMovement(orgId, userId, {
+          await createStockMovement(orgId, actor.userId, {
             productId: itemData.productId,
-            userId: userId,
+            userId: actor.userId,
             storeId: saleData.storeId,
             type: 'OUT',
             quantity: itemData.quantity,
@@ -287,8 +263,12 @@ export const createSale = async (
           for (const paymentData of salePayments) {
             await tx.salePayment.create({
               data: {
-                ...paymentData,
                 saleId: sale.id,
+                paymentMethodId: paymentData.paymentMethodId,
+                amount: paymentData.amount,
+                reference: paymentData.reference ?? null,
+                notes: paymentData.notes ?? null,
+                paymentDate: paymentData.paymentDate ?? new Date(),
               },
             });
           }
@@ -328,6 +308,8 @@ export const createSale = async (
       data: serializeDecimals(newSale),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error creating sale:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -347,56 +329,38 @@ export const createSale = async (
       }
     }
 
-    if (error instanceof Error) {
-      return {
-        status: 400,
-        message: error.message,
-        data: null,
-      };
-    }
-
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// GET SALES BY ORG
-export const getSalesByOrgId = async (
-  orgId: string,
-  userId: string,
-  userRole: string,
-  userStoreId?: string | null,
-  filters?: {
-    storeId?: string;
-    customerId?: string;
-    userId?: string;
-    status?: SaleStatus;
-    dateFrom?: Date | string;
-    dateTo?: Date | string;
-    search?: string;
-    minAmount?: number;
-    maxAmount?: number;
-  },
+// GET SALES (organización del actor)
+export const getSales = async (
+  filtersInput?: SaleFiltersInput,
   includeDeleted: boolean = false,
-  pagination?: {
-    page?: number;
-    limit?: number;
-  }
+  paginationInput?: PaginationInput
 ): Promise<
   ActionResponse<{ sales: Serialized<Sale>[]; total: number } | null>
 > => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
+    const parsedFilters = saleFiltersSchema.safeParse(filtersInput);
+    const parsedPagination = paginationSchema.safeParse(paginationInput);
+    if (!parsedFilters.success || !parsedPagination.success) {
+      return invalidInput('Filtros de ventas inválidos');
+    }
+    const filters = parsedFilters.data;
+    const pagination = parsedPagination.data;
 
     const whereClause: Prisma.SaleWhereInput = {
-      organizationId: orgId,
-      isDeleted: includeDeleted ? undefined : false,
+      organizationId: actor.organizationId,
+      // Solo ADMIN puede ver ventas eliminadas
+      isDeleted: includeDeleted === true && actor.role === MembershipRole.ADMIN ? undefined : false,
     };
 
-    // RBAC: SELLER users can only see sales from their assigned store
-    if (userRole === 'SELLER' && userStoreId) {
-      whereClause.storeId = userStoreId;
+    // RBAC: SELLER con tienda asignada solo ve las ventas de su tienda
+    if (actor.role === MembershipRole.SELLER && actor.storeId) {
+      whereClause.storeId = actor.storeId;
     } else if (filters?.storeId) {
-      // ADMIN users can filter by any store
       whereClause.storeId = filters.storeId;
     }
 
@@ -414,20 +378,8 @@ export const getSalesByOrgId = async (
 
     if (filters?.dateFrom || filters?.dateTo) {
       whereClause.saleDate = {};
-      if (filters.dateFrom) {
-        // Convertir string a Date si es necesario
-        whereClause.saleDate.gte =
-          typeof filters.dateFrom === 'string'
-            ? new Date(filters.dateFrom)
-            : filters.dateFrom;
-      }
-      if (filters.dateTo) {
-        // Convertir string a Date si es necesario
-        whereClause.saleDate.lte =
-          typeof filters.dateTo === 'string'
-            ? new Date(filters.dateTo)
-            : filters.dateTo;
-      }
+      if (filters.dateFrom) whereClause.saleDate.gte = filters.dateFrom;
+      if (filters.dateTo) whereClause.saleDate.lte = filters.dateTo;
     }
 
     // Filtro por rango de montos
@@ -479,6 +431,8 @@ export const getSalesByOrgId = async (
       data: { sales: serializeDecimals(sales), total },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching sales:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
@@ -525,22 +479,16 @@ export const getSaleById = async (
   saleId: string
 ): Promise<ActionResponse<Serialized<SaleWithRelations> | null>> => {
   try {
-    if (!saleId) {
-      return {
-        status: 400,
-        message: 'ID de venta es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor();
+    const id = idSchema.safeParse(saleId);
+    if (!id.success) return invalidInput('ID de venta es requerido');
 
     const sale = await prisma.sale.findFirst({
-      where: { id: saleId, isDeleted: false },
+      where: { id: id.data, organizationId: actor.organizationId, isDeleted: false },
       include: saleInclude,
     });
 
-    if (!sale) {
-      return { status: 404, message: 'Venta no encontrada', data: null };
-    }
+    if (!sale) return saleNotFound();
 
     return {
       status: 200,
@@ -548,6 +496,8 @@ export const getSaleById = async (
       data: serializeDecimals(sale) as unknown as Serialized<SaleWithRelations>,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching sale:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
@@ -555,34 +505,27 @@ export const getSaleById = async (
 
 // GET SALE BY NUMBER
 export const getSaleBySaleNumber = async (
-  orgId: string,
   storeId: string,
   saleNumber: string
 ): Promise<ActionResponse<Serialized<SaleWithRelations> | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    if (!saleNumber) {
-      return {
-        status: 400,
-        message: 'Número de venta es requerido',
-        data: null,
-      };
+    const actor = await requireActor();
+    const store = idSchema.safeParse(storeId);
+    if (!store.success || typeof saleNumber !== 'string' || !saleNumber.trim() || saleNumber.length > 64) {
+      return invalidInput('Número de venta es requerido');
     }
 
     const sale = await prisma.sale.findFirst({
       where: {
-        organizationId: orgId,
-        storeId,
-        saleNumber,
+        organizationId: actor.organizationId,
+        storeId: store.data,
+        saleNumber: saleNumber.trim(),
         isDeleted: false,
       },
       include: saleInclude,
     });
 
-    if (!sale) {
-      return { status: 404, message: 'Venta no encontrada', data: null };
-    }
+    if (!sale) return saleNotFound();
 
     return {
       status: 200,
@@ -590,69 +533,61 @@ export const getSaleBySaleNumber = async (
       data: serializeDecimals(sale) as unknown as Serialized<SaleWithRelations>,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching sale by number:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// UPDATE SALE
+// UPDATE SALE (solo ADMIN)
 export const updateSale = async (
   saleId: string,
-  userId: string,
-  updateData: Partial<{
-    customerId: string;
-    status: SaleStatus;
-    dueDate: Date;
-    paidDate: Date;
-    notes: string;
-  }>
+  updateInput: UpdateSaleInput
 ): Promise<ActionResponse<Serialized<Sale> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!saleId) {
-      return {
-        status: 400,
-        message: 'ID de venta es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(saleId);
+    if (!id.success) return invalidInput('ID de venta es requerido');
+    const parsed = updateSaleInputSchema.safeParse(updateInput);
+    if (!parsed.success) return invalidInput('Datos de venta inválidos');
+    const updateData = parsed.data;
 
     const existingSale = await prisma.sale.findFirst({
-      where: { id: saleId, isDeleted: false },
+      where: { id: id.data, organizationId: actor.organizationId, isDeleted: false },
+      select: { id: true },
     });
 
-    if (!existingSale) {
-      return { status: 404, message: 'Venta no encontrada', data: null };
-    }
+    if (!existingSale) return saleNotFound();
 
     // Verificar cliente si se está actualizando
-    // if (
-    //   updateData.customerId &&
-    //   updateData.customerId !== existingSale.customerId
-    // ) {
-    //   const customer = await prisma.customer.findFirst({
-    //     where: {
-    //       id: updateData.customerId,
-    //       organizationId: existingSale.organizationId,
-    //       isDeleted: false,
-    //     },
-    //   });
+    if (updateData.customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: updateData.customerId,
+          organizationId: actor.organizationId,
+          isDeleted: false,
+        },
+        select: { id: true },
+      });
 
-    //   if (!customer) {
-    //     return {
-    //       status: 400,
-    //       message: 'El cliente especificado no existe',
-    //       data: null,
-    //     };
-    //   }
-    // }
+      if (!customer) {
+        return {
+          status: 400,
+          message: 'El cliente especificado no existe',
+          data: null,
+        };
+      }
+    }
 
     const updatedSale = await prisma.sale.update({
-      where: { id: saleId },
+      where: { id: existingSale.id },
       data: {
-        ...updateData,
+        customerId: updateData.customerId,
+        status: updateData.status,
+        dueDate: updateData.dueDate,
+        paidDate: updateData.paidDate,
+        notes: updateData.notes,
         updatedAt: new Date(),
       },
       include: saleInclude,
@@ -664,12 +599,12 @@ export const updateSale = async (
       data: serializeDecimals(updatedSale),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error updating sale:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Venta no encontrada', data: null };
-      }
+      if (error.code === 'P2025') return saleNotFound();
       if (error.code === 'P2003') {
         return {
           status: 400,
@@ -683,32 +618,25 @@ export const updateSale = async (
   }
 };
 
-// CANCEL SALE
+// CANCEL SALE (solo ADMIN)
 export const cancelSale = async (
   saleId: string,
-  userId: string,
   reason?: string
 ): Promise<ActionResponse<Serialized<Sale> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!saleId) {
-      return {
-        status: 400,
-        message: 'ID de venta es requerido',
-        data: null,
-      };
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(saleId);
+    if (!id.success) return invalidInput('ID de venta es requerido');
+    if (reason !== undefined && (typeof reason !== 'string' || reason.length > 1000)) {
+      return invalidInput('Motivo de cancelación inválido');
     }
 
     const existingSale = await prisma.sale.findFirst({
-      where: { id: saleId, isDeleted: false },
-      include: { saleItems: true },
+      where: { id: id.data, organizationId: actor.organizationId, isDeleted: false },
+      include: { saleItems: { where: { isDeleted: false } } },
     });
 
-    if (!existingSale) {
-      return { status: 404, message: 'Venta no encontrada', data: null };
-    }
+    if (!existingSale) return saleNotFound();
 
     if (existingSale.status === 'CANCELLED') {
       return {
@@ -721,9 +649,8 @@ export const cancelSale = async (
     // Cancelar venta y restaurar stock en transacción con timeout aumentado
     const cancelledSale = await prisma.$transaction(
       async (tx) => {
-        // Actualizar status de la venta
         await tx.sale.update({
-          where: { id: saleId },
+          where: { id: existingSale.id },
           data: {
             status: 'CANCELLED',
             notes: reason
@@ -735,19 +662,19 @@ export const cancelSale = async (
 
         // Restaurar stock de productos
         for (const item of existingSale.saleItems) {
-          await createStockMovement(existingSale.organizationId, userId, {
+          await createStockMovement(actor.organizationId, actor.userId, {
             productId: item.productId,
-            userId: userId,
+            userId: actor.userId,
             storeId: existingSale.storeId,
             type: 'IN',
             quantity: item.quantity,
             reason: `Cancelación de venta ${existingSale.saleNumber}`,
-            reference: saleId,
+            reference: existingSale.id,
           });
         }
 
         return tx.sale.findUnique({
-          where: { id: saleId },
+          where: { id: existingSale.id },
           include: saleInclude,
         });
       },
@@ -763,35 +690,26 @@ export const cancelSale = async (
       data: serializeDecimals(cancelledSale),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error cancelling sale:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// SOFT DELETE SALE
-export const softDeleteSale = async (
-  saleId: string,
-  userId: string
-): Promise<ActionResponse> => {
+// SOFT DELETE SALE (solo ADMIN)
+export const softDeleteSale = async (saleId: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!saleId) {
-      return {
-        status: 400,
-        message: 'ID de venta es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(saleId);
+    if (!id.success) return invalidInput('ID de venta es requerido');
 
     const existingSale = await prisma.sale.findFirst({
-      where: { id: saleId, isDeleted: false },
+      where: { id: id.data, organizationId: actor.organizationId, isDeleted: false },
+      select: { id: true, status: true },
     });
 
-    if (!existingSale) {
-      return { status: 404, message: 'Venta no encontrada', data: null };
-    }
+    if (!existingSale) return saleNotFound();
 
     if (existingSale.status === 'PAID') {
       return {
@@ -803,7 +721,7 @@ export const softDeleteSale = async (
     }
 
     await prisma.sale.update({
-      where: { id: saleId },
+      where: { id: existingSale.id },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
@@ -817,6 +735,8 @@ export const softDeleteSale = async (
       data: null,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error soft deleting sale:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
@@ -828,7 +748,6 @@ export const softDeleteSale = async (
 
 // GET SALES ANALYTICS
 export const getSalesAnalytics = async (
-  orgId: string,
   dateFrom?: Date | string,
   dateTo?: Date | string,
   storeId?: string
@@ -854,27 +773,25 @@ export const getSalesAnalytics = async (
   } | null>
 > => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
+    const parsed = analyticsInputSchema.safeParse({ dateFrom, dateTo, storeId });
+    if (!parsed.success) return invalidInput('Filtros de analíticas inválidos');
+    const input = parsed.data;
+    const orgId = actor.organizationId;
 
     const whereClause: Prisma.SaleWhereInput = {
       organizationId: orgId,
       isDeleted: false,
     };
 
-    if (dateFrom || dateTo) {
+    if (input.dateFrom || input.dateTo) {
       whereClause.saleDate = {};
-      if (dateFrom) {
-        whereClause.saleDate.gte =
-          typeof dateFrom === 'string' ? new Date(dateFrom) : dateFrom;
-      }
-      if (dateTo) {
-        whereClause.saleDate.lte =
-          typeof dateTo === 'string' ? new Date(dateTo) : dateTo;
-      }
+      if (input.dateFrom) whereClause.saleDate.gte = input.dateFrom;
+      if (input.dateTo) whereClause.saleDate.lte = input.dateTo;
     }
 
-    if (storeId) {
-      whereClause.storeId = storeId;
+    if (input.storeId) {
+      whereClause.storeId = input.storeId;
     }
 
     // Agregaciones básicas
@@ -917,16 +834,16 @@ export const getSalesAnalytics = async (
         }),
       ]);
 
-    // Obtener información de tiendas y productos
+    // Obtener información de tiendas y productos (siempre de la organización)
     const storeIds = salesByStore.map((item) => item.storeId);
     const stores = await prisma.store.findMany({
-      where: { id: { in: storeIds } },
+      where: { id: { in: storeIds }, organizationId: orgId },
       select: { id: true, name: true },
     });
 
     const productIds = topProducts.map((item) => item.productId);
     const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: { id: { in: productIds }, organizationId: orgId },
       select: { id: true, name: true },
     });
 
@@ -961,30 +878,31 @@ export const getSalesAnalytics = async (
       },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching sales analytics:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// GET PENDING SALES
-export const getPendingSales = async (
-  orgId: string,
-  storeId?: string
+const listPendingSales = async (
+  actor: Actor,
+  storeId: string | undefined,
+  overdueOnly: boolean
 ): Promise<ActionResponse<Serialized<Sale>[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const store = idSchema.optional().safeParse(storeId);
+    if (!store.success) return invalidInput('ID de tienda inválido');
 
     const whereClause: Prisma.SaleWhereInput = {
-      organizationId: orgId,
+      organizationId: actor.organizationId,
       isDeleted: false,
       status: 'PENDING',
+      ...(overdueOnly ? { dueDate: { lt: new Date() } } : {}),
+      ...(store.data ? { storeId: store.data } : {}),
     };
 
-    if (storeId) {
-      whereClause.storeId = storeId;
-    }
-
-    const pendingSales = await prisma.sale.findMany({
+    const sales = await prisma.sale.findMany({
       where: whereClause,
       include: saleInclude,
       orderBy: { dueDate: 'asc' },
@@ -992,8 +910,10 @@ export const getPendingSales = async (
 
     return {
       status: 200,
-      message: 'Ventas pendientes obtenidas exitosamente',
-      data: serializeDecimals(pendingSales),
+      message: overdueOnly
+        ? 'Ventas vencidas obtenidas exitosamente'
+        : 'Ventas pendientes obtenidas exitosamente',
+      data: serializeDecimals(sales),
     };
   } catch (error) {
     console.error('Error fetching pending sales:', error);
@@ -1001,40 +921,24 @@ export const getPendingSales = async (
   }
 };
 
-// GET OVERDUE SALES
-export const getOverdueSales = async (
-  orgId: string,
+// GET PENDING SALES
+export const getPendingSales = async (
   storeId?: string
 ): Promise<ActionResponse<Serialized<Sale>[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    const whereClause: Prisma.SaleWhereInput = {
-      organizationId: orgId,
-      isDeleted: false,
-      status: 'PENDING',
-      dueDate: {
-        lt: new Date(),
-      },
-    };
-
-    if (storeId) {
-      whereClause.storeId = storeId;
-    }
-
-    const overdueSales = await prisma.sale.findMany({
-      where: whereClause,
-      include: saleInclude,
-      orderBy: { dueDate: 'asc' },
-    });
-
-    return {
-      status: 200,
-      message: 'Ventas vencidas obtenidas exitosamente',
-      data: serializeDecimals(overdueSales),
-    };
+    return await listPendingSales(await requireActor(), storeId, false);
   } catch (error) {
-    console.error('Error fetching overdue sales:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return actorErrorResponse(error) ?? internalError();
+  }
+};
+
+// GET OVERDUE SALES
+export const getOverdueSales = async (
+  storeId?: string
+): Promise<ActionResponse<Serialized<Sale>[] | null>> => {
+  try {
+    return await listPendingSales(await requireActor(), storeId, true);
+  } catch (error) {
+    return actorErrorResponse(error) ?? internalError();
   }
 };
