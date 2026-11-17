@@ -56,7 +56,7 @@ export async function getCurrentUser(): Promise<ActionResponse<GetCurrentUserRes
     // 2. Verify y decode JWT
     let payload;
     try {
-      payload = verifyToken(token);
+      payload = await verifyToken(token);
 
       if (!payload) {
         return {
@@ -282,7 +282,7 @@ export async function isAuthenticated(): Promise<ActionResponse> {
 
     // Verificar token y sesión
     try {
-      const payload = verifyToken(token);
+      const payload = await verifyToken(token);
       if (!payload) {
         return {
           status: 200,
@@ -341,7 +341,7 @@ export async function getCurrentUserId(): Promise<string | null> {
       return null;
     }
 
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     return payload?.userId || null;
   } catch {
     return null;

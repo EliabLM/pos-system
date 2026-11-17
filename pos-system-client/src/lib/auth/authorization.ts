@@ -65,7 +65,7 @@ export async function getCurrentAuthUser(): Promise<AuthUser | null> {
     // 2. Verificar y decodificar JWT
     let payload;
     try {
-      payload = verifyToken(token);
+      payload = await verifyToken(token);
       if (!payload || !payload.userId) {
         return null;
       }
