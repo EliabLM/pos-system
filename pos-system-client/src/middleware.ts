@@ -205,6 +205,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder files
+     * - product images (GET /api/images/<key>.webp): public by URL so the
+     *   next/image optimizer can fetch them without the user's cookie.
+     *   See docs/deployment/imagenes-producto.md.
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)',
   ],

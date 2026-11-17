@@ -19,6 +19,8 @@ Decisión del usuario 9 (issue #23): las imágenes de producto se guardan en el 
 - **Aislamiento:** un producto solo puede referenciar imágenes de su organización, y el borrado solo actúa sobre claves de esa organización.
 - **Borrado:** al cambiar o quitar la imagen de un producto (después de guardar en BD) y al borrar el producto definitivamente. El borrado suave conserva la imagen.
 - **Lectura:** las imágenes son públicas por URL (UUID no adivinable), con `Cache-Control: public, max-age=31536000, immutable`, `ETag`, `nosniff` y CSP `default-src 'none'`. Una clave nunca se sobrescribe; cambiar la imagen crea una clave nueva.
+  - Por qué no piden sesión: el `matcher` de `src/middleware.ts` excluye las rutas que terminan en `.webp` (y demás extensiones de imagen), así que `GET /api/images/<clave>.webp` no pasa por el middleware. Así el optimizador de `next/image` (`/_next/image`), que pide la imagen sin la cookie del usuario, la recibe. Si cambia el formato de las claves o ese `matcher`, hay que mantener pública esta ruta.
+  - `POST /api/images` sí exige sesión: el middleware redirige al login sin cookie y el handler comprueba ADMIN con `requireActor`.
 
 ## Variables de entorno (client)
 
