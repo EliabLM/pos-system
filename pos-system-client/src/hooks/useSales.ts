@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createSale,
-  getSalesByOrgId,
+  getSales,
   getSaleById,
   getSaleBySaleNumber,
   updateSale,
@@ -12,8 +12,8 @@ import {
   getOverdueSales
 } from '@/actions/sale';
 import { useStore } from '@/store';
-import { Sale, SaleItem, SalePayment, SaleStatus } from '@/generated/prisma';
-import { Serialized } from '@/interfaces';
+import { SaleStatus } from '@/generated/prisma';
+import type { CreateSaleInput, UpdateSaleInput } from '@/actions/sale/sale.schemas';
 
 // Tipos para los filtros de ventas
 interface SaleFilters {
@@ -33,36 +33,11 @@ interface SalePagination {
   limit?: number;
 }
 
-interface CreateSaleParams {
-  saleData: Omit<
-    Serialized<Sale>,
-    | 'id'
-    | 'organizationId'
-    | 'saleNumber'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'isDeleted'
-    | 'deletedAt'
-  >;
-  saleItems: Omit<
-    Serialized<SaleItem>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >[];
-  salePayments?: Omit<
-    Serialized<SalePayment>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >[];
-}
+type CreateSaleParams = CreateSaleInput;
 
 interface UpdateSaleParams {
   saleId: string;
-  updateData: Partial<{
-    customerId: string;
-    status: SaleStatus;
-    dueDate: Date;
-    paidDate: Date;
-    notes: string;
-  }>;
+  updateData: UpdateSaleInput;
 }
 
 // Hook principal para obtener ventas por organización
@@ -76,19 +51,12 @@ export const useSales = (
   return useQuery({
     queryKey: ['sales', user?.organizationId, user?.role, user?.storeId, filters, includeDeleted, pagination],
     queryFn: async () => {
-      if (!user?.organizationId || !user?.id || !user?.role) {
+      if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getSalesByOrgId(
-        user.organizationId,
-        user.id,
-        user.role,
-        user.storeId,
-        filters,
-        includeDeleted,
-        pagination
-      );
+      // Organización, usuario y rol los deriva el servidor de la sesión.
+      const response = await getSales(filters, includeDeleted, pagination);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -140,11 +108,7 @@ export const useSaleBySaleNumber = (storeId: string, saleNumber: string) => {
         throw new Error('ID de tienda y número de venta requeridos');
       }
 
-      const response = await getSaleBySaleNumber(
-        user.organizationId,
-        storeId,
-        saleNumber
-      );
+      const response = await getSaleBySaleNumber(storeId, saleNumber);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -169,7 +133,7 @@ export const usePendingSales = (storeId?: string) => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getPendingSales(user.organizationId, storeId);
+      const response = await getPendingSales(storeId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -194,7 +158,7 @@ export const useOverdueSales = (storeId?: string) => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getOverdueSales(user.organizationId, storeId);
+      const response = await getOverdueSales(storeId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -224,7 +188,6 @@ export const useSalesAnalytics = (
       }
 
       const response = await getSalesAnalytics(
-        user.organizationId,
         dateFrom,
         dateTo,
         storeId
@@ -253,13 +216,7 @@ export const useCreateSale = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await createSale(
-        user.organizationId,
-        user.id,
-        saleData,
-        saleItems,
-        salePayments
-      );
+      const response = await createSale({ saleData, saleItems, salePayments });
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -310,7 +267,7 @@ export const useUpdateSale = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await updateSale(saleId, user.id, updateData);
+      const response = await updateSale(saleId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -360,7 +317,7 @@ export const useCancelSale = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await cancelSale(saleId, user.id, reason);
+      const response = await cancelSale(saleId, reason);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -417,7 +374,7 @@ export const useSoftDeleteSale = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await softDeleteSale(saleId, user.id);
+      const response = await softDeleteSale(saleId);
 
       if (response.status !== 200) {
         throw new Error(response.message);

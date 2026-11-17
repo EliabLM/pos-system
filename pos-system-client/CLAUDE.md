@@ -296,7 +296,7 @@ The system includes comprehensive authentication tables:
 1. Public routes bypass authentication
 2. Protected routes verify JWT token from cookie
 3. Token payload includes: `userId`, `email`, `role`, `organizationId`, `storeId`
-4. User info added to request headers (`x-user-id`, `x-user-email`, `x-user-role`, `x-organization-id`, `x-store-id`)
+4. No identity headers are added (`x-user-*` removed in #11); server code uses `getActor()` from `@/lib/auth/actor`
 5. Role-based redirects:
    - Users without organization → redirect to `/onboarding`
    - Users with organization trying to access onboarding → redirect to `/dashboard`

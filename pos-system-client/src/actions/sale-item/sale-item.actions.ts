@@ -1,15 +1,20 @@
-import {
-  SaleItem,
-  Prisma,
-} from '@/generated/prisma';
+'use server';
+
+import { SaleItem, Prisma, MembershipRole } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma, serializeDecimals } from '../utils';
+import { calculateSaleTotals } from '../sale/sale-totals';
 import {
-  prisma,
-  checkAdminRole,
-  unauthorizedResponse,
-  serializeDecimals,
-} from '../utils';
-import { calculateSaleTotals } from '../sale/sale.actions';
+  idSchema,
+  saleItemInputSchema,
+  updateSaleItemInputSchema,
+  type SaleItemInput,
+  type UpdateSaleItemInput,
+} from '../sale/sale.schemas';
+
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
+const invalidInput = (message: string) => ({ status: 400, message, data: null }) as const;
 
 const saleItemInclude: Prisma.SaleItemInclude = {
   sale: {
@@ -37,28 +42,23 @@ const saleItemInclude: Prisma.SaleItemInclude = {
 
 // ADD SALE ITEM
 export const addSaleItem = async (
-  saleId: string,
-  userId: string,
-  itemData: Omit<
-    Serialized<SaleItem>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >
+  saleIdInput: string,
+  itemInput: SaleItemInput
 ): Promise<ActionResponse<Serialized<SaleItem> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (itemData.quantity <= 0 || itemData.unitPrice < 0) {
-      return {
-        status: 400,
-        message: 'Cantidad debe ser mayor a 0 y precio no puede ser negativo',
-        data: null,
-      };
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(saleIdInput);
+    const parsed = saleItemInputSchema.safeParse(itemInput);
+    if (!id.success || !parsed.success) {
+      return invalidInput('Cantidad debe ser mayor a 0 y precio no puede ser negativo');
     }
+    const saleId = id.data;
+    const itemData = parsed.data;
+    const userId = actor.userId;
 
-    // Verificar que la venta existe y no está cancelada o eliminada
+    // Verificar que la venta existe en la organización y no está eliminada
     const sale = await prisma.sale.findFirst({
-      where: { id: saleId, isDeleted: false },
+      where: { id: saleId, organizationId: actor.organizationId, isDeleted: false },
     });
 
     if (!sale) {
@@ -104,7 +104,10 @@ export const addSaleItem = async (
       // Crear el item
       const item = await tx.saleItem.create({
         data: {
-          ...itemData,
+          productId: itemData.productId,
+          unitMeasureId: itemData.unitMeasureId ?? null,
+          quantity: itemData.quantity,
+          unitPrice: itemData.unitPrice,
           saleId,
           subtotal: itemData.quantity * itemData.unitPrice,
         },
@@ -116,7 +119,7 @@ export const addSaleItem = async (
         where: { saleId, isDeleted: false },
       });
 
-      const { subtotal, total } = await calculateSaleTotals(
+      const { subtotal, total } = calculateSaleTotals(
         saleItems.map((i) => ({
           quantity: i.quantity,
           unitPrice: i.unitPrice.toNumber(),
@@ -168,6 +171,8 @@ export const addSaleItem = async (
       data: serializeDecimals(newItem),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error adding sale item:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
@@ -175,27 +180,25 @@ export const addSaleItem = async (
 
 // UPDATE SALE ITEM
 export const updateSaleItem = async (
-  itemId: string,
-  userId: string,
-  updateData: Partial<{
-    quantity: number;
-    unitPrice: number;
-  }>
+  itemIdInput: string,
+  updateInput: UpdateSaleItemInput
 ): Promise<ActionResponse<Serialized<SaleItem> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!itemId) {
-      return {
-        status: 400,
-        message: 'ID del item es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(itemIdInput);
+    if (!id.success) return invalidInput('ID del item es requerido');
+    const parsed = updateSaleItemInputSchema.safeParse(updateInput);
+    if (!parsed.success) return invalidInput('Cantidad o precio inválidos');
+    const itemId = id.data;
+    const updateData = parsed.data;
+    const userId = actor.userId;
 
     const existingItem = await prisma.saleItem.findFirst({
-      where: { id: itemId, isDeleted: false },
+      where: {
+        id: itemId,
+        isDeleted: false,
+        sale: { organizationId: actor.organizationId, isDeleted: false },
+      },
       include: { sale: true },
     });
 
@@ -249,7 +252,8 @@ export const updateSaleItem = async (
       const item = await tx.saleItem.update({
         where: { id: itemId },
         data: {
-          ...updateData,
+          quantity: newQuantity,
+          unitPrice: newUnitPrice,
           subtotal: newQuantity * newUnitPrice,
           updatedAt: new Date(),
         },
@@ -290,7 +294,7 @@ export const updateSaleItem = async (
         where: { saleId: existingItem.saleId, isDeleted: false },
       });
 
-      const { subtotal, total } = await calculateSaleTotals(
+      const { subtotal, total } = calculateSaleTotals(
         saleItems.map((i) => ({
           quantity: i.quantity,
           unitPrice: i.unitPrice.toNumber(),
@@ -315,9 +319,11 @@ export const updateSaleItem = async (
       data: serializeDecimals(updatedItem),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error updating sale item:', error);
 
-    if (error instanceof Error) {
+    if (error instanceof Error && error.message.startsWith('Stock insuficiente')) {
       return {
         status: 400,
         message: error.message,
@@ -330,24 +336,20 @@ export const updateSaleItem = async (
 };
 
 // DELETE SALE ITEM
-export const deleteSaleItem = async (
-  itemId: string,
-  userId: string
-): Promise<ActionResponse> => {
+export const deleteSaleItem = async (itemIdInput: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!itemId) {
-      return {
-        status: 400,
-        message: 'ID del item es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(itemIdInput);
+    if (!id.success) return invalidInput('ID del item es requerido');
+    const itemId = id.data;
+    const userId = actor.userId;
 
     const existingItem = await prisma.saleItem.findFirst({
-      where: { id: itemId, isDeleted: false },
+      where: {
+        id: itemId,
+        isDeleted: false,
+        sale: { organizationId: actor.organizationId, isDeleted: false },
+      },
       include: { sale: true },
     });
 
@@ -420,7 +422,7 @@ export const deleteSaleItem = async (
         where: { saleId: existingItem.saleId, isDeleted: false },
       });
 
-      const { subtotal, total } = await calculateSaleTotals(
+      const { subtotal, total } = calculateSaleTotals(
         remainingSaleItems.map((i) => ({
           quantity: i.quantity,
           unitPrice: i.unitPrice.toNumber(),
@@ -443,6 +445,8 @@ export const deleteSaleItem = async (
       data: null,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error deleting sale item:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
@@ -450,19 +454,19 @@ export const deleteSaleItem = async (
 
 // GET SALE ITEMS BY SALE ID
 export const getSaleItemsBySaleId = async (
-  saleId: string
+  saleIdInput: string
 ): Promise<ActionResponse<Serialized<SaleItem>[] | null>> => {
   try {
-    if (!saleId) {
-      return {
-        status: 400,
-        message: 'ID de venta es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor();
+    const id = idSchema.safeParse(saleIdInput);
+    if (!id.success) return invalidInput('ID de venta es requerido');
 
     const items = await prisma.saleItem.findMany({
-      where: { saleId, isDeleted: false },
+      where: {
+        saleId: id.data,
+        isDeleted: false,
+        sale: { organizationId: actor.organizationId, isDeleted: false },
+      },
       include: saleItemInclude,
       orderBy: { createdAt: 'asc' },
     });
@@ -473,6 +477,8 @@ export const getSaleItemsBySaleId = async (
       data: serializeDecimals(items),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching sale items:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }

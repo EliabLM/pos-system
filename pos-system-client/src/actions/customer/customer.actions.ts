@@ -51,7 +51,7 @@ export const createCustomer = async (
   >
 ): Promise<ActionResponse<Customer | null>> => {
   try {
-    const hasAccess = await checkAdminOrSellerRole(userId);
+    const hasAccess = await checkAdminOrSellerRole(userId, orgId);
     if (!hasAccess) return unauthorizedResponse();
 
     if (checkOrgId(orgId)) return emptyOrgIdResponse();

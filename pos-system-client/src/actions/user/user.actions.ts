@@ -9,18 +9,24 @@ import {
   User,
 } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
-import {
-  prisma,
-  checkAdminRole,
-  unauthorizedResponse,
-  checkOrgId,
-  emptyOrgIdResponse,
-} from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma } from '../utils';
 import bcrypt from 'bcrypt';
+import {
+  createUserInputSchema,
+  idSchema,
+  roleSchema,
+  updateUserInputSchema,
+  userFiltersSchema,
+} from './user.schemas';
 
 // ============================================================
 // D3.3: users es identidad global; la tenancy (org, store, role) vive en
 // memberships. Estas actions exponen la vista compuesta que consume la UI.
+//
+// Autorización (#11): todo sale de requireActor(). Solo el ADMIN gestiona
+// usuarios y solo los de SU organización; no hay acciones multi-organización.
+// Los vendedores los crea el ADMIN aquí (las invitaciones llegan en #20).
 // ============================================================
 
 export type UserWithTenancy = Omit<User, 'passwordHash'> & {
@@ -50,15 +56,28 @@ export interface UpdateUserInput {
   storeId?: string | null;
 }
 
-const activeMembershipInclude = {
-  where: { deletedAt: null, status: MembershipStatus.ACTIVE },
+export interface UserFilters {
+  isActive?: boolean;
+  role?: MembershipRole;
+  storeId?: string;
+  search?: string;
+}
+
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
+
+/** Membresía de la organización del actor (la que se muestra en la vista). */
+const orgMembershipInclude = (organizationId: string, includeDeleted = false) => ({
+  where: {
+    organizationId,
+    ...(includeDeleted ? {} : { deletedAt: null, status: MembershipStatus.ACTIVE }),
+  },
   orderBy: { createdAt: 'asc' as const },
   take: 1,
   include: {
     organization: true,
     defaultStore: true,
   },
-};
+});
 
 type UserWithMemberships = User & {
   memberships: Array<{
@@ -96,6 +115,49 @@ const composeUser = (user: UserWithMemberships): UserWithTenancy => {
   };
 };
 
+const badRequest = (message: string) => ({ status: 400, message, data: null });
+const notFound = () => ({ status: 404, message: 'Usuario no encontrado', data: null });
+const firstIssue = (error: { issues: Array<{ message: string }> }) =>
+  error.issues[0]?.message ?? 'Datos inválidos';
+
+/**
+ * Usuario que pertenece a la organización del actor. Un usuario de otra
+ * organización se trata como inexistente (404).
+ */
+const findOrgUser = (
+  userId: string,
+  organizationId: string,
+  options: { includeDeleted?: boolean } = {}
+) =>
+  prisma.user.findFirst({
+    where: {
+      id: userId,
+      ...(options.includeDeleted ? {} : { isDeleted: false }),
+      memberships: {
+        some: {
+          organizationId,
+          ...(options.includeDeleted ? {} : { deletedAt: null }),
+        },
+      },
+    },
+    include: { memberships: orgMembershipInclude(organizationId, options.includeDeleted) },
+  });
+
+/**
+ * La identidad (email, contraseña, estado, borrado) es global: el ADMIN de una
+ * organización no puede cambiarla si el usuario también pertenece a otra.
+ */
+const belongsToAnotherOrg = async (userId: string, organizationId: string) =>
+  (await prisma.membership.count({
+    where: { userId, organizationId: { not: organizationId }, deletedAt: null },
+  })) > 0;
+
+const sharedIdentityResponse = () => ({
+  status: 409,
+  message: 'El usuario pertenece también a otra organización y no se puede modificar desde aquí',
+  data: null,
+});
+
 /**
  * Regla de negocio: una tienda solo puede tener UN vendedor activo asignado.
  */
@@ -116,21 +178,27 @@ const storeHasActiveSeller = async (
   return !!existing;
 };
 
-// CREATE — crea la identidad + su membership en la organización (tx)
+const storeInOrg = (storeId: string, organizationId: string) =>
+  prisma.store.findFirst({
+    where: { id: storeId, organizationId, isDeleted: false },
+    select: { id: true },
+  });
+
+// CREATE — el ADMIN crea la identidad + su membership en SU organización (tx)
 export const createUser = async (
-  orgId: string,
-  adminUserId: string,
   userData: CreateUserInput
 ): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
 
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const parsed = createUserInputSchema.safeParse(userData);
+    if (!parsed.success) return badRequest(firstIssue(parsed.error));
+    const data = parsed.data;
 
     // Email único global entre usuarios vivos (D3.4)
     const existingUserByEmail = await prisma.user.findFirst({
-      where: { email: userData.email, isDeleted: false },
+      where: { email: data.email, isDeleted: false },
+      select: { id: true },
     });
 
     if (existingUserByEmail) {
@@ -141,22 +209,14 @@ export const createUser = async (
       };
     }
 
-    if (userData.storeId) {
-      const store = await prisma.store.findFirst({
-        where: { id: userData.storeId, organizationId: orgId, isDeleted: false },
-      });
-
-      if (!store) {
-        return {
-          status: 400,
-          message: 'La tienda especificada no existe',
-          data: null,
-        };
+    if (data.storeId) {
+      if (!(await storeInOrg(data.storeId, actor.organizationId))) {
+        return badRequest('La tienda especificada no existe');
       }
 
       if (
-        userData.role === MembershipRole.SELLER &&
-        (await storeHasActiveSeller(userData.storeId))
+        data.role === MembershipRole.SELLER &&
+        (await storeHasActiveSeller(data.storeId))
       ) {
         return {
           status: 409,
@@ -166,15 +226,15 @@ export const createUser = async (
       }
     }
 
-    const hashedPassword = await bcrypt.hash(userData.password, 12);
+    const hashedPassword = await bcrypt.hash(data.password, 12);
 
     const newUser = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          name: userData.name,
-          email: userData.email,
+          name: data.name,
+          email: data.email,
           passwordHash: hashedPassword,
-          isActive: userData.isActive ?? true,
+          isActive: data.isActive ?? true,
           passwordChangedAt: new Date(),
         },
       });
@@ -182,18 +242,18 @@ export const createUser = async (
       await tx.membership.create({
         data: {
           userId: user.id,
-          organizationId: orgId,
-          role: userData.role,
-          defaultStoreId: userData.storeId ?? null,
+          organizationId: actor.organizationId,
+          role: data.role,
+          defaultStoreId: data.storeId ?? null,
           status: MembershipStatus.ACTIVE,
-          invitedBy: adminUserId,
+          invitedBy: actor.userId,
           acceptedAt: new Date(),
         },
       });
 
       return tx.user.findUniqueOrThrow({
         where: { id: user.id },
-        include: { memberships: activeMembershipInclude },
+        include: { memberships: orgMembershipInclude(actor.organizationId) },
       });
     });
 
@@ -203,6 +263,9 @@ export const createUser = async (
       data: composeUser(newUser),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('Error creating user:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -214,11 +277,7 @@ export const createUser = async (
         };
       }
       if (error.code === 'P2003') {
-        return {
-          status: 400,
-          message: 'Una de las referencias especificadas no existe',
-          data: null,
-        };
+        return badRequest('Una de las referencias especificadas no existe');
       }
     }
 
@@ -226,58 +285,44 @@ export const createUser = async (
   }
 };
 
-// GET MANY — usuarios de una organización (vía memberships)
-export const getUsersByOrgId = async (
-  orgId: string,
-  filters?: {
-    isActive?: boolean;
-    role?: MembershipRole;
-    storeId?: string;
-    search?: string;
-  },
+// GET MANY — usuarios de la organización del actor (vía memberships)
+export const getUsers = async (
+  filters?: UserFilters,
   includeDeleted: boolean = false
 ): Promise<ActionResponse<UserWithTenancy[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+
+    const parsed = userFiltersSchema.safeParse(filters);
+    if (!parsed.success) return badRequest(firstIssue(parsed.error));
+    const f = parsed.data;
 
     const membershipFilter: Prisma.MembershipWhereInput = {
-      organizationId: orgId,
-      deletedAt: null,
-      status: MembershipStatus.ACTIVE,
+      organizationId: actor.organizationId,
+      ...(includeDeleted ? {} : { deletedAt: null, status: MembershipStatus.ACTIVE }),
+      ...(f?.role ? { role: f.role } : {}),
+      ...(f?.storeId ? { defaultStoreId: f.storeId } : {}),
     };
-
-    if (filters?.role) {
-      membershipFilter.role = filters.role;
-    }
-
-    if (filters?.storeId) {
-      membershipFilter.defaultStoreId = filters.storeId;
-    }
 
     const whereClause: Prisma.UserWhereInput = {
       isDeleted: includeDeleted ? undefined : false,
       memberships: { some: membershipFilter },
     };
 
-    if (filters?.isActive !== undefined) {
-      whereClause.isActive = filters.isActive;
+    if (f?.isActive !== undefined) {
+      whereClause.isActive = f.isActive;
     }
 
-    if (filters?.search) {
+    if (f?.search) {
       whereClause.OR = [
-        { name: { contains: filters.search, mode: 'insensitive' } },
-        { email: { contains: filters.search, mode: 'insensitive' } },
+        { name: { contains: f.search, mode: 'insensitive' } },
+        { email: { contains: f.search, mode: 'insensitive' } },
       ];
     }
 
     const users = await prisma.user.findMany({
       where: whereClause,
-      include: {
-        memberships: {
-          ...activeMembershipInclude,
-          where: { ...activeMembershipInclude.where, organizationId: orgId },
-        },
-      },
+      include: { memberships: orgMembershipInclude(actor.organizationId, includeDeleted) },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -287,89 +332,30 @@ export const getUsersByOrgId = async (
       data: users.map(composeUser),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching users:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// GET ALL USERS (for super admin)
-export const getAllUsers = async (
-  adminUserId: string,
-  filters?: {
-    isActive?: boolean;
-    role?: MembershipRole;
-    organizationId?: string;
-    search?: string;
-  },
-  includeDeleted: boolean = false
-): Promise<ActionResponse<UserWithTenancy[] | null>> => {
-  try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    const whereClause: Prisma.UserWhereInput = {
-      isDeleted: includeDeleted ? undefined : false,
-    };
-
-    if (filters?.isActive !== undefined) {
-      whereClause.isActive = filters.isActive;
-    }
-
-    if (filters?.role || filters?.organizationId) {
-      whereClause.memberships = {
-        some: {
-          deletedAt: null,
-          ...(filters.role ? { role: filters.role } : {}),
-          ...(filters.organizationId
-            ? { organizationId: filters.organizationId }
-            : {}),
-        },
-      };
-    }
-
-    if (filters?.search) {
-      whereClause.OR = [
-        { name: { contains: filters.search, mode: 'insensitive' } },
-        { email: { contains: filters.search, mode: 'insensitive' } },
-      ];
-    }
-
-    const users = await prisma.user.findMany({
-      where: whereClause,
-      include: { memberships: activeMembershipInclude },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return {
-      status: 200,
-      message: 'Usuarios obtenidos exitosamente',
-      data: users.map(composeUser),
-    };
-  } catch (error) {
-    console.error('Error fetching all users:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET ONE
+// GET ONE — el ADMIN ve usuarios de su organización; el SELLER solo a sí mismo
 export const getUserById = async (
   userId: string
 ): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
-    if (!userId)
-      return {
-        status: 400,
-        message: 'ID del usuario es requerido',
-        data: null,
-      };
+    const actor = await requireActor();
 
-    const user = await prisma.user.findFirst({
-      where: { id: userId, isDeleted: false },
-      include: { memberships: activeMembershipInclude },
-    });
+    if (!idSchema.safeParse(userId).success) {
+      return badRequest('ID del usuario es requerido');
+    }
 
-    if (!user)
-      return { status: 404, message: 'Usuario no encontrado', data: null };
+    if (actor.role !== MembershipRole.ADMIN && userId !== actor.userId) {
+      return notFound();
+    }
+
+    const user = await findOrgUser(userId, actor.organizationId);
+    if (!user) return notFound();
 
     return {
       status: 200,
@@ -377,82 +363,59 @@ export const getUserById = async (
       data: composeUser(user),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching user:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// GET BY EMAIL
-export const getUserByEmail = async (
-  email: string
-): Promise<ActionResponse<UserWithTenancy | null>> => {
-  try {
-    if (!email)
-      return {
-        status: 400,
-        message: 'Email es requerido',
-        data: null,
-      };
-
-    const user = await prisma.user.findFirst({
-      where: {
-        email,
-        isDeleted: false,
-        isActive: true,
-      },
-      include: { memberships: activeMembershipInclude },
-    });
-
-    if (!user)
-      return { status: 404, message: 'Usuario no encontrado', data: null };
-
-    return {
-      status: 200,
-      message: 'Usuario obtenido exitosamente',
-      data: composeUser(user),
-    };
-  } catch (error) {
-    console.error('Error fetching user by email:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// UPDATE — campos de identidad en users; role/store en el membership ACTIVO
+// UPDATE — campos de identidad en users; role/store en el membership de la org
 export const updateUser = async (
   userId: string,
-  adminUserId: string,
   updateData: UpdateUserInput
 ): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
 
-    if (!userId)
-      return {
-        status: 400,
-        message: 'ID del usuario es requerido',
-        data: null,
-      };
+    if (!idSchema.safeParse(userId).success) {
+      return badRequest('ID del usuario es requerido');
+    }
 
-    const existingUser = await prisma.user.findFirst({
-      where: { id: userId, isDeleted: false },
-      include: { memberships: activeMembershipInclude },
-    });
+    const parsed = updateUserInputSchema.safeParse(updateData);
+    if (!parsed.success) return badRequest(firstIssue(parsed.error));
+    const data = parsed.data;
 
-    if (!existingUser) {
-      return { status: 404, message: 'Usuario no encontrado', data: null };
+    const existingUser = await findOrgUser(userId, actor.organizationId);
+    if (!existingUser) return notFound();
+
+    const isSelf = userId === actor.userId;
+    if (isSelf && data.role !== undefined && data.role !== MembershipRole.ADMIN) {
+      return badRequest('No puedes quitarte el rol de administrador');
+    }
+    if (isSelf && data.isActive === false) {
+      return badRequest('No puedes desactivar tu propio usuario');
+    }
+
+    const changesIdentity =
+      data.email !== undefined ||
+      data.password !== undefined ||
+      data.isActive !== undefined;
+    if (changesIdentity && (await belongsToAnotherOrg(userId, actor.organizationId))) {
+      return sharedIdentityResponse();
     }
 
     const membership = existingUser.memberships[0] ?? null;
 
     // Verificar unicidad de email si se está actualizando
-    if (updateData.email && updateData.email !== existingUser.email) {
+    if (data.email && data.email !== existingUser.email) {
       const duplicateUserByEmail = await prisma.user.findFirst({
         where: {
-          email: updateData.email,
+          email: data.email,
           isDeleted: false,
           id: { not: userId },
         },
+        select: { id: true },
       });
 
       if (duplicateUserByEmail) {
@@ -465,30 +428,15 @@ export const updateUser = async (
     }
 
     // Verificar tienda si se está actualizando
-    if (
-      updateData.storeId &&
-      updateData.storeId !== membership?.defaultStoreId
-    ) {
-      const store = await prisma.store.findFirst({
-        where: {
-          id: updateData.storeId,
-          organizationId: membership?.organizationId ?? undefined,
-          isDeleted: false,
-        },
-      });
-
-      if (!store) {
-        return {
-          status: 400,
-          message: 'La tienda especificada no existe',
-          data: null,
-        };
+    if (data.storeId && data.storeId !== membership?.defaultStoreId) {
+      if (!(await storeInOrg(data.storeId, actor.organizationId))) {
+        return badRequest('La tienda especificada no existe');
       }
 
-      const effectiveRole = updateData.role ?? membership?.role;
+      const effectiveRole = data.role ?? membership?.role;
       if (
         effectiveRole === MembershipRole.SELLER &&
-        (await storeHasActiveSeller(updateData.storeId, userId))
+        (await storeHasActiveSeller(data.storeId, userId))
       ) {
         return {
           status: 409,
@@ -502,40 +450,34 @@ export const updateUser = async (
       const userChanges: Prisma.UserUpdateInput = {
         updatedAt: new Date(),
       };
-      if (updateData.name !== undefined) userChanges.name = updateData.name;
-      if (updateData.email !== undefined) userChanges.email = updateData.email;
-      if (updateData.image !== undefined) userChanges.image = updateData.image;
-      if (updateData.isActive !== undefined)
-        userChanges.isActive = updateData.isActive;
-      if (updateData.password) {
-        userChanges.passwordHash = await bcrypt.hash(updateData.password, 12);
+      if (data.name !== undefined) userChanges.name = data.name;
+      if (data.email !== undefined) userChanges.email = data.email;
+      if (data.image !== undefined) userChanges.image = data.image;
+      if (data.isActive !== undefined) userChanges.isActive = data.isActive;
+      if (data.password) {
+        userChanges.passwordHash = await bcrypt.hash(data.password, 12);
         userChanges.passwordChangedAt = new Date();
       }
 
       await tx.user.update({ where: { id: userId }, data: userChanges });
 
-      if (
-        membership &&
-        (updateData.role !== undefined || updateData.storeId !== undefined)
-      ) {
+      if (data.role !== undefined || data.storeId !== undefined) {
         await tx.membership.updateMany({
           where: {
             userId,
-            organizationId: membership.organizationId,
+            organizationId: actor.organizationId,
             deletedAt: null,
           },
           data: {
-            ...(updateData.role !== undefined ? { role: updateData.role } : {}),
-            ...(updateData.storeId !== undefined
-              ? { defaultStoreId: updateData.storeId }
-              : {}),
+            ...(data.role !== undefined ? { role: data.role } : {}),
+            ...(data.storeId !== undefined ? { defaultStoreId: data.storeId } : {}),
           },
         });
       }
 
       return tx.user.findUniqueOrThrow({
         where: { id: userId },
-        include: { memberships: activeMembershipInclude },
+        include: { memberships: orgMembershipInclude(actor.organizationId) },
       });
     });
 
@@ -545,6 +487,9 @@ export const updateUser = async (
       data: composeUser(updatedUser),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('Error updating user:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -555,15 +500,9 @@ export const updateUser = async (
           data: null,
         };
       }
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Usuario no encontrado', data: null };
-      }
+      if (error.code === 'P2025') return notFound();
       if (error.code === 'P2003') {
-        return {
-          status: 400,
-          message: 'Una de las referencias especificadas no existe',
-          data: null,
-        };
+        return badRequest('Una de las referencias especificadas no existe');
       }
     }
 
@@ -571,113 +510,39 @@ export const updateUser = async (
   }
 };
 
-// ASSIGN ORG (onboarding) — crea el membership ADMIN del dueño (D3.3)
-export const updateUserOrg = async (
-  userId: string,
-  orgId: string
-): Promise<ActionResponse<UserWithTenancy | null>> => {
-  try {
-    if (!userId)
-      return {
-        status: 400,
-        message: 'ID del usuario es requerido',
-        data: null,
-      };
-
-    const existingUser = await prisma.user.findFirst({
-      where: { id: userId, isDeleted: false },
-    });
-
-    if (!existingUser) {
-      return { status: 404, message: 'Usuario no encontrado', data: null };
-    }
-
-    const existingMembership = await prisma.membership.findFirst({
-      where: { userId, organizationId: orgId, deletedAt: null },
-    });
-
-    if (!existingMembership) {
-      await prisma.membership.create({
-        data: {
-          userId,
-          organizationId: orgId,
-          role: MembershipRole.ADMIN,
-          status: MembershipStatus.ACTIVE,
-          acceptedAt: new Date(),
-        },
-      });
-    }
-
-    const updatedUser = await prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      include: { memberships: activeMembershipInclude },
-    });
-
-    return {
-      status: 200,
-      message: 'Organización del usuario actualizada exitosamente',
-      data: composeUser(updatedUser),
-    };
-  } catch (error) {
-    console.error('Error updating user organization:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Usuario no encontrado', data: null };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// UPDATE USER ROLE — sobre el membership ACTIVO
+// UPDATE USER ROLE — sobre el membership de la organización del actor
 export const updateUserRole = async (
   userId: string,
-  adminUserId: string,
   newRole: MembershipRole
 ): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
 
-    if (!userId)
-      return {
-        status: 400,
-        message: 'ID del usuario es requerido',
-        data: null,
-      };
+    if (!idSchema.safeParse(userId).success) {
+      return badRequest('ID del usuario es requerido');
+    }
+    const role = roleSchema.safeParse(newRole);
+    if (!role.success) return badRequest('Rol inválido');
 
-    const existingUser = await prisma.user.findFirst({
-      where: { id: userId, isDeleted: false },
-      include: { memberships: activeMembershipInclude },
-    });
-
-    if (!existingUser) {
-      return { status: 404, message: 'Usuario no encontrado', data: null };
+    if (userId === actor.userId) {
+      return badRequest('No puedes cambiar tu propio rol');
     }
 
-    const membership = existingUser.memberships[0] ?? null;
-    if (!membership) {
-      return {
-        status: 400,
-        message: 'El usuario no pertenece a ninguna organización',
-        data: null,
-      };
-    }
+    const existingUser = await findOrgUser(userId, actor.organizationId);
+    if (!existingUser) return notFound();
 
     await prisma.membership.updateMany({
       where: {
         userId,
-        organizationId: membership.organizationId,
+        organizationId: actor.organizationId,
         deletedAt: null,
       },
-      data: { role: newRole },
+      data: { role: role.data },
     });
 
     const updatedUser = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      include: { memberships: activeMembershipInclude },
+      include: { memberships: orgMembershipInclude(actor.organizationId) },
     });
 
     return {
@@ -686,12 +551,13 @@ export const updateUserRole = async (
       data: composeUser(updatedUser),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('Error updating user role:', error);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Usuario no encontrado', data: null };
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return notFound();
     }
 
     return { status: 500, message: 'Error interno del servidor', data: null };
@@ -701,26 +567,25 @@ export const updateUserRole = async (
 // ACTIVATE/DEACTIVATE USER
 export const toggleUserStatus = async (
   userId: string,
-  adminUserId: string,
   isActive: boolean
 ): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
-    const isAdminRole = await checkAdminRole(adminUserId);
-    if (!isAdminRole) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
 
-    if (!userId)
-      return {
-        status: 400,
-        message: 'ID del usuario es requerido',
-        data: null,
-      };
+    if (!idSchema.safeParse(userId).success) {
+      return badRequest('ID del usuario es requerido');
+    }
+    if (typeof isActive !== 'boolean') return badRequest('Estado inválido');
 
-    const existingUser = await prisma.user.findFirst({
-      where: { id: userId, isDeleted: false },
-    });
+    if (userId === actor.userId) {
+      return badRequest('No puedes cambiar el estado de tu propio usuario');
+    }
 
-    if (!existingUser) {
-      return { status: 404, message: 'Usuario no encontrado', data: null };
+    const existingUser = await findOrgUser(userId, actor.organizationId);
+    if (!existingUser) return notFound();
+
+    if (await belongsToAnotherOrg(userId, actor.organizationId)) {
+      return sharedIdentityResponse();
     }
 
     const updatedUser = await prisma.user.update({
@@ -729,7 +594,7 @@ export const toggleUserStatus = async (
         isActive,
         updatedAt: new Date(),
       },
-      include: { memberships: activeMembershipInclude },
+      include: { memberships: orgMembershipInclude(actor.organizationId) },
     });
 
     return {
@@ -738,25 +603,28 @@ export const toggleUserStatus = async (
       data: composeUser(updatedUser),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('Error toggling user status:', error);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Usuario no encontrado', data: null };
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return notFound();
     }
 
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// GET USERS BY ROLE
+// GET USERS BY ROLE — de la organización del actor
 export const getUsersByRole = async (
-  orgId: string,
   role: MembershipRole
 ): Promise<ActionResponse<UserWithTenancy[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+
+    const parsedRole = roleSchema.safeParse(role);
+    if (!parsedRole.success) return badRequest('Rol inválido');
 
     const users = await prisma.user.findMany({
       where: {
@@ -764,58 +632,53 @@ export const getUsersByRole = async (
         isActive: true,
         memberships: {
           some: {
-            organizationId: orgId,
-            role,
+            organizationId: actor.organizationId,
+            role: parsedRole.data,
             deletedAt: null,
             status: MembershipStatus.ACTIVE,
           },
         },
       },
-      include: {
-        memberships: {
-          ...activeMembershipInclude,
-          where: { ...activeMembershipInclude.where, organizationId: orgId },
-        },
-      },
+      include: { memberships: orgMembershipInclude(actor.organizationId) },
       orderBy: { createdAt: 'desc' },
     });
 
     return {
       status: 200,
-      message: `Usuarios con rol ${role} obtenidos exitosamente`,
+      message: `Usuarios con rol ${parsedRole.data} obtenidos exitosamente`,
       data: users.map(composeUser),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching users by role:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// SOFT DELETE — usuario + sus memberships
-export const softDeleteUser = async (
-  userId: string,
-  adminUserId: string
-): Promise<ActionResponse> => {
+// SOFT DELETE — usuario + su membership en la organización del actor
+export const softDeleteUser = async (userId: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
 
-    if (!userId)
-      return {
-        status: 400,
-        message: 'ID del usuario es requerido',
-        data: null,
-      };
+    if (!idSchema.safeParse(userId).success) {
+      return badRequest('ID del usuario es requerido');
+    }
 
-    // Verificar si hay ventas asociadas
-    const salesCount = await prisma.sale.count({
-      where: { userId },
-    });
+    if (userId === actor.userId) {
+      return badRequest('No puedes eliminar tu propio usuario');
+    }
 
-    // Verificar si hay movimientos de stock asociados
-    const stockMovementsCount = await prisma.stockMovement.count({
-      where: { userId },
-    });
+    const existingUser = await findOrgUser(userId, actor.organizationId);
+    if (!existingUser) return notFound();
+
+    if (await belongsToAnotherOrg(userId, actor.organizationId)) {
+      return sharedIdentityResponse();
+    }
+
+    // Verificar si hay ventas o movimientos de stock asociados
+    const salesCount = await prisma.sale.count({ where: { userId } });
+    const stockMovementsCount = await prisma.stockMovement.count({ where: { userId } });
 
     if (salesCount > 0 || stockMovementsCount > 0) {
       return {
@@ -837,7 +700,7 @@ export const softDeleteUser = async (
         },
       }),
       prisma.membership.updateMany({
-        where: { userId, deletedAt: null },
+        where: { userId, organizationId: actor.organizationId, deletedAt: null },
         data: { deletedAt: new Date() },
       }),
     ]);
@@ -848,35 +711,38 @@ export const softDeleteUser = async (
       data: null,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('Error soft deleting user:', error);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Usuario no encontrado', data: null };
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return notFound();
     }
 
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
 };
 
-// RESTORE — usuario + sus memberships
+// RESTORE — usuario + su membership en la organización del actor
 export const restoreUser = async (
-  userId: string,
-  adminUserId: string
+  userId: string
 ): Promise<ActionResponse<UserWithTenancy | null>> => {
   try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
 
-    if (!userId)
-      return {
-        status: 400,
-        message: 'ID del usuario es requerido',
-        data: null,
-      };
+    if (!idSchema.safeParse(userId).success) {
+      return badRequest('ID del usuario es requerido');
+    }
 
-    const [restoredUser] = await prisma.$transaction([
+    const existingUser = await findOrgUser(userId, actor.organizationId, { includeDeleted: true });
+    if (!existingUser) return notFound();
+
+    if (await belongsToAnotherOrg(userId, actor.organizationId)) {
+      return sharedIdentityResponse();
+    }
+
+    await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
         data: {
@@ -886,14 +752,14 @@ export const restoreUser = async (
         },
       }),
       prisma.membership.updateMany({
-        where: { userId },
+        where: { userId, organizationId: actor.organizationId },
         data: { deletedAt: null },
       }),
     ]);
 
     const composed = await prisma.user.findUniqueOrThrow({
-      where: { id: restoredUser.id },
-      include: { memberships: activeMembershipInclude },
+      where: { id: userId },
+      include: { memberships: orgMembershipInclude(actor.organizationId) },
     });
 
     return {
@@ -902,11 +768,20 @@ export const restoreUser = async (
       data: composeUser(composed),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('Error restoring user:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Usuario no encontrado', data: null };
+      if (error.code === 'P2025') return notFound();
+      // Índice único parcial de email (usuarios vivos): se reutilizó mientras estaba borrado.
+      if (error.code === 'P2002') {
+        return {
+          status: 409,
+          message: 'Ya existe otro usuario con ese email; no se puede restaurar',
+          data: null,
+        };
       }
     }
 
@@ -914,30 +789,29 @@ export const restoreUser = async (
   }
 };
 
-// HARD DELETE
-export const deleteUser = async (
-  userId: string,
-  adminUserId: string
-): Promise<ActionResponse> => {
+// HARD DELETE — solo usuarios que pertenecen únicamente a la organización del actor
+export const deleteUser = async (userId: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
 
-    if (!userId)
-      return {
-        status: 400,
-        message: 'ID del usuario es requerido',
-        data: null,
-      };
+    if (!idSchema.safeParse(userId).success) {
+      return badRequest('ID del usuario es requerido');
+    }
+
+    if (userId === actor.userId) {
+      return badRequest('No puedes eliminar tu propio usuario');
+    }
+
+    const existingUser = await findOrgUser(userId, actor.organizationId, { includeDeleted: true });
+    if (!existingUser) return notFound();
+
+    if (await belongsToAnotherOrg(userId, actor.organizationId)) {
+      return sharedIdentityResponse();
+    }
 
     // Verificar si hay transacciones asociadas
-    const salesCount = await prisma.sale.count({
-      where: { userId },
-    });
-
-    const stockMovementsCount = await prisma.stockMovement.count({
-      where: { userId },
-    });
+    const salesCount = await prisma.sale.count({ where: { userId } });
+    const stockMovementsCount = await prisma.stockMovement.count({ where: { userId } });
 
     if (salesCount > 0 || stockMovementsCount > 0) {
       return {
@@ -956,12 +830,13 @@ export const deleteUser = async (
       data: null,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('Error deleting user:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Usuario no encontrado', data: null };
-      }
+      if (error.code === 'P2025') return notFound();
       if (error.code === 'P2003') {
         return {
           status: 409,

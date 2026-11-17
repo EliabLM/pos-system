@@ -1,14 +1,19 @@
 import {
   Membership,
   MembershipRole,
-  MembershipStatus,
   Prisma,
-  PrismaClient,
 } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
+import { prisma } from '@/lib/db';
+import {
+  ACTIVE_MEMBERSHIP_ORDER,
+  ACTIVE_MEMBERSHIP_WHERE,
+  ActorError,
+  requireActor,
+} from '@/lib/auth/actor';
 
-// Instancia única de Prisma Client para ser usada en todas las actions
-export const prisma = new PrismaClient();
+// Instancia única de Prisma Client (singleton en globalThis, ver lib/db.ts)
+export { prisma };
 
 /**
  * Devuelve el membership ACTIVO del usuario (D3.3: la tenancy vive en
@@ -20,33 +25,10 @@ export const getActiveMembership = async (
 ): Promise<Membership | null> => {
   if (!userId) return null;
   return prisma.membership.findFirst({
-    where: { userId, deletedAt: null, status: MembershipStatus.ACTIVE },
-    orderBy: { createdAt: 'asc' },
+    // Mismo criterio que getActor() (organización activa y no borrada)
+    where: { userId, ...ACTIVE_MEMBERSHIP_WHERE },
+    orderBy: ACTIVE_MEMBERSHIP_ORDER,
   });
-};
-
-/**
- * Rol efectivo del usuario. Un usuario SIN ningún membership es un dueño en
- * onboarding (el registro siempre precede a la creación de la org) → ADMIN.
- * Un usuario cuyo único membership está REVOKED no tiene rol (null).
- */
-const getEffectiveRole = async (
-  userId: string
-): Promise<MembershipRole | null> => {
-  if (!userId) return null;
-  const user = await prisma.user.findFirst({
-    where: { id: userId, isDeleted: false },
-    select: { id: true },
-  });
-  if (!user) return null;
-
-  const membershipCount = await prisma.membership.count({
-    where: { userId, deletedAt: null },
-  });
-  if (membershipCount === 0) return MembershipRole.ADMIN; // onboarding
-
-  const active = await getActiveMembership(userId);
-  return active?.role ?? null;
 };
 
 /**
@@ -72,34 +54,40 @@ export const serializeDecimals = <T>(value: T): Serialized<T> => {
 };
 
 /**
- * Verifica si un usuario tiene el rol de ADMIN.
- * @param userId - El ID del usuario que realiza la acción.
- * @returns {Promise<boolean>} - True si el usuario es ADMIN, de lo contrario false.
+ * Comprobación legada para los módulos aún no migrados a `requireActor()`
+ * (#12–#15). Ya NO confía en el `userId` recibido: el rol sale de la sesión
+ * (`getActor()`), el `userId` del llamador debe coincidir con el de la sesión
+ * y, si se pasa `organizationId`, debe ser la organización del actor.
+ * Un usuario sin membresía nunca pasa (no tiene rol).
  */
-export const checkAdminRole = async (userId: string): Promise<boolean> => {
+const sessionActorHasRole = async (
+  userId: string,
+  roles: readonly MembershipRole[],
+  organizationId?: string
+): Promise<boolean> => {
   try {
-    const role = await getEffectiveRole(userId);
-    return role === MembershipRole.ADMIN;
+    const actor = await requireActor({ roles });
+    if (!userId || actor.userId !== userId) return false;
+    if (organizationId !== undefined && actor.organizationId !== organizationId) return false;
+    return true;
   } catch (error) {
-    console.error("Error checking admin role:", error);
+    if (!(error instanceof ActorError)) console.error('Error checking role:', error);
     return false;
   }
 };
 
-/**
- * Verifica si un usuario tiene el rol de ADMIN o SELLER.
- * @param userId - El ID del usuario que realiza la acción.
- * @returns {Promise<boolean>} - True si el usuario es ADMIN o SELLER, de lo contrario false.
- */
-export const checkAdminOrSellerRole = async (userId: string): Promise<boolean> => {
-  try {
-    const role = await getEffectiveRole(userId);
-    return role === MembershipRole.ADMIN || role === MembershipRole.SELLER;
-  } catch (error) {
-    console.error("Error checking admin or seller role:", error);
-    return false;
-  }
-};
+/** ADMIN de la sesión (y de `organizationId`, si se indica). */
+export const checkAdminRole = async (
+  userId: string,
+  organizationId?: string
+): Promise<boolean> => sessionActorHasRole(userId, [MembershipRole.ADMIN], organizationId);
+
+/** ADMIN o SELLER de la sesión (y de `organizationId`, si se indica). */
+export const checkAdminOrSellerRole = async (
+  userId: string,
+  organizationId?: string
+): Promise<boolean> =>
+  sessionActorHasRole(userId, [MembershipRole.ADMIN, MembershipRole.SELLER], organizationId);
 
 /**
  * Crea una respuesta de error estandarizada para accesos no autorizados.
