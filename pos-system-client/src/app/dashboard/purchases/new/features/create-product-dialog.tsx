@@ -53,7 +53,8 @@ import { useActiveCategories } from '@/hooks/useCategories';
 import { useActiveBrands } from '@/hooks/useBrands';
 import { useActiveUnitMeasures } from '@/hooks/useUnitMeasures';
 import { useBusinessType } from '@/hooks/useSystemConfig';
-import { uploadImage } from '@/actions/product';
+import { discardUploadedProductImage } from '@/actions/product';
+import { uploadProductImageFile } from '@/lib/images/upload-client';
 
 interface CreateProductDialogProps {
   open: boolean;
@@ -259,12 +260,11 @@ export default function CreateProductDialog({
       // Upload image if selected
       let uploadedImageUrl: string | null = null;
       if (imageFile) {
-        const uploadResponse = await uploadImage(imageFile);
-        if (uploadResponse?.url) {
-          uploadedImageUrl = uploadResponse.url;
+        try {
+          uploadedImageUrl = await uploadProductImageFile(imageFile);
           toast.success('Imagen subida correctamente');
-        } else {
-          toast.error('Error al subir la imagen');
+        } catch (uploadError) {
+          toast.error(uploadError instanceof Error ? uploadError.message : 'Error al subir la imagen');
           setIsUploadingImage(false);
           return;
         }
@@ -301,6 +301,7 @@ export default function CreateProductDialog({
           }
         },
         onError: (error) => {
+          if (uploadedImageUrl) void discardUploadedProductImage(uploadedImageUrl);
           const errorMessage =
             error instanceof Error
               ? error.message

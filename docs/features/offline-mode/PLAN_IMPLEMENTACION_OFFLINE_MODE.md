@@ -402,9 +402,7 @@ import withPWA from 'next-pwa';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  images: {
-    remotePatterns: [new URL('https://toeustbcqq.ufs.sh/f/**')],
-  },
+  // Imágenes servidas localmente desde /api/images (ver deployment/imagenes-producto.md)
   serverExternalPackages: ['@prisma/client', 'prisma'],
   outputFileTracingIncludes: {
     '/**/*': ['./src/generated/prisma/**/*'],

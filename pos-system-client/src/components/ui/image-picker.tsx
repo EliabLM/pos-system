@@ -46,7 +46,7 @@ export function ImagePicker({
       <Input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         onChange={handleFileChange}
         className="hidden"
       />
@@ -60,7 +60,7 @@ export function ImagePicker({
             <Upload className="w-12 h-12 text-gray-400 mb-4" />
             <p className="text-gray-600 mb-2">Haga click para subir imagen</p>
             <p className="text-sm text-gray-400">
-              SVG, PNG, JPG or GIF (MAX. 800×400px)
+              JPG, PNG o WebP (máx. 5 MB)
             </p>
           </div>
         </div>

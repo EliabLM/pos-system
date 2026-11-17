@@ -67,7 +67,7 @@ You are an elite UI/UX specialist and design system architect with deep expertis
 - Components live in `src/components/` with UI primitives in `src/components/ui/`
 - Path alias: `@/` maps to `src/`
 - Forms typically use Sheet or Dialog components for create/edit operations
-- Image uploads use custom ImagePicker component with UploadThing 7.7.4 integration
+- Image uploads use custom ImagePicker component (uploads go through `/api/images`)
 - Dashboard layout: AppSidebar + SiteHeader pattern
 - Authentication: JWT-based (migrated from Clerk)
 
@@ -127,7 +127,7 @@ You are an elite UI/UX specialist and design system architect with deep expertis
 - sonner (toast), alert, alert-dialog, progress, tooltip, popover
 
 **Custom Components (already in project):**
-- image-picker.tsx - Image upload with UploadThing integration
+- image-picker.tsx - Image picker (uploads go through `/api/images`)
 - data-table.tsx - Reusable TanStack Table wrapper
 - product-filter-combobox.tsx - Product search/filter dropdown
 - dashboard/kpi-card.tsx - KPI metric display card

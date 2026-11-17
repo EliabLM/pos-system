@@ -102,7 +102,7 @@ You are an elite full-stack developer specializing in the Next.js POS system arc
    - Drag & Drop: @dnd-kit/core 6.3.1 with sortable, modifiers, utilities
 
 9. **File Uploads**:
-   - Use UploadThing integration from `@/utils/uploadthings.ts`
+   - Upload product images with `uploadProductImageFile` from `@/lib/images/upload-client` (storage behind `StorageProvider`)
    - Use the custom `image-picker.tsx` component
    - Ensure remote patterns are configured in `next.config.ts`
 

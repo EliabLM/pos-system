@@ -45,7 +45,7 @@ pnpm db:generate    # regenerate the Prisma client only
 
 ## Environment
 
-`.env` requires: `DATABASE_URL` (pooled), `DIRECT_URL` (migrations), `JWT_SECRET`, `UPLOADTHING_TOKEN`, `HTTPS_ENABLED`. (The `vercel-build` script was removed — the legacy Vercel deploy is frozen on the pre-monorepo repo; migrations are applied by `pos-system-server`.)
+`.env` requires: `DATABASE_URL` (pooled), `DIRECT_URL` (migrations), `JWT_SECRET`, `HTTPS_ENABLED`, `UPLOADS_DIR` (product images; persistent volume in production). (The `vercel-build` script was removed — the legacy Vercel deploy is frozen on the pre-monorepo repo; migrations are applied by `pos-system-server`.)
 
 ## Git workflow
 

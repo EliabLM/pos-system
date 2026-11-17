@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "prisma generate --schema=../pos-system-server/prisma/schema.prisma && next build",
     "start": "next start",
-    "lint": "eslint . && pnpm --ignore-workspace run test",
+    "lint": "eslint . && pnpm --ignore-workspace run test && pnpm --ignore-workspace run test:images",
     "postinstall": "prisma generate --schema=../pos-system-server/prisma/schema.prisma",
     "db:generate": "prisma generate --schema=../pos-system-server/prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
@@ -20,7 +20,8 @@
     "test:purchase:access": "node --test src/actions/purchase/*.test.mjs",
     "test": "node --test test/*.test.mjs src/lib/auth/*.test.mjs src/actions/*/*.test.mjs",
     "test:actions:guard": "node --test test/actions-guard.test.mjs",
-    "test:sale:access": "node --test src/lib/auth/actor.test.mjs src/actions/sale/*.test.mjs"
+    "test:sale:access": "node --test src/lib/auth/actor.test.mjs src/actions/sale/*.test.mjs",
+    "test:images": "tsx --test src/lib/images/images.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -51,7 +52,6 @@
     "@tabler/icons-react": "^3.52.0",
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-table": "^8.21.3",
-    "@uploadthing/react": "^7.3.3",
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -69,10 +69,10 @@
     "react-hook-form": "^7.92.0",
     "react-number-format": "^5.4.5",
     "recharts": "2.15.4",
+    "sharp": "^0.34.5",
     "sonner": "^2.0.8",
     "sweetalert2": "^11.26.25",
     "tailwind-merge": "^3.7.0",
-    "uploadthing": "^7.7.4",
     "vaul": "^1.1.2",
     "yup": "^1.7.1",
     "zod": "^4.6.7",

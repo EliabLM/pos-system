@@ -30,7 +30,7 @@ Este documento presenta un análisis comparativo exhaustivo del sistema POS actu
 
 #### Gestión de Inventario
 - ✅ CRUD completo de productos
-- ✅ Carga de imágenes de productos (UploadThing)
+- ✅ Carga de imágenes de productos (volumen persistente, ver `deployment/imagenes-producto.md`)
 - ✅ Gestión de códigos de barras y SKU
 - ✅ Seguimiento de precios de costo y venta
 - ✅ Configuración de stock mínimo

@@ -1,7 +1,8 @@
 'use server';
 
-import { utapi } from '@/server/uploadThing';
-import { Product, Prisma } from '@/generated/prisma';
+import { deleteOrgProductImage, isOrgProductImageUrl } from '@/lib/images/product-image-refs';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { MembershipRole, Product, Prisma } from '@/generated/prisma';
 import {
   ActionResponse,
   ProductWithIncludesNumberPrice,
@@ -16,37 +17,37 @@ import {
   serializeDecimals,
 } from '../utils';
 
-const extractFileKeyFromUrl = (url: string): string | null => {
-  try {
-    const urlParts = url.split('/');
-    const fileName = urlParts[urlParts.length - 1];
-    return fileName || null;
-  } catch {
-    return null;
-  }
+const invalidImageResponse = () => ({
+  status: 400,
+  message: 'La imagen no es válida',
+  data: null,
+});
+
+/** Delete a stored image only when no product of the organization references it. */
+const deleteImageIfUnused = async (imageUrl: string | null | undefined, organizationId: string) => {
+  if (!imageUrl) return;
+  const inUse = await prisma.product.count({ where: { organizationId, image: imageUrl } });
+  if (inUse === 0) await deleteOrgProductImage(imageUrl, organizationId);
 };
 
-// Función auxiliar para eliminar imagen de UploadThing
-export const deleteImageFromUploadThing = async (imageUrl: string): Promise<void> => {
+/**
+ * Discard an image uploaded by the form when the product save fails.
+ * Only an ADMIN of the owning organization can do it, and only if no product
+ * references the image.
+ */
+export const discardUploadedProductImage = async (imageUrl: string): Promise<ActionResponse> => {
+  let organizationId: string;
   try {
-    const fileKey = extractFileKeyFromUrl(imageUrl);
-    if (fileKey) {
-      await utapi.deleteFiles(fileKey);
-    }
+    ({ organizationId } = await requireActor({ roles: [MembershipRole.ADMIN] }));
   } catch (error) {
-    console.error('Error deleting image from UploadThing:', error);
-    // No lanzamos el error para no bloquear la operación principal
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+    throw error;
   }
+  if (!imageUrl || !isOrgProductImageUrl(imageUrl, organizationId)) return invalidImageResponse();
+  await deleteImageIfUnused(imageUrl, organizationId);
+  return { status: 200, message: 'Imagen descartada', data: null };
 };
-
-export const uploadImage = async (file: File) => {
-  try {
-    const response = await utapi.uploadFiles(file);
-    return response.data;
-  } catch (error) {
-    console.error("🚀 ~ uploadImage ~ error:", error)
-  }
-}
 
 const productInclude: Prisma.ProductInclude = {
   organization: true,
@@ -88,6 +89,8 @@ export const createProduct = async (
     if (!isAdmin) return unauthorizedResponse();
 
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
+
+    if (!isOrgProductImageUrl(productData.image, orgId)) return invalidImageResponse();
 
     // Verificar unicidad de barcode si se proporciona
     if (productData.barcode) {
@@ -196,9 +199,7 @@ export const createProduct = async (
   } catch (error) {
     console.error('Error creating product:', error);
 
-    if (productData.image) {
-      await deleteImageFromUploadThing(productData.image);
-    }
+    await deleteImageIfUnused(productData.image, orgId).catch(() => undefined);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
@@ -415,6 +416,8 @@ export const updateProduct = async (
     >
   >
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
+  // Newly uploaded image to discard if the update fails.
+  let pendingImage: { url: string; organizationId: string } | null = null;
   try {
     const isAdmin = await checkAdminRole(userId);
     if (!isAdmin) return unauthorizedResponse();
@@ -433,6 +436,16 @@ export const updateProduct = async (
 
     if (!existingProduct) {
       return { status: 404, message: 'Producto no encontrado', data: null };
+    }
+
+    // `image: undefined` means "not changing"; `null` removes it.
+    const oldImageUrl = existingProduct.image;
+    const imageChanged = updateData.image !== undefined && updateData.image !== oldImageUrl;
+    if (imageChanged && !isOrgProductImageUrl(updateData.image, existingProduct.organizationId)) {
+      return invalidImageResponse();
+    }
+    if (imageChanged && updateData.image) {
+      pendingImage = { url: updateData.image, organizationId: existingProduct.organizationId };
     }
 
     // Verificar unicidad de barcode si se está actualizando
@@ -530,20 +543,6 @@ export const updateProduct = async (
       }
     }
 
-    // *** NUEVO BLOQUE: Gestionar cambio de imagen ***
-    const oldImageUrl = existingProduct.image;
-    const newImageUrl = updateData.image;
-
-    // Si se está cambiando la imagen y había una imagen anterior, eliminarla
-    if (newImageUrl && oldImageUrl && newImageUrl !== oldImageUrl) {
-      await deleteImageFromUploadThing(oldImageUrl);
-    }
-
-    // Si se está eliminando la imagen (se pasa null o undefined)
-    if ((updateData.image === null || updateData.image === undefined) && oldImageUrl) {
-      await deleteImageFromUploadThing(oldImageUrl);
-    }
-
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
       data: {
@@ -552,6 +551,12 @@ export const updateProduct = async (
       },
       include: productInclude,
     });
+    pendingImage = null;
+
+    // Remove the previous file only after the new reference is saved.
+    if (imageChanged) {
+      await deleteImageIfUnused(oldImageUrl, existingProduct.organizationId).catch(() => undefined);
+    }
 
     return {
       status: 200,
@@ -561,8 +566,8 @@ export const updateProduct = async (
   } catch (error) {
     console.error('Error updating product:', error);
 
-    if (updateData.image) {
-      await deleteImageFromUploadThing(updateData.image);
+    if (pendingImage) {
+      await deleteImageIfUnused(pendingImage.url, pendingImage.organizationId).catch(() => undefined);
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -860,7 +865,7 @@ export const deleteProduct = async (
     await prisma.product.delete({ where: { id: productId } });
 
     if (productToDelete?.image) {
-      await deleteImageFromUploadThing(productToDelete.image);
+      await deleteImageIfUnused(productToDelete.image, productToDelete.organizationId).catch(() => undefined);
     }
 
     return {
@@ -919,10 +924,7 @@ export const deleteProductImage = async (
       };
     }
 
-    // Eliminar imagen de UploadThing
-    await deleteImageFromUploadThing(product.image);
-
-    // Actualizar producto removiendo la referencia a la imagen
+    // Quitar la referencia y luego borrar el archivo
     await prisma.product.update({
       where: { id: productId },
       data: {
@@ -930,6 +932,7 @@ export const deleteProductImage = async (
         updatedAt: new Date(),
       },
     });
+    await deleteImageIfUnused(product.image, product.organizationId);
 
     return {
       status: 200,

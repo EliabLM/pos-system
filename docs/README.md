@@ -52,6 +52,7 @@ docs/
 | [estrategia-despliegue.md](./deployment/estrategia-despliegue.md) | Estrategia global: local (docker-compose) + testing (Vercel+Supabase) + prod (VPS+Coolify+Postgres) |
 | [deploy-vercel-monorepo.md](./deployment/deploy-vercel-monorepo.md) | Paso a paso para deployar el client en Vercel desde el monorepo (testing con Supabase) |
 | [docker-local.md](./deployment/docker-local.md) | Levantar el stack completo local con `docker compose up` |
+| [imagenes-producto.md](./deployment/imagenes-producto.md) | Imágenes de producto en volumen persistente (Coolify), `StorageProvider` y variables |
 | [PM2_DEPLOYMENT_GUIDE.md](./deployment/PM2_DEPLOYMENT_GUIDE.md) | Deploy con PM2 en producción (legacy) |
 | [SELF-HOST.MD](./deployment/SELF-HOST.MD) | Self-hosting (legacy) |
 | [ssl-troubleshooting-nginx-cloudflare-oracle.md](./deployment/ssl-troubleshooting-nginx-cloudflare-oracle.md) | SSL con Nginx + Cloudflare + OCI (legacy) |

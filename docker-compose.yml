@@ -8,7 +8,7 @@
 #   app      8082:8082   pos-system-app (Expo web)     — opcional, ver nota
 #
 # Cómo correrlo:
-#   1. cp .env.example .env   (y ajusta JWT_SECRET / UPLOADTHING_TOKEN si quieres)
+#   1. cp .env.example .env   (y ajusta JWT_SECRET si quieres)
 #   2. docker compose up --build
 #
 # Nota sobre la app móvil: Expo en docker solo sirve el bundle WEB. Para probar en
@@ -89,10 +89,13 @@ services:
       # Auth
       JWT_SECRET: ${CLIENT_JWT_SECRET}
       HTTPS_ENABLED: "false"
-      # UploadThing (opcional para local; dejar vacio deshabilita uploads)
-      UPLOADTHING_TOKEN: ${UPLOADTHING_TOKEN:-}
+      # Imágenes de producto en un volumen persistente
+      UPLOADS_DIR: /app/uploads
+      MAX_IMAGE_UPLOAD_MB: ${MAX_IMAGE_UPLOAD_MB:-5}
       # Cuando Fase 2 exponga la API, aca ira NEXT_PUBLIC_API_URL apuntando al server.
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
+    volumes:
+      - uploads:/app/uploads
     ports:
       - "3000:3000"
 
@@ -109,3 +112,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

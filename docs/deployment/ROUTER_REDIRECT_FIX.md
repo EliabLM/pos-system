@@ -549,8 +549,8 @@ JWT_SECRET="tu_secreto_jwt_muy_largo_y_seguro_aqui_123!@#"
 # Node Environment
 NODE_ENV="production"
 
-# UploadThing (opcional, si usas subida de archivos)
-UPLOADTHING_TOKEN="tu_uploadthing_token"
+# Imágenes de producto (volumen persistente, ver imagenes-producto.md)
+UPLOADS_DIR="/app/uploads"
 
 # Puerto de la aplicación
 PORT=3000

@@ -44,7 +44,7 @@ negocio hoy), con énfasis en los ejes de mayor riesgo del sistema:
 - App Expo (`pos-system-app`) — sin features aún (Fase 4 del migration).
 - API `pos-system-server` — sin módulos de dominio aún.
 - Pruebas de carga / performance / seguridad ofensiva (pentesting).
-- Uploads reales a UploadThing (se mockea o se omite la imagen).
+- Subida de imágenes reales (se omite la imagen o se usa un archivo local pequeño; se guardan en `UPLOADS_DIR`).
 
 ---
 
@@ -550,12 +550,8 @@ marcar specs lentos (P2) como `test.slow()`.
 ### 8.2 Dependencias externas y variables
 - **JWT_SECRET (CLIENT_JWT_SECRET)**: ≥ 32 chars en `.env` raíz. Si falta, E179 cubre el fallback del middleware
   (redirect login con cookie borrada), pero en CI el test setup debe setearla explícita en env.
-- **UPLOADTHING_TOKEN**: el módulo Products usa subida de image vía UploadThing. **En tests E2E, evitar la subida
-  real** (token de producción + cuota). Estrategias:
-  1. Mockear el archivo (input file con path local + interceptar `fetch` a uploadthing).
-  2. Omitir el campo image (si el form lo permite; ver validar esquema Yup — si es opcional, skip).
-  3. Usar un stub de UI que reemplace `<UploadButton>` en modo test (env `NODE_ENV=test`).
-  - **Recomendado**: opción 3 con conditional render. Documenta el bypass en el README de tests.
+- **Imágenes de producto**: se suben a `POST /api/images` y se guardan en `UPLOADS_DIR` (sin servicios externos).
+  En E2E basta con omitir la imagen o usar un JPG/PNG pequeño del repo; ver `docs/deployment/imagenes-producto.md`.
 - **SweetAlert2**: animaciones de hasta ~300ms antes del botón clickable. Helpers deben usar `getByRole('button',
   {name: /confirmar/i})` con `waitFor` antes de click. Riesgo de flakiness si se clicka antes de abrirse.
 - **Recharts**: renderiza en `useEffect` con ResizeObserver. Para screenshots/asserts de layout en reports, esperar

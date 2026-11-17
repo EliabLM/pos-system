@@ -84,7 +84,6 @@
    | `DATABASE_URL`     | connection string pooling (puerto 6543, `?pgbouncer=true&connection_limit=1`) | Runtime Prisma |
    | `DIRECT_URL`       | connection string session/direct (puerto 5432) | Migraciones |
    | `JWT_SECRET`       | `<mínimo 32 chars, generado con openssl rand -base64 48>` | Auth JWT |
-   | `UPLOADTHING_TOKEN`| tu token de UploadThing | Subida de imágenes. Vacío si todavía no la usás. |
    | `HTTPS_ENABLED`    | `true` | Lo lee el middleware del client |
 
 5. **Deploy.**
