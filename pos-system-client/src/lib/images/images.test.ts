@@ -218,3 +218,22 @@ test('referencias: un producto solo usa y borra imágenes de su organización', 
   await deleteOrgProductImage(storage.url(keyA), ORG_A, storage);
   assert.ok(!storage.objects.has(keyA));
 });
+
+test('producto sin imagen no necesita el storage (producción sin UPLOADS_DIR)', async () => {
+  const env = process.env as Record<string, string | undefined>;
+  const saved = { NODE_ENV: env.NODE_ENV, UPLOADS_DIR: env.UPLOADS_DIR };
+  env.NODE_ENV = 'production';
+  delete env.UPLOADS_DIR;
+  try {
+    assert.equal(isOrgProductImageUrl(null, ORG_A), true);
+    assert.equal(isOrgProductImageUrl(undefined, ORG_A), true);
+    await deleteOrgProductImage(null, ORG_A);
+    // Con imagen sí se necesita: la configuración sigue siendo obligatoria.
+    assert.throws(() => isOrgProductImageUrl('/api/images/x.webp', ORG_A), /UPLOADS_DIR is required/);
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete env[name];
+      else env[name] = value;
+    }
+  }
+});

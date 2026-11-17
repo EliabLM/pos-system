@@ -4,10 +4,12 @@ import { getStorage, isOrgProductImageKey, type StorageProvider } from '@/lib/st
 export function isOrgProductImageUrl(
   url: string | null | undefined,
   organizationId: string,
-  storage: StorageProvider = getStorage()
+  storage?: StorageProvider
 ): boolean {
   if (!url) return true;
-  const key = storage.keyFromUrl(url);
+  // Resolve the storage only when there is an image: getStorage() requires
+  // UPLOADS_DIR in production, and a product without image must not need it.
+  const key = (storage ?? getStorage()).keyFromUrl(url);
   return key !== null && isOrgProductImageKey(key, organizationId);
 }
 
@@ -15,13 +17,14 @@ export function isOrgProductImageUrl(
 export async function deleteOrgProductImage(
   url: string | null | undefined,
   organizationId: string,
-  storage: StorageProvider = getStorage()
+  storage?: StorageProvider
 ): Promise<void> {
   if (!url) return;
-  const key = storage.keyFromUrl(url);
+  const store = storage ?? getStorage();
+  const key = store.keyFromUrl(url);
   if (!key || !isOrgProductImageKey(key, organizationId)) return;
   try {
-    await storage.delete(key);
+    await store.delete(key);
   } catch (error) {
     // Do not block the main operation on a storage failure.
     console.error('Error deleting product image:', error);
