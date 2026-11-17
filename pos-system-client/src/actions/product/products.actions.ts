@@ -1,8 +1,8 @@
 'use server';
 
 import { deleteOrgProductImage, isOrgProductImageUrl } from '@/lib/images/product-image-refs';
-import { getPurchaseActor, purchaseAccessError } from '@/actions/purchase/purchase-access';
-import { Product, Prisma } from '@/generated/prisma';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { MembershipRole, Product, Prisma } from '@/generated/prisma';
 import {
   ActionResponse,
   ProductWithIncludesNumberPrice,
@@ -34,12 +34,16 @@ const deleteImageIfUnused = async (imageUrl: string | null | undefined, organiza
  * Discard an image uploaded by the form when the product save fails.
  * Only an ADMIN of the owning organization can do it, and only if no product
  * references the image.
- * TODO(#36): switch to getActor() once the central session helper is merged.
  */
 export const discardUploadedProductImage = async (imageUrl: string): Promise<ActionResponse> => {
-  const access = await getPurchaseActor(true);
-  if (access.status) return purchaseAccessError(access.status);
-  const { organizationId } = access.actor;
+  let organizationId: string;
+  try {
+    ({ organizationId } = await requireActor({ roles: [MembershipRole.ADMIN] }));
+  } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+    throw error;
+  }
   if (!imageUrl || !isOrgProductImageUrl(imageUrl, organizationId)) return invalidImageResponse();
   await deleteImageIfUnused(imageUrl, organizationId);
   return { status: 200, message: 'Imagen descartada', data: null };
