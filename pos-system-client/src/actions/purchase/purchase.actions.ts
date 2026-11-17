@@ -12,6 +12,7 @@ import {
   serializeDecimals,
 } from '../utils';
 import { getPurchaseActor, purchaseAccessError } from './purchase-access';
+import { businessDayCompact } from '@/lib/time';
 
 // PURCHASE INCLUDES
 const purchaseInclude: Prisma.PurchaseInclude = {
@@ -47,7 +48,8 @@ const generatePurchaseNumber = async (
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${organizationId}::text, 0))::text`;
 
   const createdAt = new Date();
-  const day = createdAt.toISOString().slice(0, 10).replace(/-/g, '');
+  // Business day in America/Bogota, not the UTC day (after 19:00 they differ).
+  const day = businessDayCompact(createdAt);
   const prefix = `COMP-${day}-`;
   const pattern = `^COMP-${day}-[0-9]{4,}$`;
   // Read all matching numbers, including soft-deleted rows and historical gaps.

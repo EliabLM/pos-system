@@ -12,6 +12,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:time": "node --test test/business-time.test.mjs src/actions/reports/business-day.test.mjs src/actions/purchase/purchase-number.test.mjs",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "db:seed:verify": "tsx prisma/seed-verify.ts",
