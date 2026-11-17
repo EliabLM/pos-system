@@ -7,52 +7,8 @@
  * Importar desde: @/lib/auth
  */
 
-// ============================================
-// SERVER UTILITIES (Server Components)
-// ============================================
-
-export {
-  getUserFromHeaders,
-  getUserIdFromHeaders,
-  getOrganizationIdFromHeaders,
-  getStoreIdFromHeaders,
-  hasRole,
-  isAdminUser,
-  requireUser,
-  requireOrganizationId,
-} from './server';
-
-export type { UserFromHeaders } from './server';
-
-// ============================================
-// AUTHORIZATION UTILITIES
-// ============================================
-
-export {
-  // Usuario actual
-  getCurrentAuthUser,
-  getCurrentUserOrgId,
-  getCurrentUserIdAuth,
-
-  // Requerir autenticación
-  requireAuth,
-  requireAdmin,
-  requireOrganization,
-  requireStoreAccess,
-  requireResourceOwner,
-  requireUserOrganization,
-  requireActiveOrganization,
-
-  // Verificaciones
-  hasOrganization,
-  canAccessStore,
-  isResourceOwner,
-  canModifyResource,
-  checkPermissions,
-
-  // Error class
-  AuthorizationError,
-} from './authorization';
+// Identidad en server components y actions: usar `getActor()` /
+// `requireActor()` de '@/lib/auth/actor' (no hay cabeceras x-user-*).
 
 // ============================================
 // TYPES & INTERFACES

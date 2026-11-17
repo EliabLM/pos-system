@@ -149,12 +149,10 @@ export async function middleware(request: NextRequest) {
         return redirectToLogin(request, true);
       }
 
-      // Extraer datos del usuario del JWT
-      const userId = payload.userId as string;
-      const email = payload.email as string;
+      // Claims del JWT: solo para redirecciones de UI. La autorización real la
+      // hace getActor() en el servidor con la sesión y la membresía en BD.
       const role = payload.role as string;
       const organizationId = payload.organizationId as string | null;
-      const storeId = payload.storeId as string | null | undefined;
 
       // 4. Role-based redirects
 
@@ -180,24 +178,9 @@ export async function middleware(request: NextRequest) {
         }
       }
 
-      // 3. Agregar user info a headers para acceso en server components
-      const response = NextResponse.next();
-
-      // Agregar headers con información del usuario
-      response.headers.set('x-user-id', userId);
-      response.headers.set('x-user-email', email);
-      response.headers.set('x-user-role', role);
-
-      if (organizationId) {
-        response.headers.set('x-organization-id', organizationId);
-      }
-
-      if (storeId) {
-        response.headers.set('x-store-id', storeId);
-      }
-
-      // JWT válido → permitir acceso
-      return response;
+      // JWT válido → permitir acceso. No se añaden cabeceras x-user-*: la
+      // identidad se obtiene en el servidor con getActor().
+      return NextResponse.next();
 
     } catch (error) {
       // Error verificando token (expirado, malformado, etc.)

@@ -1,49 +1,22 @@
 'use server';
 
-import { Organization, PaymentMethod, Prisma } from '@/generated/prisma';
+/**
+ * Organizaciones. Registro libre (#11): quien se registra crea SU negocio en el
+ * onboarding y queda como ADMIN. No hay acciones multi-organización: ver o
+ * administrar otras organizaciones no es posible desde la app.
+ */
+
+import { z } from 'zod';
+import { MembershipRole, MembershipStatus, Organization, PaymentMethod, Prisma } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
-import { prisma, checkAdminRole, unauthorizedResponse } from '../utils';
+import { actorErrorResponse, requireOnboardingUser } from '@/lib/auth/actor';
+import { prisma } from '../utils';
 import { createCategory } from '../category';
 import { createPaymentMethod } from '../payment-methods';
 import { createBrand } from '../brand';
 import { setBusinessType } from '../system-config';
 import { createUnitMeasure } from '../unit-measure';
 
-const organizationInclude: Prisma.OrganizationInclude = {
-  memberships: {
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    where: { deletedAt: null },
-    include: { user: true },
-  },
-  stores: {
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    where: { isDeleted: false },
-  },
-  products: {
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    where: { isDeleted: false },
-  },
-  customers: {
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    where: { isDeleted: false },
-  },
-  _count: {
-    select: {
-      memberships: true,
-      stores: true,
-      products: true,
-      customers: true,
-      suppliers: true,
-      brands: true,
-      categories: true,
-      stockMovements: true,
-    },
-  },
-};
 
 // Definir constantes para configuraciones por defecto
 const DEFAULT_PAYMENT_METHODS: Omit<
@@ -252,71 +225,98 @@ const createInitialConfigurations = async (
   }
 };
 
-// CREATE
+// CREATE (onboarding) — organización propia + membresía ADMIN del creador
+const optionalText = (max: number) =>
+  z.string().trim().max(max).nullish().transform((value) => (value ? value : null));
+
+const createOrganizationSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es requerido').max(150),
+  email: z.string().trim().email('Email inválido').max(254),
+  nit: optionalText(30),
+  phone: optionalText(30),
+  address: optionalText(255),
+  city: optionalText(100),
+  department: optionalText(100),
+  taxId: optionalText(30),
+});
+
+export type CreateOrganizationInput = z.input<typeof createOrganizationSchema>;
+
+const businessTypeSchema = z.enum(['liquor_store', 'shoe_store']).nullish();
+
 export const createOrganization = async (
-  adminUserId: string,
-  // slug excluido: lo genera la DB (trigger organizations_slug_default, Receta R7)
-  organizationData: Omit<
-    Organization,
-    'id' | 'slug' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >,
+  organizationData: CreateOrganizationInput,
   businessType?: 'liquor_store' | 'shoe_store' | null
 ): Promise<ActionResponse<Organization | null>> => {
   try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
+    // Solo un usuario con sesión y SIN membresía activa crea su organización.
+    const { userId } = await requireOnboardingUser();
 
-    // Verificar unicidad de NIT si se proporciona
-    if (organizationData.nit) {
+    const parsed = createOrganizationSchema.safeParse(organizationData);
+    const parsedType = businessTypeSchema.safeParse(businessType || null);
+    if (!parsed.success || !parsedType.success) {
+      return {
+        status: 400,
+        message: parsed.success ? 'Tipo de negocio inválido' : parsed.error.issues[0]?.message ?? 'Datos inválidos',
+        data: null,
+      };
+    }
+    const data = parsed.data;
+
+    if (data.nit) {
       const existingOrgByNit = await prisma.organization.findFirst({
-        where: {
-          nit: organizationData.nit,
-          isDeleted: false,
+        where: { nit: data.nit, isDeleted: false },
+        select: { id: true },
+      });
+      if (existingOrgByNit) {
+        return { status: 409, message: 'Ya existe una organización con ese NIT', data: null };
+      }
+    }
+
+    const newOrganization = await prisma.$transaction(async (tx) => {
+      // Serializa envíos simultáneos del mismo usuario: una sola organización.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+      const alreadyMember = await tx.membership.findFirst({
+        where: { userId, deletedAt: null, status: MembershipStatus.ACTIVE },
+        select: { id: true },
+      });
+      if (alreadyMember) return null;
+
+      const organization = await tx.organization.create({
+        data: { ...data, isActive: true },
+      });
+      await tx.membership.create({
+        data: {
+          userId,
+          organizationId: organization.id,
+          role: MembershipRole.ADMIN,
+          status: MembershipStatus.ACTIVE,
+          acceptedAt: new Date(),
         },
       });
-
-      if (existingOrgByNit) {
-        return {
-          status: 409,
-          message: 'Ya existe una organización con ese NIT',
-          data: null,
-        };
-      }
-    }
-
-    const newOrganization = await prisma.organization.create({
-      data: organizationData,
-      include: organizationInclude,
+      return organization;
     });
 
-    // Guardar tipo de negocio en SystemConfig si se proporciona
-    if (businessType) {
+    if (!newOrganization) {
+      return { status: 409, message: 'El usuario ya pertenece a una organización', data: null };
+    }
+
+    const type = parsedType.data ?? null;
+    if (type) {
       try {
-        await setBusinessType(newOrganization.id, businessType);
+        await setBusinessType(newOrganization.id, type);
       } catch (error) {
-        console.error(
-          'Error setting business type for organization:',
-          newOrganization.id,
-          error
-        );
+        console.error('Error setting business type for organization:', newOrganization.id, error);
       }
     }
 
-    // Crear configuraciones iniciales (categorías, marcas, métodos de pago, etc.)
+    // Configuraciones iniciales (categorías, marcas, métodos de pago...). Ya
+    // existe la membresía ADMIN, así que pasan las comprobaciones de sesión.
     try {
-      await createInitialConfigurations(
-        newOrganization.id,
-        adminUserId,
-        businessType
-      );
+      await createInitialConfigurations(newOrganization.id, userId, type);
     } catch (error) {
-      console.error(
-        'Error creating initial configurations for organization:',
-        newOrganization.id,
-        error
-      );
-      // No fallar la creación de la organización si las configuraciones fallan
-      // El usuario puede crearlas manualmente después
+      console.error('Error creating initial configurations for organization:', newOrganization.id, error);
+      // No falla la creación: el usuario puede crearlas manualmente después.
     }
 
     return {
@@ -325,799 +325,15 @@ export const createOrganization = async (
       data: newOrganization,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+
     console.error('Error creating organization:', error);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        const target = error.meta?.target as string[];
-
-        if (target?.includes('nit')) {
-          return {
-            status: 409,
-            message: 'Ya existe una organización con ese NIT',
-            data: null,
-          };
-        }
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET ALL ORGANIZATIONS (for super admin)
-export const getAllOrganizations = async (
-  adminUserId: string,
-  filters?: {
-    isActive?: boolean;
-    city?: string;
-    department?: string;
-    search?: string;
-  },
-  includeDeleted: boolean = false
-): Promise<ActionResponse<Organization[] | null>> => {
-  try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    const whereClause: Prisma.OrganizationWhereInput = {
-      isDeleted: includeDeleted ? undefined : false,
-    };
-
-    if (filters?.isActive !== undefined) {
-      whereClause.isActive = filters.isActive;
-    }
-
-    if (filters?.city) {
-      whereClause.city = { contains: filters.city, mode: 'insensitive' };
-    }
-
-    if (filters?.department) {
-      whereClause.department = {
-        contains: filters.department,
-        mode: 'insensitive',
-      };
-    }
-
-    if (filters?.search) {
-      whereClause.OR = [
-        { name: { contains: filters.search, mode: 'insensitive' } },
-        { email: { contains: filters.search, mode: 'insensitive' } },
-        { nit: { contains: filters.search, mode: 'insensitive' } },
-        { taxId: { contains: filters.search, mode: 'insensitive' } },
-        { city: { contains: filters.search, mode: 'insensitive' } },
-        { department: { contains: filters.search, mode: 'insensitive' } },
-      ];
-    }
-
-    const organizations = await prisma.organization.findMany({
-      where: whereClause,
-      include: organizationInclude,
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return {
-      status: 200,
-      message: 'Organizaciones obtenidas exitosamente',
-      data: organizations,
-    };
-  } catch (error) {
-    console.error('Error fetching organizations:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET ONE
-export const getOrganizationById = async (
-  organizationId: string
-): Promise<ActionResponse<Organization | null>> => {
-  try {
-    if (!organizationId) {
-      return {
-        status: 400,
-        message: 'ID de la organización es requerido',
-        data: null,
-      };
-    }
-
-    const organization = await prisma.organization.findFirst({
-      where: { id: organizationId, isDeleted: false },
-      include: organizationInclude,
-    });
-
-    if (!organization) {
-      return { status: 404, message: 'Organización no encontrada', data: null };
-    }
-
-    return {
-      status: 200,
-      message: 'Organización obtenida exitosamente',
-      data: organization,
-    };
-  } catch (error) {
-    console.error('Error fetching organization:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET BY EMAIL
-export const getOrganizationByEmail = async (
-  email: string
-): Promise<ActionResponse<Organization | null>> => {
-  try {
-    if (!email) {
-      return {
-        status: 400,
-        message: 'Email es requerido',
-        data: null,
-      };
-    }
-
-    const organization = await prisma.organization.findFirst({
-      where: {
-        email,
-        isDeleted: false,
-        isActive: true,
-      },
-      include: organizationInclude,
-    });
-
-    if (!organization) {
-      return { status: 404, message: 'Organización no encontrada', data: null };
-    }
-
-    return {
-      status: 200,
-      message: 'Organización obtenida exitosamente',
-      data: organization,
-    };
-  } catch (error) {
-    console.error('Error fetching organization by email:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET BY NIT
-export const getOrganizationByNit = async (
-  nit: string
-): Promise<ActionResponse<Organization | null>> => {
-  try {
-    if (!nit) {
-      return {
-        status: 400,
-        message: 'NIT es requerido',
-        data: null,
-      };
-    }
-
-    const organization = await prisma.organization.findFirst({
-      where: {
-        nit,
-        isDeleted: false,
-        isActive: true,
-      },
-      include: organizationInclude,
-    });
-
-    if (!organization) {
-      return { status: 404, message: 'Organización no encontrada', data: null };
-    }
-
-    return {
-      status: 200,
-      message: 'Organización obtenida exitosamente',
-      data: organization,
-    };
-  } catch (error) {
-    console.error('Error fetching organization by NIT:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET ACTIVE ORGANIZATIONS
-export const getActiveOrganizations = async (): Promise<
-  ActionResponse<Organization[] | null>
-> => {
-  try {
-    const organizations = await prisma.organization.findMany({
-      where: {
-        isActive: true,
-        isDeleted: false,
-      },
-      include: organizationInclude,
-      orderBy: { name: 'asc' },
-    });
-
-    return {
-      status: 200,
-      message: 'Organizaciones activas obtenidas exitosamente',
-      data: organizations,
-    };
-  } catch (error) {
-    console.error('Error fetching active organizations:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// UPDATE
-export const updateOrganization = async (
-  organizationId: string,
-  adminUserId: string,
-  updateData: Partial<
-    Omit<
-      Organization,
-      'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-    >
-  >
-): Promise<ActionResponse<Organization | null>> => {
-  try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!organizationId) {
-      return {
-        status: 400,
-        message: 'ID de la organización es requerido',
-        data: null,
-      };
-    }
-
-    // Verificar que la organización exista y no esté eliminada
-    const existingOrganization = await prisma.organization.findFirst({
-      where: { id: organizationId, isDeleted: false },
-    });
-
-    if (!existingOrganization) {
-      return { status: 404, message: 'Organización no encontrada', data: null };
-    }
-
-    // Verificar unicidad de NIT si se está actualizando
-    if (updateData.nit && updateData.nit !== existingOrganization.nit) {
-      const duplicateOrgByNit = await prisma.organization.findFirst({
-        where: {
-          nit: updateData.nit,
-          isDeleted: false,
-          id: { not: organizationId },
-        },
-      });
-
-      if (duplicateOrgByNit) {
-        return {
-          status: 409,
-          message: 'Ya existe una organización con ese NIT',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar unicidad de taxId si se está actualizando
-    if (updateData.taxId && updateData.taxId !== existingOrganization.taxId) {
-      const duplicateOrgByTaxId = await prisma.organization.findFirst({
-        where: {
-          taxId: updateData.taxId,
-          isDeleted: false,
-          id: { not: organizationId },
-        },
-      });
-
-      if (duplicateOrgByTaxId) {
-        return {
-          status: 409,
-          message: 'Ya existe una organización con ese Tax ID',
-          data: null,
-        };
-      }
-    }
-
-    const updatedOrganization = await prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        ...updateData,
-        updatedAt: new Date(),
-      },
-      include: organizationInclude,
-    });
-
-    return {
-      status: 200,
-      message: 'Organización actualizada exitosamente',
-      data: updatedOrganization,
-    };
-  } catch (error) {
-    console.error('Error updating organization:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        const target = error.meta?.target as string[];
-
-        if (target?.includes('nit')) {
-          return {
-            status: 409,
-            message: 'Ya existe una organización con ese NIT',
-            data: null,
-          };
-        }
-        if (target?.includes('taxId')) {
-          return {
-            status: 409,
-            message: 'Ya existe una organización con ese Tax ID',
-            data: null,
-          };
-        }
-      }
-      if (error.code === 'P2025') {
-        return {
-          status: 404,
-          message: 'Organización no encontrada',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// ACTIVATE/DEACTIVATE ORGANIZATION
-export const toggleOrganizationStatus = async (
-  organizationId: string,
-  adminUserId: string,
-  isActive: boolean
-): Promise<ActionResponse<Organization | null>> => {
-  try {
-    const isAdminRole = await checkAdminRole(adminUserId);
-    if (!isAdminRole) return unauthorizedResponse();
-
-    if (!organizationId) {
-      return {
-        status: 400,
-        message: 'ID de la organización es requerido',
-        data: null,
-      };
-    }
-
-    const existingOrganization = await prisma.organization.findFirst({
-      where: { id: organizationId, isDeleted: false },
-    });
-
-    if (!existingOrganization) {
-      return { status: 404, message: 'Organización no encontrada', data: null };
-    }
-
-    // Si se está desactivando, verificar que no tenga usuarios activos
-    if (!isActive) {
-      const activeUsersCount = await prisma.membership.count({
-        where: {
-          organizationId,
-          deletedAt: null,
-          status: 'ACTIVE',
-          user: { isActive: true, isDeleted: false },
-        },
-      });
-
-      if (activeUsersCount > 0) {
-        return {
-          status: 409,
-          message: `No se puede desactivar la organización. Tiene ${activeUsersCount} usuario(s) activo(s)`,
-          data: null,
-        };
-      }
-    }
-
-    const updatedOrganization = await prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        isActive,
-        updatedAt: new Date(),
-      },
-      include: organizationInclude,
-    });
-
-    return {
-      status: 200,
-      message: `Organización ${
-        isActive ? 'activada' : 'desactivada'
-      } exitosamente`,
-      data: updatedOrganization,
-    };
-  } catch (error) {
-    console.error('Error toggling organization status:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return {
-          status: 404,
-          message: 'Organización no encontrada',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET ORGANIZATIONS BY DEPARTMENT
-export const getOrganizationsByDepartment = async (
-  department: string
-): Promise<ActionResponse<Organization[] | null>> => {
-  try {
-    if (!department) {
-      return {
-        status: 400,
-        message: 'Departamento es requerido',
-        data: null,
-      };
-    }
-
-    const organizations = await prisma.organization.findMany({
-      where: {
-        department: { contains: department, mode: 'insensitive' },
-        isDeleted: false,
-        isActive: true,
-      },
-      include: organizationInclude,
-      orderBy: { name: 'asc' },
-    });
-
-    return {
-      status: 200,
-      message: `Organizaciones en ${department} obtenidas exitosamente`,
-      data: organizations,
-    };
-  } catch (error) {
-    console.error('Error fetching organizations by department:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET ORGANIZATIONS BY CITY
-export const getOrganizationsByCity = async (
-  city: string
-): Promise<ActionResponse<Organization[] | null>> => {
-  try {
-    if (!city) {
-      return {
-        status: 400,
-        message: 'Ciudad es requerida',
-        data: null,
-      };
-    }
-
-    const organizations = await prisma.organization.findMany({
-      where: {
-        city: { contains: city, mode: 'insensitive' },
-        isDeleted: false,
-        isActive: true,
-      },
-      include: organizationInclude,
-      orderBy: { name: 'asc' },
-    });
-
-    return {
-      status: 200,
-      message: `Organizaciones en ${city} obtenidas exitosamente`,
-      data: organizations,
-    };
-  } catch (error) {
-    console.error('Error fetching organizations by city:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// GET ORGANIZATION STATISTICS
-export const getOrganizationStatistics = async (
-  organizationId: string
-): Promise<ActionResponse<Record<string, unknown> | null>> => {
-  try {
-    if (!organizationId) {
-      return {
-        status: 400,
-        message: 'ID de la organización es requerido',
-        data: null,
-      };
-    }
-
-    const organization = await prisma.organization.findFirst({
-      where: { id: organizationId, isDeleted: false },
-    });
-
-    if (!organization) {
-      return { status: 404, message: 'Organización no encontrada', data: null };
-    }
-
-    const [
-      totalUsers,
-      activeUsers,
-      totalStores,
-      activeStores,
-      totalProducts,
-      activeProducts,
-      totalCustomers,
-      totalSuppliers,
-      totalBrands,
-      totalCategories,
-      recentStockMovements,
-    ] = await Promise.all([
-      prisma.membership.count({
-        where: { organizationId, deletedAt: null, user: { isDeleted: false } },
-      }),
-      prisma.membership.count({
-        where: {
-          organizationId,
-          deletedAt: null,
-          status: 'ACTIVE',
-          user: { isDeleted: false, isActive: true },
-        },
-      }),
-      prisma.store.count({
-        where: { organizationId, isDeleted: false },
-      }),
-      prisma.store.count({
-        where: { organizationId, isDeleted: false, isActive: true },
-      }),
-      prisma.product.count({
-        where: { organizationId, isDeleted: false },
-      }),
-      prisma.product.count({
-        where: { organizationId, isDeleted: false, isActive: true },
-      }),
-      prisma.customer.count({
-        where: { organizationId, isDeleted: false },
-      }),
-      prisma.supplier.count({
-        where: { organizationId, isDeleted: false },
-      }),
-      prisma.brand.count({
-        where: { organizationId, isDeleted: false },
-      }),
-      prisma.category.count({
-        where: { organizationId, isDeleted: false },
-      }),
-      prisma.stockMovement.count({
-        where: {
-          organizationId,
-          createdAt: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Últimos 30 días
-          },
-        },
-      }),
-    ]);
-
-    const statistics = {
-      users: {
-        total: totalUsers,
-        active: activeUsers,
-        inactive: totalUsers - activeUsers,
-      },
-      stores: {
-        total: totalStores,
-        active: activeStores,
-        inactive: totalStores - activeStores,
-      },
-      products: {
-        total: totalProducts,
-        active: activeProducts,
-        inactive: totalProducts - activeProducts,
-      },
-      customers: totalCustomers,
-      suppliers: totalSuppliers,
-      brands: totalBrands,
-      categories: totalCategories,
-      stockMovements: {
-        last30Days: recentStockMovements,
-      },
-    };
-
-    return {
-      status: 200,
-      message: 'Estadísticas de la organización obtenidas exitosamente',
-      data: statistics,
-    };
-  } catch (error) {
-    console.error('Error fetching organization statistics:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// SOFT DELETE
-export const softDeleteOrganization = async (
-  organizationId: string,
-  adminUserId: string
-): Promise<ActionResponse> => {
-  try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!organizationId) {
-      return {
-        status: 400,
-        message: 'ID de la organización es requerido',
-        data: null,
-      };
-    }
-
-    // Verificar si hay usuarios asociados
-    const usersCount = await prisma.membership.count({
-      where: { organizationId, deletedAt: null, user: { isDeleted: false } },
-    });
-
-    // Verificar si hay tiendas asociadas
-    const storesCount = await prisma.store.count({
-      where: { organizationId, isDeleted: false },
-    });
-
-    // Verificar si hay productos asociados
-    const productsCount = await prisma.product.count({
-      where: { organizationId, isDeleted: false },
-    });
-
-    if (usersCount > 0 || storesCount > 0 || productsCount > 0) {
-      return {
-        status: 409,
-        message: `No se puede eliminar la organización. Tiene ${
-          usersCount + storesCount + productsCount
-        } registro(s) asociado(s)`,
-        data: null,
-      };
-    }
-
-    await prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-        isActive: false,
-        updatedAt: new Date(),
-      },
-    });
-
-    return {
-      status: 200,
-      message: 'Organización eliminada (soft) exitosamente',
-      data: null,
-    };
-  } catch (error) {
-    console.error('Error soft deleting organization:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return {
-          status: 404,
-          message: 'Organización no encontrada',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// RESTORE
-export const restoreOrganization = async (
-  organizationId: string,
-  adminUserId: string
-): Promise<ActionResponse<Organization | null>> => {
-  try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!organizationId) {
-      return {
-        status: 400,
-        message: 'ID de la organización es requerido',
-        data: null,
-      };
-    }
-
-    const restoredOrganization = await prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        isDeleted: false,
-        deletedAt: null,
-        updatedAt: new Date(),
-      },
-      include: organizationInclude,
-    });
-
-    return {
-      status: 200,
-      message: 'Organización restaurada exitosamente',
-      data: restoredOrganization,
-    };
-  } catch (error) {
-    console.error('Error restoring organization:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return {
-          status: 404,
-          message: 'Organización no encontrada',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
-
-// HARD DELETE
-export const deleteOrganization = async (
-  organizationId: string,
-  adminUserId: string
-): Promise<ActionResponse> => {
-  try {
-    const isAdmin = await checkAdminRole(adminUserId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!organizationId) {
-      return {
-        status: 400,
-        message: 'ID de la organización es requerido',
-        data: null,
-      };
-    }
-
-    // Verificar si hay registros asociados
-    const [
-      usersCount,
-      storesCount,
-      productsCount,
-      customersCount,
-      suppliersCount,
-      stockMovementsCount,
-    ] = await Promise.all([
-      prisma.membership.count({ where: { organizationId } }),
-      prisma.store.count({ where: { organizationId } }),
-      prisma.product.count({ where: { organizationId } }),
-      prisma.customer.count({ where: { organizationId } }),
-      prisma.supplier.count({ where: { organizationId } }),
-      prisma.stockMovement.count({ where: { organizationId } }),
-    ]);
-
-    const totalAssociatedRecords =
-      usersCount +
-      storesCount +
-      productsCount +
-      customersCount +
-      suppliersCount +
-      stockMovementsCount;
-
-    if (totalAssociatedRecords > 0) {
-      return {
-        status: 409,
-        message: `No se puede eliminar permanentemente la organización. Tiene registros asociados. Use eliminación suave en su lugar.`,
-        data: null,
-      };
-    }
-
-    await prisma.organization.delete({ where: { id: organizationId } });
-
-    return {
-      status: 200,
-      message: 'Organización eliminada permanentemente',
-      data: null,
-    };
-  } catch (error) {
-    console.error('Error hard deleting organization:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return {
-          status: 404,
-          message: 'Organización no encontrada',
-          data: null,
-        };
-      }
-      if (error.code === 'P2003') {
-        return {
-          status: 409,
-          message:
-            'No se puede eliminar la organización debido a relaciones existentes',
-          data: null,
-        };
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = error.meta?.target as string[] | undefined;
+      if (target?.includes('nit')) {
+        return { status: 409, message: 'Ya existe una organización con ese NIT', data: null };
       }
     }
 

@@ -5,7 +5,7 @@ import { loadWithMocks } from '../../../test/load-with-mocks.mjs';
 const state = {};
 globalThis.__actorTest = state;
 
-const { getActor, requireActor, actorErrorResponse, ActorError } = await loadWithMocks('src/lib/auth/actor.ts', {
+const { getActor, requireActor, requireOnboardingUser, requireSessionUserId, actorErrorResponse, ActorError } = await loadWithMocks('src/lib/auth/actor.ts', {
   'next/headers': 'export const cookies = async () => ({ get: name => name === "auth-token" && globalThis.__actorTest.token ? { value: globalThis.__actorTest.token } : undefined });',
   '@/generated/prisma': 'export const MembershipRole = { ADMIN: "ADMIN", SELLER: "SELLER" }; export const MembershipStatus = { ACTIVE: "ACTIVE", REVOKED: "REVOKED" };',
   './types': 'export class AuthError extends Error { constructor(m) { super(m); this.name = "AuthError"; } }',
@@ -91,4 +91,28 @@ test('actorErrorResponse: 401/403 tipados; otros errores no se enmascaran', () =
   assert.equal(actorErrorResponse(new ActorError('UNAUTHENTICATED')).status, 401);
   assert.equal(actorErrorResponse(new ActorError('FORBIDDEN')).status, 403);
   assert.equal(actorErrorResponse(new Error('x')), null);
+});
+
+test('usuario sin membresía: no tiene ningún rol (ni ADMIN ni SELLER)', async () => {
+  reset(); state.membership = null;
+  assert.equal(await codeOf(requireActor()), 'FORBIDDEN');
+  assert.equal(await codeOf(requireActor({ roles: ['ADMIN'] })), 'FORBIDDEN');
+});
+
+test('requireOnboardingUser: solo el usuario con sesión y SIN membresía activa', async () => {
+  reset(); state.membership = null;
+  assert.deepEqual(await requireOnboardingUser(), { userId: 'user-a' });
+  reset();
+  assert.equal(await codeOf(requireOnboardingUser()), 'FORBIDDEN', 'quien ya tiene organización no crea otra');
+  reset(); state.token = null; state.membership = null;
+  assert.equal(await codeOf(requireOnboardingUser()), 'UNAUTHENTICATED');
+  reset(); state.user = null; state.membership = null;
+  assert.equal(await codeOf(requireOnboardingUser()), 'UNAUTHENTICATED');
+});
+
+test('requireSessionUserId: id de la sesión, nunca de parámetros', async () => {
+  reset();
+  assert.equal(await requireSessionUserId(), 'user-a');
+  reset(); state.session = null;
+  assert.equal(await codeOf(requireSessionUserId()), 'UNAUTHENTICATED');
 });

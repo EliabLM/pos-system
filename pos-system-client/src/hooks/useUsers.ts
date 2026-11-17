@@ -2,21 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createUser,
   updateUser,
-  getUsersByOrgId,
-  getAllUsers,
+  getUsers,
   getUserById,
-  getUserByEmail,
   updateUserRole,
   toggleUserStatus,
   getUsersByRole,
   softDeleteUser,
   restoreUser,
   deleteUser,
-  registerUser,
-  updateUserOrg,
 } from '@/actions/user';
 import { useStore } from '@/store';
-import { User, MembershipRole } from '@/generated/prisma';
+import { MembershipRole } from '@/generated/prisma';
 import type { CreateUserInput, UpdateUserInput } from '@/actions/user/user.actions';
 
 // Tipos para los filtros de usuarios
@@ -30,11 +26,6 @@ interface UserFilters {
 interface UserRoleUpdateParams {
   userId: string;
   newRole: MembershipRole;
-}
-
-interface UserOrgUpdateParams {
-  userId: string;
-  orgId: string;
 }
 
 interface UserStatusToggleParams {
@@ -56,11 +47,7 @@ export const useUsers = (
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getUsersByOrgId(
-        user.organizationId,
-        filters,
-        includeDeleted
-      );
+      const response = await getUsers(filters, includeDeleted);
 
       // Manejar errores de la respuesta
       if (response.status !== 200) {
@@ -70,39 +57,6 @@ export const useUsers = (
       return response.data;
     },
     enabled: !!user?.organizationId,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    gcTime: 10 * 60 * 1000, // 10 minutos
-  });
-};
-
-// Hook para obtener todos los usuarios (solo super admin)
-export const useAllUsers = (
-  filters?: {
-    isActive?: boolean;
-    role?: MembershipRole;
-    organizationId?: string;
-    search?: string;
-  },
-  includeDeleted: boolean = false
-) => {
-  const user = useStore((state) => state.user);
-
-  return useQuery({
-    queryKey: ['allUsers', filters, includeDeleted],
-    queryFn: async () => {
-      if (!user?.id) {
-        throw new Error('Usuario no autenticado');
-      }
-
-      const response = await getAllUsers(user.id, filters, includeDeleted);
-
-      if (response.status !== 200) {
-        throw new Error(response.message);
-      }
-
-      return response.data;
-    },
-    enabled: !!user?.id && user?.role === 'ADMIN',
     staleTime: 5 * 60 * 1000, // 5 minutos
     gcTime: 10 * 60 * 1000, // 10 minutos
   });
@@ -131,29 +85,6 @@ export const useUserById = (userId: string) => {
   });
 };
 
-// Hook para obtener usuario por email
-export const useUserByEmail = (email: string) => {
-  return useQuery({
-    queryKey: ['user', 'email', email],
-    queryFn: async () => {
-      if (!email) {
-        throw new Error('Email requerido');
-      }
-
-      const response = await getUserByEmail(email);
-
-      if (response.status !== 200) {
-        throw new Error(response.message);
-      }
-
-      return response.data;
-    },
-    enabled: !!email,
-    staleTime: 3 * 60 * 1000, // 3 minutos
-    gcTime: 5 * 60 * 1000,
-  });
-};
-
 // Hook para obtener usuarios por rol
 export const useUsersByRole = (role: MembershipRole) => {
   const user = useStore((state) => state.user);
@@ -169,7 +100,7 @@ export const useUsersByRole = (role: MembershipRole) => {
         throw new Error('Rol requerido');
       }
 
-      const response = await getUsersByRole(user.organizationId, role);
+      const response = await getUsersByRole(role);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -194,7 +125,7 @@ export const useCreateUser = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await createUser(user.organizationId, user.id, userData);
+      const response = await createUser(userData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -206,42 +137,6 @@ export const useCreateUser = () => {
       // Invalidar múltiples queries relacionadas
       queryClient.invalidateQueries({
         queryKey: ['users', user?.organizationId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
-      });
-    },
-    onError: (error) => {
-      console.error('Error creando el usuario:', error);
-    },
-  });
-};
-
-export const useRegisterUser = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (
-      userData: Omit<
-        User,
-        'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-      >
-    ) => {
-      const response = await registerUser(userData);
-
-      if (response.status !== 201) {
-        throw new Error(response.message);
-      }
-
-      return response.data;
-    },
-    onSuccess: () => {
-      // Invalidar múltiples queries relacionadas
-      queryClient.invalidateQueries({
-        queryKey: ['users'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
       });
     },
     onError: (error) => {
@@ -267,7 +162,7 @@ export const useUpdateUser = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await updateUser(userId, user.id, updateData);
+      const response = await updateUser(userId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -285,9 +180,6 @@ export const useUpdateUser = () => {
       queryClient.invalidateQueries({
         queryKey: ['user', variables.userId],
       });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
-      });
 
       // Invalidar búsqueda por email si se actualizó
       if (updatedUser?.email) {
@@ -303,41 +195,6 @@ export const useUpdateUser = () => {
 };
 
 // Hook para actualizar rol de usuario
-export const useUpdateUserOrg = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, orgId }: UserOrgUpdateParams) => {
-      const response = await updateUserOrg(userId, orgId);
-
-      if (response.status !== 200) {
-        throw new Error(response.message);
-      }
-
-      return response.data;
-    },
-    onSuccess: (data, variables) => {
-      // Invalidar queries relacionadas
-      queryClient.invalidateQueries({
-        queryKey: ['users'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['user', variables.userId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['users', 'organizationId'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
-      });
-    },
-    onError: (error) => {
-      console.error('Error actualizando la organización del usuario:', error);
-    },
-  });
-};
-
-// Hook para actualizar rol de usuario
 export const useUpdateUserRole = () => {
   const queryClient = useQueryClient();
   const user = useStore((state) => state.user);
@@ -348,7 +205,7 @@ export const useUpdateUserRole = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await updateUserRole(userId, user.id, newRole);
+      const response = await updateUserRole(userId, newRole);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -366,9 +223,6 @@ export const useUpdateUserRole = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ['users', 'role'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
       });
     },
     onError: (error) => {
@@ -388,7 +242,7 @@ export const useToggleUserStatus = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await toggleUserStatus(userId, user.id, isActive);
+      const response = await toggleUserStatus(userId, isActive);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -406,9 +260,6 @@ export const useToggleUserStatus = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ['users', 'role'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
       });
     },
     onError: (error) => {
@@ -428,7 +279,7 @@ export const useSoftDeleteUser = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await softDeleteUser(userId, user.id);
+      const response = await softDeleteUser(userId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -445,9 +296,6 @@ export const useSoftDeleteUser = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ['users', 'role'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
       });
     },
     onError: (error) => {
@@ -467,7 +315,7 @@ export const useRestoreUser = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await restoreUser(userId, user.id);
+      const response = await restoreUser(userId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -484,9 +332,6 @@ export const useRestoreUser = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ['users', 'role'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
       });
 
       // Restaurar búsqueda por email
@@ -513,7 +358,7 @@ export const useDeleteUser = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await deleteUser(userId, user.id);
+      const response = await deleteUser(userId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -531,9 +376,6 @@ export const useDeleteUser = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ['users', 'role'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['allUsers'],
       });
     },
     onError: (error) => {
@@ -637,7 +479,7 @@ export const useUserStats = () => {
       }
 
       // Obtener todos los usuarios para calcular estadísticas
-      const response = await getUsersByOrgId(user.organizationId, {}, false);
+      const response = await getUsers({}, false);
 
       if (response.status !== 200) {
         throw new Error(response.message);
