@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
+import { ActorError, getActor } from '@/lib/auth/actor';
 
 // TODO - Se realizaron ventas después de 6 pm y en los reportes no se visualizan en la opción hoy.
 // TODO - Exportar PDF no funciona en ningún reporte
@@ -13,23 +13,18 @@ import { headers } from 'next/headers';
 // TODO  - Corregir número de compra, se están mezclando los números entre diferentes organizaciones
 // TODO - Corregir combobox de cliente en ventas, no se visualiza el boton crear cliente
 
+/** Destino según la sesión: con membresía → dashboard; sin ella → onboarding. */
+async function landingPath(): Promise<string> {
+  try {
+    await getActor();
+    return '/dashboard';
+  } catch (error) {
+    if (error instanceof ActorError && error.code === 'FORBIDDEN') return '/onboarding';
+    if (error instanceof ActorError) return '/auth/login';
+    throw error;
+  }
+}
+
 export default async function Home() {
-  const headersList = await headers();
-
-  // Obtener información del usuario desde los headers del middleware
-  const userId = headersList.get('x-user-id');
-  const organizationId = headersList.get('x-organization-id');
-
-  // Si no hay usuario autenticado, redirigir al login
-  if (!userId) {
-    redirect('/auth/login');
-  }
-
-  // Si tiene organizationId, el onboarding está completo → ir al dashboard
-  if (organizationId) {
-    redirect('/dashboard');
-  }
-
-  // Si no tiene organizationId, el onboarding no está completo → ir al onboarding
-  redirect('/onboarding');
+  redirect(await landingPath());
 }

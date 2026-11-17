@@ -100,7 +100,7 @@ export async function updateSystemConfig(
   value: string
 ): Promise<ActionResponse<SystemConfig | null>> {
   try {
-    const isAdmin = await checkAdminRole(adminUserId);
+    const isAdmin = await checkAdminRole(adminUserId, organizationId);
     if (!isAdmin) return unauthorizedResponse();
 
     // ⚠️ PREVENIR cambio de business_type

@@ -27,7 +27,7 @@ export const createUnitMeasure = async (
     // Validación de orgId
     if (checkOrgId(orgId)) return emptyOrgIdResponse();
 
-    const isAdmin = await checkAdminRole(userId);
+    const isAdmin = await checkAdminRole(userId, orgId);
     if (!isAdmin) return unauthorizedResponse();
 
     // Verificar que no exista una unidad con el mismo nombre (considerando soft delete)

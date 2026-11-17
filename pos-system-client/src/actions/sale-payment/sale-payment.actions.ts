@@ -1,14 +1,19 @@
-import {
-  SalePayment,
-  Prisma,
-} from '@/generated/prisma';
+'use server';
+
+import { SalePayment, Prisma, MembershipRole } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma, serializeDecimals } from '../utils';
 import {
-  prisma,
-  checkAdminRole,
-  unauthorizedResponse,
-  serializeDecimals,
-} from '../utils';
+  idSchema,
+  salePaymentInputSchema,
+  updateSalePaymentInputSchema,
+  type SalePaymentInput,
+  type UpdateSalePaymentInput,
+} from '../sale/sale.schemas';
+
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
+const invalidInput = (message: string) => ({ status: 400, message, data: null }) as const;
 
 const salePaymentInclude: Prisma.SalePaymentInclude = {
   sale: {
@@ -29,28 +34,21 @@ const salePaymentInclude: Prisma.SalePaymentInclude = {
 
 // ADD SALE PAYMENT
 export const addSalePayment = async (
-  saleId: string,
-  userId: string,
-  paymentData: Omit<
-    Serialized<SalePayment>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >
+  saleIdInput: string,
+  paymentInput: SalePaymentInput
 ): Promise<ActionResponse<Serialized<SalePayment> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(saleIdInput);
+    if (!id.success) return invalidInput('ID de venta es requerido');
+    const parsed = salePaymentInputSchema.safeParse(paymentInput);
+    if (!parsed.success) return invalidInput('El monto del pago debe ser mayor a 0');
+    const saleId = id.data;
+    const paymentData = parsed.data;
 
-    if (paymentData.amount <= 0) {
-      return {
-        status: 400,
-        message: 'El monto del pago debe ser mayor a 0',
-        data: null,
-      };
-    }
-
-    // Verificar que la venta existe
+    // Verificar que la venta existe en la organización
     const sale = await prisma.sale.findFirst({
-      where: { id: saleId, isDeleted: false },
+      where: { id: saleId, organizationId: actor.organizationId, isDeleted: false },
       include: {
         salePayments: {
           where: { isDeleted: false },
@@ -108,8 +106,12 @@ export const addSalePayment = async (
       // Crear el pago
       const payment = await tx.salePayment.create({
         data: {
-          ...paymentData,
           saleId,
+          paymentMethodId: paymentData.paymentMethodId,
+          amount: paymentData.amount,
+          reference: paymentData.reference ?? null,
+          notes: paymentData.notes ?? null,
+          paymentDate: paymentData.paymentDate ?? new Date(),
         },
         include: salePaymentInclude,
       });
@@ -145,6 +147,8 @@ export const addSalePayment = async (
       data: serializeDecimals(newPayment),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error adding sale payment:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -163,29 +167,24 @@ export const addSalePayment = async (
 
 // UPDATE SALE PAYMENT
 export const updateSalePayment = async (
-  paymentId: string,
-  userId: string,
-  updateData: Partial<{
-    amount: number;
-    reference: string;
-    notes: string;
-    paymentDate: Date;
-  }>
+  paymentIdInput: string,
+  updateInput: UpdateSalePaymentInput
 ): Promise<ActionResponse<Serialized<SalePayment> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!paymentId) {
-      return {
-        status: 400,
-        message: 'ID del pago es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(paymentIdInput);
+    if (!id.success) return invalidInput('ID del pago es requerido');
+    const parsed = updateSalePaymentInputSchema.safeParse(updateInput);
+    if (!parsed.success) return invalidInput('Datos del pago inválidos');
+    const paymentId = id.data;
+    const updateData = parsed.data;
 
     const existingPayment = await prisma.salePayment.findFirst({
-      where: { id: paymentId, isDeleted: false },
+      where: {
+        id: paymentId,
+        isDeleted: false,
+        sale: { organizationId: actor.organizationId, isDeleted: false },
+      },
       include: {
         sale: {
           include: {
@@ -240,7 +239,10 @@ export const updateSalePayment = async (
     const updatedPayment = await prisma.salePayment.update({
       where: { id: paymentId },
       data: {
-        ...updateData,
+        amount: updateData.amount,
+        reference: updateData.reference,
+        notes: updateData.notes,
+        paymentDate: updateData.paymentDate,
         updatedAt: new Date(),
       },
       include: salePaymentInclude,
@@ -252,6 +254,8 @@ export const updateSalePayment = async (
       data: serializeDecimals(updatedPayment),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error updating sale payment:', error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -265,24 +269,19 @@ export const updateSalePayment = async (
 };
 
 // DELETE SALE PAYMENT
-export const deleteSalePayment = async (
-  paymentId: string,
-  userId: string
-): Promise<ActionResponse> => {
+export const deleteSalePayment = async (paymentIdInput: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    if (!paymentId) {
-      return {
-        status: 400,
-        message: 'ID del pago es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(paymentIdInput);
+    if (!id.success) return invalidInput('ID del pago es requerido');
+    const paymentId = id.data;
 
     const existingPayment = await prisma.salePayment.findFirst({
-      where: { id: paymentId, isDeleted: false },
+      where: {
+        id: paymentId,
+        isDeleted: false,
+        sale: { organizationId: actor.organizationId, isDeleted: false },
+      },
       include: {
         sale: {
           include: {
@@ -353,6 +352,8 @@ export const deleteSalePayment = async (
       data: null,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error deleting sale payment:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }
@@ -360,19 +361,19 @@ export const deleteSalePayment = async (
 
 // GET SALE PAYMENTS BY SALE ID
 export const getSalePaymentsBySaleId = async (
-  saleId: string
+  saleIdInput: string
 ): Promise<ActionResponse<Serialized<SalePayment>[] | null>> => {
   try {
-    if (!saleId) {
-      return {
-        status: 400,
-        message: 'ID de venta es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor();
+    const id = idSchema.safeParse(saleIdInput);
+    if (!id.success) return invalidInput('ID de venta es requerido');
 
     const payments = await prisma.salePayment.findMany({
-      where: { saleId, isDeleted: false },
+      where: {
+        saleId: id.data,
+        isDeleted: false,
+        sale: { organizationId: actor.organizationId, isDeleted: false },
+      },
       include: salePaymentInclude,
       orderBy: { paymentDate: 'desc' },
     });
@@ -383,6 +384,8 @@ export const getSalePaymentsBySaleId = async (
       data: serializeDecimals(payments),
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching sale payments:', error);
     return { status: 500, message: 'Error interno del servidor', data: null };
   }

@@ -84,10 +84,8 @@ import { useSales } from '@/hooks/useSales';
 type SaleWithRelations = Serialized<Sale> & {
   user?: {
     id: string;
-    username?: string | null;
+    name?: string | null;
     email?: string | null;
-    firstName?: string | null;
-    lastName?: string | null;
   };
   store?: {
     id: string;
@@ -204,9 +202,7 @@ const getColumns = (): ColumnDef<SaleWithRelations>[] => {
         return (
           <div className="flex flex-col">
             <span className="font-medium">
-              {user?.firstName && user?.lastName
-                ? `${user.firstName} ${user.lastName}`
-                : user?.username}
+              {user?.name}
             </span>
             <span className="text-xs text-muted-foreground">{user?.email}</span>
           </div>

@@ -81,7 +81,7 @@ export const createProduct = async (
   >
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
+    const isAdmin = await checkAdminRole(userId, orgId);
     if (!isAdmin) return unauthorizedResponse();
 
     if (checkOrgId(orgId)) return emptyOrgIdResponse();

@@ -5,7 +5,12 @@
  * REGISTER USER ACTION
  * ============================================
  *
- * Server action para registro de nuevos usuarios
+ * Server action para registro de nuevos usuarios.
+ *
+ * Registro libre: crea SOLO la identidad del usuario, sin organización ni
+ * membresía. Luego el usuario crea su propio negocio en el onboarding y queda
+ * como ADMIN de él. Nadie se une a una organización existente desde aquí: los
+ * vendedores los da de alta el ADMIN de su organización.
  */
 
 import { cookies, headers } from 'next/headers';
@@ -30,8 +35,6 @@ interface RegisterFormData {
   email: string;
   password: string;
   confirmPassword: string;
-  organizationId?: string;
-  storeId?: string;
 }
 
 interface RegisterResponseData {
@@ -39,20 +42,15 @@ interface RegisterResponseData {
     id: string;
     name: string;
     email: string;
-    role: string;
-    organizationId: string | null;
-    storeId: string | null;
+    /** Sin membresía todavía: sin rol, sin organización ni tienda. */
+    role: null;
+    organizationId: null;
+    storeId: null;
     isActive: boolean;
     emailVerified: boolean;
     createdAt: Date;
-    organization: {
-      id: string;
-      name: string;
-    } | null;
-    store: {
-      id: string;
-      name: string;
-    } | null;
+    organization: null;
+    store: null;
   };
   sessionId: string;
   redirectTo: string;
@@ -75,14 +73,17 @@ export async function registerUser(
   formData: FormData
 ): Promise<ActionResponse<RegisterResponseData>> {
   try {
-    // 1. Extraer y validar datos del formulario
+    // 1. Extraer y validar datos del formulario (lista blanca: cualquier
+    //    otro campo, p. ej. organizationId o storeId, se ignora)
+    const field = (key: keyof RegisterFormData): string => {
+      const value = formData.get(key);
+      return typeof value === 'string' ? value : '';
+    };
     const data: RegisterFormData = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      password: formData.get('password') as string,
-      confirmPassword: formData.get('confirmPassword') as string,
-      organizationId: formData.get('organizationId') as string | undefined,
-      storeId: formData.get('storeId') as string | undefined,
+      name: field('name'),
+      email: field('email'),
+      password: field('password'),
+      confirmPassword: field('confirmPassword'),
     };
 
     // Validar campos requeridos
@@ -174,55 +175,27 @@ export async function registerUser(
       saltRounds: 12,
     });
 
-    // 6. Crear usuario (identidad global) y, si viene con organización, su
-    //    membership SELLER (D3.3). Sin org = dueño que va al onboarding.
-    const created = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          name: data.name.trim(),
-          email: normalizedEmail,
-          passwordHash: hashedPassword,
-          isActive: true,
-          isDeleted: false,
-          emailVerified: false, // Requerir verificación de email (opcional por ahora)
-          passwordChangedAt: new Date(),
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          isActive: true,
-          emailVerified: true,
-          createdAt: true,
-        },
-      });
-
-      if (!data.organizationId) {
-        return { user, membership: null };
-      }
-
-      const membership = await tx.membership.create({
-        data: {
-          userId: user.id,
-          organizationId: data.organizationId,
-          role: 'SELLER',
-          defaultStoreId: data.storeId || null,
-          status: 'ACTIVE',
-          acceptedAt: new Date(),
-        },
-        select: {
-          role: true,
-          organizationId: true,
-          defaultStoreId: true,
-          organization: { select: { id: true, name: true } },
-          defaultStore: { select: { id: true, name: true } },
-        },
-      });
-
-      return { user, membership };
+    // 6. Crear SOLO el usuario (identidad global, D3.3). Sin membresía: el
+    //    onboarding crea su organización y su membresía ADMIN.
+    const newUser = await prisma.user.create({
+      data: {
+        name: data.name.trim(),
+        email: normalizedEmail,
+        passwordHash: hashedPassword,
+        isActive: true,
+        isDeleted: false,
+        emailVerified: false, // Requerir verificación de email (opcional por ahora)
+        passwordChangedAt: new Date(),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+        emailVerified: true,
+        createdAt: true,
+      },
     });
-
-    const { user: newUser, membership } = created;
 
     // 7. Crear sesión y generar JWT
     // Obtener IP y User-Agent de headers (si están disponibles)
@@ -249,10 +222,8 @@ export async function registerUser(
       path: '/',
     });
 
-    // 9. Determinar URL de redirección
-    // Usuarios sin organización van a onboarding
-    // Usuarios con organización van directo a dashboard
-    const redirectUrl = membership ? '/dashboard' : '/onboarding';
+    // 9. Todo usuario recién registrado va al onboarding a crear su negocio
+    const redirectUrl = '/onboarding';
 
     // 10. Return success con la vista compuesta user+membership y redirect URL
     return {
@@ -263,14 +234,14 @@ export async function registerUser(
           id: newUser.id,
           name: newUser.name,
           email: newUser.email,
-          role: membership?.role ?? 'ADMIN',
-          organizationId: membership?.organizationId ?? null,
-          storeId: membership?.defaultStoreId ?? null,
+          role: null,
+          organizationId: null,
+          storeId: null,
           isActive: newUser.isActive,
           emailVerified: newUser.emailVerified,
           createdAt: newUser.createdAt,
-          organization: membership?.organization ?? null,
-          store: membership?.defaultStore ?? null,
+          organization: null,
+          store: null,
         },
         sessionId: session.id,
         redirectTo: redirectUrl,

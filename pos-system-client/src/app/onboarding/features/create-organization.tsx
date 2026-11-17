@@ -45,7 +45,6 @@ import {
 } from '@/components/ui/select';
 
 import { useCreateOrganization } from '@/hooks/useOrganizations';
-import { useUpdateUserOrg } from '@/hooks/useUsers';
 
 import { GENERIC_ERROR_MESSAGE } from '@/constants';
 import { createSlug } from '@/utils/createSlug';
@@ -109,7 +108,6 @@ const RegisterOrganizationPage = () => {
   const setUser = useStore((state) => state.setUser);
 
   const createOrgMutation = useCreateOrganization();
-  const updateUserMutation = useUpdateUserOrg();
   const queryClient = useQueryClient();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -168,8 +166,8 @@ const RegisterOrganizationPage = () => {
       // TODO - check subdomain availability
 
       // Create organization with business type
+      // Crea la organización y la membresía ADMIN del usuario de la sesión
       const resOrgDb = await createOrgMutation.mutateAsync({
-        userId: currentUser.id,
         organizationData: {
           email: currentUser.email,
           name: data.companyName,
@@ -177,7 +175,6 @@ const RegisterOrganizationPage = () => {
           phone: data.phone,
           city: 'Cartagena',
           department: 'Bolívar',
-          isActive: true,
           nit: data.nit,
           taxId: null,
         },
@@ -189,17 +186,8 @@ const RegisterOrganizationPage = () => {
         return;
       }
 
-      // Update user with organizationId
-      await updateUserMutation.mutateAsync({
-        userId: currentUser.id,
-        orgId: resOrgDb.id,
-      });
-
-      // Pequeña pausa para asegurar que la actualización se propagó
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
       // Refrescar token JWT con organizationId actualizado
-      const refreshResult = await refreshToken(currentUser.id);
+      const refreshResult = await refreshToken();
 
       if (refreshResult.status !== 200) {
         console.error('[Onboarding] Error al refrescar token:', refreshResult);

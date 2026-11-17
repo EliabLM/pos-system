@@ -6,26 +6,17 @@ import {
   getSalePaymentsBySaleId,
 } from '@/actions/sale-payment';
 import { useStore } from '@/store';
-import { SalePayment } from '@/generated/prisma';
-import { Serialized } from '@/interfaces';
+import type { SalePaymentInput, UpdateSalePaymentInput } from '@/actions/sale/sale.schemas';
 
 // Tipos para los parámetros de sale payments
 interface AddSalePaymentParams {
   saleId: string;
-  paymentData: Omit<
-    Serialized<SalePayment>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >;
+  paymentData: SalePaymentInput;
 }
 
 interface UpdateSalePaymentParams {
   paymentId: string;
-  updateData: Partial<{
-    amount: number;
-    reference: string;
-    notes: string;
-    paymentDate: Date;
-  }>;
+  updateData: UpdateSalePaymentInput;
 }
 
 // Hook para obtener pagos de una venta específica
@@ -62,7 +53,7 @@ export const useAddSalePayment = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await addSalePayment(saleId, user.id, paymentData);
+      const response = await addSalePayment(saleId, paymentData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -112,7 +103,7 @@ export const useUpdateSalePayment = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await updateSalePayment(paymentId, user.id, updateData);
+      const response = await updateSalePayment(paymentId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -164,7 +155,7 @@ export const useDeleteSalePayment = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await deleteSalePayment(paymentId, user.id);
+      const response = await deleteSalePayment(paymentId);
 
       if (response.status !== 200) {
         throw new Error(response.message);

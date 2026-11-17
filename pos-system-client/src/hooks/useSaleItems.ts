@@ -6,24 +6,17 @@ import {
   getSaleItemsBySaleId,
 } from '@/actions/sale-item';
 import { useStore } from '@/store';
-import { SaleItem } from '@/generated/prisma';
-import { Serialized } from '@/interfaces';
+import type { SaleItemInput, UpdateSaleItemInput } from '@/actions/sale/sale.schemas';
 
 // Tipos para los parámetros de SaleItem
 interface AddSaleItemParams {
   saleId: string;
-  itemData: Omit<
-    Serialized<SaleItem>,
-    'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >;
+  itemData: SaleItemInput;
 }
 
 interface UpdateSaleItemParams {
   itemId: string;
-  updateData: Partial<{
-    quantity: number;
-    unitPrice: number;
-  }>;
+  updateData: UpdateSaleItemInput;
 }
 
 // Hook para obtener items de venta por ID de venta
@@ -60,7 +53,7 @@ export const useAddSaleItem = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await addSaleItem(saleId, user.id, itemData);
+      const response = await addSaleItem(saleId, itemData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -114,7 +107,7 @@ export const useUpdateSaleItem = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await updateSaleItem(itemId, user.id, updateData);
+      const response = await updateSaleItem(itemId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -172,7 +165,7 @@ export const useDeleteSaleItem = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const response = await deleteSaleItem(itemId, user.id);
+      const response = await deleteSaleItem(itemId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -259,7 +252,7 @@ export const useAddMultipleSaleItems = () => {
       items,
     }: {
       saleId: string;
-      items: Array<Omit<Serialized<SaleItem>, 'id' | 'saleId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>>;
+      items: SaleItemInput[];
     }) => {
       const results = [];
 

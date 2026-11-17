@@ -16,7 +16,7 @@ export const createBrand = async (
     brandData: Omit<Brand, 'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt' | 'logo'>
 ): Promise<ActionResponse<Brand | null>> => {
     try {
-        const isAdmin = await checkAdminRole(userId);
+        const isAdmin = await checkAdminRole(userId, orgId);
         if (!isAdmin) return unauthorizedResponse();
 
         if (checkOrgId(orgId)) return emptyOrgIdResponse();

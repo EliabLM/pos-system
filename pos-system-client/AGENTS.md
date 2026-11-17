@@ -15,7 +15,7 @@ pnpm db:generate    # regenerate the Prisma client only
 ```
 
 - **The Prisma schema lives in `../pos-system-server/prisma/schema.prisma`** (the server owns it since Fase 1). Migrations run from `../pos-system-server/` (`pnpm db:migrate -- --name <change>`); this project only regenerates/consumes the client.
-- There is **no test framework**. Verification = `pnpm lint` + `pnpm build` (build runs `tsc` via Next and fails on type errors).
+- Tests: `pnpm test` (`node --test` + esbuild with mocked Prisma/session; see `test/load-with-mocks.mjs`). `pnpm lint` also runs them (CI only calls `lint` for the client). **Temporary — do not revert `lint` to `eslint .` on its own or the tests stop running in CI**; the proper fix (own test step in `pr-ci.yml`, then `lint` back to `eslint .`) is tracked in #39. Verification = `pnpm lint` + `pnpm build` (build runs `tsc` via Next and fails on type errors).
 - `postinstall` runs `prisma generate` against the server's schema, so a fresh `pnpm install` regenerates the client (requires the sibling `pos-system-server/` checkout).
 
 ## Hard rules (zero tolerance, enforced in review)
@@ -35,10 +35,10 @@ pnpm db:generate    # regenerate the Prisma client only
 
 ## Architecture in 6 lines
 
-- Server actions per entity in `src/actions/<entity>/`, returning `ActionResponse<T>` (`{ status, message, data }` from `@/interfaces`). Auth helpers (`checkAdminRole`, `checkOrgId`, `unauthorizedResponse`) live in `src/actions/utils.ts`.
+- Server actions per entity in `src/actions/<entity>/`, returning `ActionResponse<T>` (`{ status, message, data }` from `@/interfaces`). **Every exported action calls `requireActor({ roles? })` from `@/lib/auth/actor`** and takes `organizationId`/`userId`/role from it — never from parameters, headers or the Zustand store; map errors with `actorErrorResponse(error)`. Validate inputs with Zod (whitelist, no spreading client objects). `test/actions-guard.test.mjs` enforces this; legacy modules still using `checkAdminRole`/`checkOrgId` are listed there as pending (#12–#15).
 - Client data flow: TanStack Query hooks in `src/hooks/use<Entity>.ts` call the server actions and invalidate `queryKey: ['<entity>']`.
-- Auth is custom JWT (migrated off Clerk): middleware at `src/middleware.ts` verifies the `auth-token` cookie with `jose` and injects `x-user-id` / `x-organization-id` / `x-store-id` headers that server actions read.
-- **Tenancy lives in `memberships`, not in `users`** (Fase 1 paso 3): `User` is a global identity (`name`, `email`, `passwordHash`); role/org/store come from the ACTIVE membership. Auth actions compose the legacy-shaped view (`user.organizationId`, `user.role`) that the Zustand store and UI consume — a user with no membership is an onboarding owner (role ADMIN, org null).
+- Auth is custom JWT (migrated off Clerk): middleware at `src/middleware.ts` verifies the `auth-token` cookie with `jose` only for UI redirects; it adds **no** `x-user-*` headers. Server code gets identity from `getActor()`/`requireActor()`.
+- **Tenancy lives in `memberships`, not in `users`** (Fase 1 paso 3): `User` is a global identity (`name`, `email`, `passwordHash`); role/org/store come from the ACTIVE membership. Auth actions compose the legacy-shaped view (`user.organizationId`, `user.role`) that the Zustand store and UI consume — a user with no membership has **no role**: `getActor()` returns FORBIDDEN and the only thing it can do is create its own organization in onboarding (`requireOnboardingUser()`, where it becomes ADMIN). Public registration creates only the user; sellers are created by the ADMIN from Users (invitations: #20).
 - Zustand store (`src/store/`) persists to **sessionStorage**, not localStorage.
 - UI copy and toast messages are in **Spanish**; code, identifiers, and comments in English.
 - Feature pages follow `page.tsx` + `features/` subfolder (list, new/edit sheets, action component, data-table) — mirror an existing module (e.g. `src/app/dashboard/categories/`) when adding one.

@@ -35,7 +35,7 @@ interface RegisterResponseData {
     id: string;
     name: string;
     email: string;
-    role: string;
+    role: string | null;
     organizationId: string | null;
     storeId: string | null;
     isActive: boolean;

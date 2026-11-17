@@ -260,13 +260,9 @@ export function QuickSaleDialog({
         saleData: {
           storeId: data.storeId,
           customerId: null,
-          userId: user.id,
           saleDate: new Date(),
           status: 'PAID' as const,
           dueDate: null,
-          paidDate: new Date(),
-          subtotal: totals.total,
-          total: totals.total,
           notes: 'Venta rápida',
         },
         saleItems: [
@@ -275,7 +271,6 @@ export function QuickSaleDialog({
             unitMeasureId: null,
             quantity: data.quantity,
             unitPrice: data.unitPrice,
-            subtotal: totals.total,
           },
         ],
         salePayments: [
