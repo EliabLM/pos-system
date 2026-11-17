@@ -236,11 +236,11 @@ getTopProducts(
 }
 ```
 
-**Period Calculation:**
-- `'today'`: Uses `startOfDay(today)` to `endOfDay(today)`
-- `'week'`: Uses `startOfDay(subDays(today, 7))` to `endOfDay(today)`
-- `'month'`: Uses `startOfDay(subDays(today, 30))` to `endOfDay(today)`
-- `'year'`: Uses `startOfDay(subDays(today, 365))` to `endOfDay(today)`
+**Period Calculation** (business days in `America/Bogota`, helpers from `@/lib/time`):
+- `'today'`: `startOfBusinessDay(today)` to `endOfBusinessDay(today)`
+- `'week'`: `startOfBusinessDay(addBusinessDays(today, -7))` to `endOfBusinessDay(today)`
+- `'month'`: `startOfBusinessDay(addBusinessDays(today, -30))` to `endOfBusinessDay(today)`
+- `'year'`: `startOfBusinessDay(addBusinessDays(today, -365))` to `endOfBusinessDay(today)`
 
 **Business Rules:**
 - Only counts sales with status = `PAID`
@@ -381,8 +381,7 @@ getCashStatus(
 
 **Date Handling:**
 - Accepts ISO date string (YYYY-MM-DD format)
-- Uses `parseISO` from date-fns for parsing
-- Calculates full day range with `startOfDay` and `endOfDay`
+- A `YYYY-MM-DD` date is that `America/Bogota` business day (`businessDayRange` from `@/lib/time`)
 - Defaults to today if date parameter is not provided
 - Returns 400 status for invalid date format
 

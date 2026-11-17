@@ -12,14 +12,7 @@ import type {
   GroupByResult,
   SummaryConfig,
 } from '@/interfaces/reports';
-import {
-  startOfDay,
-  startOfWeek,
-  startOfMonth,
-  startOfYear,
-  format,
-} from 'date-fns';
-import { es } from 'date-fns/locale';
+import { businessPeriodKey } from '@/lib/time';
 
 /**
  * Aggregate data by time period
@@ -77,19 +70,14 @@ export function aggregateByPeriod<T extends Record<string, unknown>>(
  * @returns Period key string
  */
 function getPeriodKey(date: Date, period: ReportPeriod): string {
+  // Business periods in America/Bogota (weeks start on Monday)
   switch (period) {
-    case 'day':
-      return format(startOfDay(date), 'yyyy-MM-dd', { locale: es });
-    case 'week':
-      return format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd', {
-        locale: es,
-      });
     case 'month':
-      return format(startOfMonth(date), 'yyyy-MM', { locale: es });
+      return businessPeriodKey(date, 'month').slice(0, 7);
     case 'year':
-      return format(startOfYear(date), 'yyyy', { locale: es });
+      return businessPeriodKey(date, 'year').slice(0, 4);
     default:
-      return format(date, 'yyyy-MM-dd', { locale: es });
+      return businessPeriodKey(date, period);
   }
 }
 

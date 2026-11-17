@@ -57,3 +57,4 @@ DO $$ BEGIN
  THEN RAISE EXCEPTION 'FORCE / role / row survived rollback'; END IF;
 END $$;
 \echo 'RLS cleanup: FORCE off, ephemeral role absent, no test rows'
+\ir purchase-number-index-ci.sql

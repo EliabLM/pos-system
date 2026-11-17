@@ -1,10 +1,10 @@
 'use server';
 
 import {
-  endOfDay,
   parseISO,
   differenceInDays,
 } from 'date-fns';
+import { businessDayRange } from '@/lib/time';
 import { ActionResponse } from '@/interfaces';
 import {
   InventoryReportFilters,
@@ -313,8 +313,7 @@ export async function getStockMovementsReport(
     const whereClause: Prisma.StockMovementWhereInput = {
       organizationId: filters.organizationId,
       createdAt: {
-        gte: parseDate(filters.dateRange.startDate.toISOString()),
-        lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+        ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
       },
     };
 
@@ -526,8 +525,7 @@ export async function getInventoryRotationReport(
             sale: {
               isDeleted: false,
               saleDate: {
-                gte: parseDate(filters.dateRange.startDate.toISOString()),
-                lte: endOfDay(parseDate(filters.dateRange.endDate.toISOString())),
+                ...businessDayRange(filters.dateRange.startDate, filters.dateRange.endDate),
               },
             },
           },

@@ -1,39 +1,37 @@
 'use server';
 
-import {
-  startOfDay,
-  subDays,
-  subMonths,
-  eachHourOfInterval,
-  eachDayOfInterval,
-  eachMonthOfInterval,
-  format,
-  parseISO,
-  startOfHour,
-  startOfMonth,
-} from 'date-fns';
 import { SalesByPeriod, ActionResponse } from '@/interfaces';
 import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
 import { Prisma } from '@/generated/prisma';
+import {
+  addBusinessDays,
+  businessDateTime,
+  businessPeriodKey,
+  endOfBusinessDay,
+  getBusinessDateParts,
+  startOfBusinessDay,
+} from '@/lib/time';
+
+const HOUR_MS = 60 * 60 * 1000;
 
 /**
  * Helper function to generate a unique key for each period based on the date and period type
- * This ensures consistent grouping of sales data
+ * This ensures consistent grouping of sales data (in America/Bogota business time)
  */
 function getKeyForPeriod(date: Date, period: 'day' | 'week' | 'month' | 'year'): string {
   switch (period) {
     case 'day':
       // Group by hour: "2025-10-09 14:00"
-      return format(startOfHour(date), 'yyyy-MM-dd HH:00');
+      return businessPeriodKey(date, 'hour');
     case 'week':
     case 'month':
       // Group by day: "2025-10-09"
-      return format(startOfDay(date), 'yyyy-MM-dd');
+      return businessPeriodKey(date, 'day');
     case 'year':
       // Group by month: "2025-10-01"
-      return format(startOfMonth(date), 'yyyy-MM-01');
+      return businessPeriodKey(date, 'month');
     default:
-      return format(date, 'yyyy-MM-dd');
+      return businessPeriodKey(date, 'day');
   }
 }
 
@@ -65,7 +63,8 @@ export const getSalesByPeriod = async (
     // Parse reference date or use current date
     let refDate: Date;
     try {
-      refDate = referenceDate ? parseISO(referenceDate) : new Date();
+      refDate = referenceDate ? new Date(referenceDate) : new Date();
+      if (Number.isNaN(refDate.getTime())) throw new Error('Invalid date');
     } catch {
       return {
         status: 400,
@@ -80,33 +79,41 @@ export const getSalesByPeriod = async (
     let intervals: Date[];
 
     switch (period) {
-      case 'day':
-        // Last 24 hours from reference date
-        startDate = subDays(refDate, 1);
+      case 'day': {
+        // Last 24 hours from reference date, one bucket per hour
+        startDate = new Date(refDate.getTime() - 24 * HOUR_MS);
         endDate = refDate;
-        intervals = eachHourOfInterval({ start: startDate, end: endDate });
+        intervals = [];
+        for (let t = startDate.getTime(); t <= endDate.getTime(); t += HOUR_MS) {
+          intervals.push(new Date(t));
+        }
         break;
+      }
 
       case 'week':
-        // Last 7 days from reference date
-        startDate = subDays(refDate, 7);
-        endDate = refDate;
-        intervals = eachDayOfInterval({ start: startDate, end: endDate });
+      case 'month': {
+        // Last 7 / 30 business days from reference date
+        const days = period === 'week' ? 7 : 30;
+        startDate = startOfBusinessDay(addBusinessDays(refDate, -days));
+        endDate = endOfBusinessDay(refDate);
+        intervals = [];
+        for (let i = days; i >= 0; i--) {
+          intervals.push(addBusinessDays(refDate, -i));
+        }
         break;
+      }
 
-      case 'month':
-        // Last 30 days from reference date
-        startDate = subDays(refDate, 30);
-        endDate = refDate;
-        intervals = eachDayOfInterval({ start: startDate, end: endDate });
+      case 'year': {
+        // Last 12 business months from reference date
+        const ref = getBusinessDateParts(refDate);
+        startDate = businessDateTime(ref.year, ref.month - 12, 1);
+        endDate = endOfBusinessDay(refDate);
+        intervals = [];
+        for (let i = 12; i >= 0; i--) {
+          intervals.push(businessDateTime(ref.year, ref.month - i, 1));
+        }
         break;
-
-      case 'year':
-        // Last 12 months from reference date
-        startDate = subMonths(refDate, 12);
-        endDate = refDate;
-        intervals = eachMonthOfInterval({ start: startDate, end: endDate });
-        break;
+      }
 
       default:
         return {

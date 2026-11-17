@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 const entry = resolve('src/actions/purchase/purchase.actions.ts');
 const baseline = process.env.POS_02_BASELINE === '1';
 const source = baseline ? execFileSync('git', ['show', 'origin/main:pos-system-client/src/actions/purchase/purchase.actions.ts'], { encoding: 'utf8' }) : null;
-const state = { actor: null, purchases: [], locks: [], queries: [], date: '2026-11-15T00:01:00.000Z' };
+const state = { actor: null, purchases: [], locks: [], queries: [], date: '2026-11-15T15:00:00.000Z' };
 const RealDate = Date;
 globalThis.Date = class extends RealDate {
   constructor(...args) { super(...(args.length ? args : [state.date])); }
@@ -72,16 +72,27 @@ test('P0 contrato: tenants independientes, huecos históricos y soft-delete sin 
   assert.equal(state.locks.length, 3);
 });
 
-test('P0 contrato: TZ no UTC, cambio de día y createdAt coincidente', async () => {
+test('P0 contrato: día de negocio America/Bogota, cambio de día y createdAt coincidente', async () => {
   state.actor = { organizationId: 'org-a', role: 'ADMIN' };
+  // 18:59 Bogotá: mismo día en UTC y en Bogotá.
   state.date = '2026-11-15T23:59:59.999Z';
   const before = await create('org-a');
-  state.date = '2026-11-16T00:00:00.001Z';
+  // 20:00 Bogotá = 01:00 UTC del día siguiente: sigue siendo 15 en Bogotá.
+  state.date = '2026-11-16T01:00:00.000Z';
+  const evening = await create('org-a');
+  // 23:30 Bogotá = 04:30 UTC del día siguiente.
+  state.date = '2026-11-16T04:30:00.000Z';
+  const late = await create('org-a');
+  // 00:00 Bogotá = 05:00 UTC: empieza el día 16.
+  state.date = '2026-11-16T05:00:00.000Z';
   const after = await create('org-a');
   assert.equal(before.data.purchaseNumber, 'COMP-20261115-0009');
+  assert.equal(evening.data.purchaseNumber, 'COMP-20261115-0010');
+  assert.equal(late.data.purchaseNumber, 'COMP-20261115-0011');
   assert.equal(after.data.purchaseNumber, 'COMP-20261116-0001');
   assert.equal(before.data.createdAt.toISOString(), '2026-11-15T23:59:59.999Z');
-  assert.equal(after.data.createdAt.toISOString(), '2026-11-16T00:00:00.001Z');
+  assert.equal(evening.data.createdAt.toISOString(), '2026-11-16T01:00:00.000Z');
+  assert.equal(after.data.createdAt.toISOString(), '2026-11-16T05:00:00.000Z');
 });
 
 test('P0 contrato: sin sesión, seller y tenant ajeno no adquieren lock ni escriben', async () => {
