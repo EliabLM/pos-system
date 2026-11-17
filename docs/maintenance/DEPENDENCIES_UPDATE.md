@@ -1,5 +1,7 @@
 # 📦 ACTUALIZACIÓN DE DEPENDENCIAS: CLERK → AUTH MANUAL
 
+> **Histórico.** Desde CC-POS-01 (issue #9) el client ya no usa `jsonwebtoken`: firma y verificación de JWT van con `jose` en todos los runtimes; Excel se genera con `exceljs` (sustituye a `xlsx`). Las dependencias se auditan en CI (`.github/workflows/pr-ci.yml`).
+
 ## 🎯 Objetivo
 Actualizar las dependencias del proyecto para migrar de Clerk Authentication a sistema de autenticación manual.
 
