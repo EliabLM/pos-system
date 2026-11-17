@@ -4,6 +4,9 @@ import { PrismaPlugin } from '@prisma/nextjs-monorepo-workaround-plugin';
 const nextConfig: NextConfig = {
   /* config options here */
   images: {
+    // Never optimize SVG through /_next/image and only allow the UploadThing
+    // hosts that store product images today (legacy utfs.io + this app's ufs.sh).
+    dangerouslyAllowSVG: false,
     remotePatterns: [
       {
         protocol: 'https',

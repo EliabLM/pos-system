@@ -89,7 +89,6 @@ pos-system-client/
 - **`corepack pnpm` no encontrado**: ensure `corepack` is in PATH (vino con Node). `corepack --version` debería responder.
 - **El stack no responde en :3000**: revisá `docker compose ps` y `docker compose logs client`. La primera vez tarda en build.
 - **El seed falla con drift de Prisma** (volumen persistente en otro schema): `docker compose down -v` y rehacé.
-- **`pnpm add` falla con `xlsx@^0.20.3`**: la versión no existe en npm (latest es `0.18.5`). El `pnpm install` funciona por el lockfile existente, pero `pnpm add`/`update` no. Pendiente de fix en el `package.json` del client (cambiar `xlsx` a `^0.18.5`).
 - **Lockout accidental de admin/seller durante tests**: los specs de lockout usan `lock@pos.test` dedicado. No dispare lockout con los creds reales admin/seller.
 - **El seed falla con `P2021 table does not exist` en tablas de auth**: la imagen del **server** aplica `migrate deploy` al arrancar (dueño del schema desde Fase 1; antes lo hacía el client); asegurate de tener la migración `20260811000000_migrate_auth_clerk_to_custom_jwt` en `pos-system-server/prisma/migrations/` (generada el 2026-08-11 — el schema de auth se había aplicado con `db push` sin archivos de migración). Rebuild + `docker compose down -v` + up.
 - **Timeouts flaky de login con tests en paralelo**: la config fija `workers: 1` en local a propósito — la app corre en un solo contenedor y los logins concurrentes (bcrypt cost 12) degradan hasta el timeout. No subir workers sin medir.

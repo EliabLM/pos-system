@@ -4,15 +4,17 @@
  * ============================================
  *
  * Utilidades para crear y verificar JSON Web Tokens
- * Usa jsonwebtoken para Node.js runtime (Server Actions, API Routes)
+ * Usa jose (la misma librería que el middleware en Edge Runtime) para
+ * Server Actions y API Routes.
  */
 
-import jwt from 'jsonwebtoken';
+import { SignJWT, decodeJwt, errors as joseErrors, jwtVerify } from 'jose';
 import { AuthError, AuthErrorCode, type JWTPayload, type TokenGenerationOptions, type VerifyTokenResult } from './types';
 
 // Configuración
 const DEFAULT_EXPIRATION = '7d'; // 7 días
 const DEFAULT_ALGORITHM = 'HS256';
+const ALLOWED_ALGORITHMS = ['HS256', 'HS384', 'HS512'];
 
 /**
  * Obtiene el JWT secret desde las variables de entorno
@@ -39,6 +41,21 @@ function getJWTSecret(): string {
   return secret;
 }
 
+/** Clave HMAC en el formato que espera jose */
+function getSecretKey(): Uint8Array {
+  return new TextEncoder().encode(getJWTSecret());
+}
+
+/**
+ * Convierte expiresIn al formato de jose. Igual que jsonwebtoken, un número
+ * son segundos desde ahora (en jose un número es un timestamp absoluto).
+ */
+function toJoseExpiration(expiresIn: string | number): string | number {
+  return typeof expiresIn === 'number'
+    ? Math.floor(Date.now() / 1000) + expiresIn
+    : expiresIn;
+}
+
 /**
  * Genera un JWT token
  *
@@ -48,7 +65,7 @@ function getJWTSecret(): string {
  * @throws {AuthError} Si el payload es inválido o falta JWT_SECRET
  *
  * @example
- * const token = generateToken({
+ * const token = await generateToken({
  *   userId: user.id,
  *   email: user.email,
  *   role: user.role,
@@ -56,10 +73,10 @@ function getJWTSecret(): string {
  *   storeId: user.storeId
  * });
  */
-export function generateToken(
+export async function generateToken(
   payload: Omit<JWTPayload, 'iat' | 'exp'>,
   options: TokenGenerationOptions = {}
-): string {
+): Promise<string> {
   try {
     // Validar payload
     if (!payload.userId || !payload.email) {
@@ -70,15 +87,15 @@ export function generateToken(
       );
     }
 
-    const secret = getJWTSecret();
+    const secret = getSecretKey();
     const expiresIn = options.expiresIn ?? DEFAULT_EXPIRATION;
-    const algorithm = (options.algorithm ?? DEFAULT_ALGORITHM) as jwt.Algorithm;
+    const algorithm = options.algorithm ?? DEFAULT_ALGORITHM;
 
-    // Generar token usando tipo explícito para evitar problemas de tipado de jsonwebtoken
-    const token = jwt.sign(payload, secret, {
-      expiresIn: expiresIn as string | number,
-      algorithm,
-    } as jwt.SignOptions);
+    const token = await new SignJWT({ ...payload })
+      .setProtectedHeader({ alg: algorithm, typ: 'JWT' })
+      .setIssuedAt()
+      .setExpirationTime(toJoseExpiration(expiresIn))
+      .sign(secret);
 
     return token;
   } catch (error) {
@@ -102,13 +119,13 @@ export function generateToken(
  * @throws {AuthError} Si el token es malformado o ha expirado
  *
  * @example
- * const payload = verifyToken(token);
+ * const payload = await verifyToken(token);
  * if (payload) {
  *   // Token válido, usar payload
  *   console.log(payload.userId);
  * }
  */
-export function verifyToken(token: string): JWTPayload | null {
+export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
     if (!token || token.trim().length === 0) {
       throw new AuthError(
@@ -117,10 +134,13 @@ export function verifyToken(token: string): JWTPayload | null {
       );
     }
 
-    const secret = getJWTSecret();
+    const secret = getSecretKey();
 
-    // Verificar token
-    const decoded = jwt.verify(token, secret) as JWTPayload;
+    // Verificar token (firma, algoritmo HMAC permitido y expiración)
+    const { payload: verified } = await jwtVerify(token, secret, {
+      algorithms: ALLOWED_ALGORITHMS,
+    });
+    const decoded = verified as unknown as JWTPayload;
 
     // Validar que el payload tiene los campos requeridos
     if (!decoded.userId || !decoded.email) {
@@ -137,16 +157,17 @@ export function verifyToken(token: string): JWTPayload | null {
       throw error;
     }
 
-    // Errores específicos de jsonwebtoken
-    if (error instanceof jwt.TokenExpiredError) {
+    // Errores específicos de jose
+    if (error instanceof joseErrors.JWTExpired) {
+      const exp = error.payload.exp;
       throw new AuthError(
         AuthErrorCode.EXPIRED_TOKEN,
         'El token ha expirado',
-        { expiredAt: error.expiredAt }
+        { expiredAt: typeof exp === 'number' ? new Date(exp * 1000) : undefined }
       );
     }
 
-    if (error instanceof jwt.JsonWebTokenError) {
+    if (error instanceof joseErrors.JOSEError) {
       throw new AuthError(
         AuthErrorCode.INVALID_TOKEN,
         'El token es inválido',
@@ -170,16 +191,16 @@ export function verifyToken(token: string): JWTPayload | null {
  * @returns Objeto con payload y error (si aplica)
  *
  * @example
- * const result = safeVerifyToken(token);
+ * const result = await safeVerifyToken(token);
  * if (result.payload) {
  *   // Token válido
  * } else {
  *   console.error('Token error:', result.error);
  * }
  */
-export function safeVerifyToken(token: string): VerifyTokenResult {
+export async function safeVerifyToken(token: string): Promise<VerifyTokenResult> {
   try {
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     return { payload };
   } catch (error) {
     if (error instanceof AuthError) {
@@ -206,8 +227,7 @@ export function safeVerifyToken(token: string): VerifyTokenResult {
  */
 export function decodeToken(token: string): JWTPayload | null {
   try {
-    const decoded = jwt.decode(token) as JWTPayload | null;
-    return decoded;
+    return decodeJwt(token) as unknown as JWTPayload;
   } catch {
     return null;
   }
@@ -221,7 +241,7 @@ export function decodeToken(token: string): JWTPayload | null {
  */
 export function isTokenExpired(token: string): boolean {
   try {
-    const decoded = jwt.decode(token) as JWTPayload | null;
+    const decoded = decodeJwt(token) as unknown as JWTPayload | null;
 
     if (!decoded || !decoded.exp) {
       return true;
@@ -242,7 +262,7 @@ export function isTokenExpired(token: string): boolean {
  */
 export function getTokenRemainingTime(token: string): number {
   try {
-    const decoded = jwt.decode(token) as JWTPayload | null;
+    const decoded = decodeJwt(token) as unknown as JWTPayload | null;
 
     if (!decoded || !decoded.exp) {
       return 0;
@@ -266,16 +286,16 @@ export function getTokenRemainingTime(token: string): number {
  * @returns Nuevo token si fue refrescado, null si no es necesario
  *
  * @example
- * const newToken = refreshTokenIfNeeded(oldToken);
+ * const newToken = await refreshTokenIfNeeded(oldToken);
  * if (newToken) {
  *   // Actualizar token en la sesión
  *   await updateSession(sessionId, newToken);
  * }
  */
-export function refreshTokenIfNeeded(
+export async function refreshTokenIfNeeded(
   token: string,
   thresholdSeconds: number = 86400 // 1 día
-): string | null {
+): Promise<string | null> {
   try {
     const remaining = getTokenRemainingTime(token);
 
@@ -283,7 +303,7 @@ export function refreshTokenIfNeeded(
       return null; // No necesita refresh
     }
 
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
 
     if (!payload) {
       return null;
@@ -292,7 +312,7 @@ export function refreshTokenIfNeeded(
     // Generar nuevo token con mismo payload
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { iat, exp, ...dataPayload } = payload;
-    const newToken = generateToken(dataPayload as Omit<JWTPayload, 'iat' | 'exp'>);
+    const newToken = await generateToken(dataPayload as Omit<JWTPayload, 'iat' | 'exp'>);
 
     return newToken;
   } catch {
