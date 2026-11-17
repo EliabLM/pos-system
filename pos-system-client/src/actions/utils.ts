@@ -37,7 +37,9 @@ export const getActiveMembership = async (
  * la serialización server→client de Next.js, y toda la UI opera con `number`.
  */
 export const serializeDecimals = <T>(value: T): Serialized<T> => {
-  if (value instanceof Prisma.Decimal) {
+  // isDecimal, not instanceof: the value may come from another copy of the
+  // Prisma runtime (another bundle layer) and still be a Decimal.
+  if (Prisma.Decimal.isDecimal(value)) {
     return value.toNumber() as unknown as Serialized<T>;
   }
   if (value === null || value instanceof Date || typeof value !== 'object') {
