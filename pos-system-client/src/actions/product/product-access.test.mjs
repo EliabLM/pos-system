@@ -75,3 +75,22 @@ test('getProducts: filtros con forma inválida 400 sin consultar', async () => {
   assert.equal(result.status, 400);
   assert.equal(state.calls.length, 0);
 });
+
+test('createProduct: código de barras y SKU vacíos o con solo espacios se guardan como null', async () => {
+  reset(ADMIN_A);
+  const result = await product.createProduct({ ...productInput(), barcode: '', sku: '   ' });
+  assert.equal(result.status, 201);
+  const created = state.writes.find((w) => w.model === 'product' && w.method === 'create').data;
+  assert.equal(created.barcode, null);
+  assert.equal(created.sku, null);
+  assert.ok(!state.calls.some((c) => c.model === 'product' && c.method === 'findFirst' && ('barcode' in c.where || 'sku' in c.where)), 'no busca duplicados de un código vacío');
+});
+
+test('updateProduct: código de barras vacío se guarda como null', async () => {
+  reset(ADMIN_B);
+  const result = await product.updateProduct(ID.product, { barcode: ' ', sku: '' });
+  assert.equal(result.status, 200);
+  const update = state.writes.find((w) => w.model === 'product' && w.method === 'update');
+  assert.equal(update.data.barcode, null);
+  assert.equal(update.data.sku, null);
+});

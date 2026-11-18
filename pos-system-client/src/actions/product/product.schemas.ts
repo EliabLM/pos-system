@@ -6,12 +6,21 @@ import { idSchema, longText, money, name, shortText, stockQuantity } from '../co
  * from the server; `currentStock` only changes through stock operations after
  * the product is created.
  */
+/**
+ * Barcode and SKU are unique per organization. The form sends `''` when the
+ * field is left blank, so an empty or whitespace-only value is stored as
+ * `null`; otherwise two products without a code would collide.
+ */
+const optionalCode = shortText
+  .nullish()
+  .transform((value) => (value === '' ? null : value));
+
 const editableFields = {
   name,
   description: longText.nullish(),
   image: z.string().trim().max(2048).nullish(),
-  barcode: shortText.nullish(),
-  sku: shortText.nullish(),
+  barcode: optionalCode,
+  sku: optionalCode,
   categoryId: idSchema.nullish(),
   brandId: idSchema.nullish(),
   unitMeasureId: idSchema.nullish(),
