@@ -29,7 +29,7 @@ pnpm build          # prisma generate (against the server's schema) && next buil
 pnpm db:generate    # regenerate the Prisma client only
 pnpm db:seed        # idempotent Prisma seed (tsx prisma/seed.ts)
 ```
-Client unit/contract tests use `node --test` (`pnpm test`; `pnpm lint` also runs them because CI only calls `lint` for the client). Verification = `pnpm lint` + `pnpm build`.
+Client unit/contract tests use `node --test` (`pnpm test`, plus `pnpm test:images`); CI runs them in their own step. Verification = `pnpm lint` + `pnpm test` + `pnpm build`.
 
 ### pos-system-client E2E (Playwright)
 Runs against the local docker stack (does not start a webServer itself):

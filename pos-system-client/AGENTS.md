@@ -15,7 +15,7 @@ pnpm db:generate    # regenerate the Prisma client only
 ```
 
 - **The Prisma schema lives in `../pos-system-server/prisma/schema.prisma`** (the server owns it since Fase 1). Migrations run from `../pos-system-server/` (`pnpm db:migrate -- --name <change>`); this project only regenerates/consumes the client.
-- Tests: `pnpm test` (`node --test` + esbuild with mocked Prisma/session; see `test/load-with-mocks.mjs`). `pnpm lint` also runs them (CI only calls `lint` for the client). **Temporary — do not revert `lint` to `eslint .` on its own or the tests stop running in CI**; the proper fix (own test step in `pr-ci.yml`, then `lint` back to `eslint .`) is tracked in #39. Verification = `pnpm lint` + `pnpm build` (build runs `tsc` via Next and fails on type errors).
+- Tests: `pnpm test` (`node --test` + esbuild with mocked Prisma/session; see `test/load-with-mocks.mjs`). CI runs them (and `pnpm test:images`) in their own step of `pr-ci.yml`. Verification = `pnpm lint` + `pnpm test` + `pnpm build` (build runs `tsc` via Next and fails on type errors).
 - `postinstall` runs `prisma generate` against the server's schema, so a fresh `pnpm install` regenerates the client (requires the sibling `pos-system-server/` checkout).
 
 ## Hard rules (zero tolerance, enforced in review)
