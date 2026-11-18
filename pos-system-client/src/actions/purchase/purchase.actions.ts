@@ -1,21 +1,29 @@
 'use server';
 
-import {
-  Purchase,
-  PurchaseItem,
-  Prisma,
-  PurchaseStatus,
-} from '@/generated/prisma';
+import { MembershipRole, Prisma, Purchase, PurchaseStatus } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
-import {
-  prisma,
-  serializeDecimals,
-} from '../utils';
-import { getPurchaseActor, purchaseAccessError } from './purchase-access';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
 import { businessDayCompact } from '@/lib/time';
+import { prisma, serializeDecimals } from '../utils';
+import { firstIssue, idSchema, internalError, invalidInput, paginationSchema, type PaginationInput } from '../common.schemas';
+import {
+  cancelReasonSchema,
+  createPurchaseInputSchema,
+  dateRangeSchema,
+  purchaseFiltersSchema,
+  purchaseNumberSchema,
+  updatePurchaseInputSchema,
+  type CreatePurchaseInput,
+  type PurchaseFiltersInput,
+  type UpdatePurchaseInput,
+} from './purchase.schemas';
+
+// Purchases are administration only (lib/rbac.ts): the seller has no
+// purchases screen and does not need them to sell.
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
 
 // PURCHASE INCLUDES
-const purchaseInclude: Prisma.PurchaseInclude = {
+const purchaseInclude = {
   supplier: true,
   purchaseItems: {
     where: { isDeleted: false },
@@ -32,7 +40,7 @@ const purchaseInclude: Prisma.PurchaseInclude = {
   _count: {
     select: { purchaseItems: true },
   },
-};
+} satisfies Prisma.PurchaseInclude;
 
 // ===========================
 // UTILITY FUNCTIONS
@@ -64,131 +72,111 @@ const generatePurchaseNumber = async (
   return { purchaseNumber: `${prefix}${String(next).padStart(4, '0')}`, createdAt };
 };
 
-// VALIDATE PURCHASE ITEMS
-const validatePurchaseItems = (
-  items: Omit<
-    Serialized<PurchaseItem>,
-    'id' | 'purchaseId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >[]
-) => {
-  if (!items || items.length === 0) {
-    throw new Error('La compra debe tener al menos un item');
-  }
+const purchaseNotFound = () => ({ status: 404, message: 'Compra no encontrada', data: null }) as const;
+const invalidPurchaseId = () => invalidInput('ID de compra es requerido');
 
-  for (const item of items) {
-    if (item.quantity <= 0) {
-      throw new Error('La cantidad de cada item debe ser mayor a 0');
+/** Business rule violations inside a transaction, returned as 400. */
+class PurchaseRuleError extends Error {}
+
+const handleError = (error: unknown, context: string) => {
+  const denied = actorErrorResponse(error);
+  if (denied) return denied;
+  if (error instanceof PurchaseRuleError) return invalidInput(error.message);
+  console.error(`Error ${context}:`, error);
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') return { status: 409, message: 'Ya existe una compra con ese número', data: null } as const;
+    if (error.code === 'P2003') {
+      return { status: 400, message: 'Una de las referencias especificadas no existe', data: null } as const;
     }
-    if (item.unitPrice < 0) {
-      throw new Error('El precio unitario no puede ser negativo');
-    }
+    if (error.code === 'P2025') return purchaseNotFound();
   }
+  return internalError();
 };
 
-// CALCULATE PURCHASE TOTALS
-export const calculatePurchaseTotals = async (
-  items: { quantity: number; unitPrice: number }[]
-) => {
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0
-  );
-  return { subtotal, total: subtotal }; // Se puede agregar lógica de descuentos/impuestos aquí
+// Tipo de include sin where para la inferencia de tipos
+type PurchaseIncludeForType = {
+  supplier: true;
+  purchaseItems: {
+    include: {
+      product: {
+        include: {
+          brand: true;
+          category: true;
+          unitMeasure: true;
+        };
+      };
+    };
+  };
+  _count: {
+    select: { purchaseItems: true };
+  };
 };
+
+// Compra con todas las relaciones incluidas
+export type PurchaseWithRelations = Prisma.PurchaseGetPayload<{
+  include: PurchaseIncludeForType;
+}>;
 
 // ===========================
 // PURCHASE ACTIONS
 // ===========================
 
-// CREATE PURCHASE
+// CREATE
 export const createPurchase = async (
-  orgId: string,
-  userId: string,
-  purchaseData: Omit<
-    Serialized<Purchase>,
-    | 'id'
-    | 'organizationId'
-    | 'purchaseNumber'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'isDeleted'
-    | 'deletedAt'
-  >,
-  purchaseItems: Omit<
-    Serialized<PurchaseItem>,
-    'id' | 'purchaseId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >[]
+  purchaseData: CreatePurchaseInput['purchaseData'],
+  purchaseItems: CreatePurchaseInput['purchaseItems']
 ): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
-    const access = await getPurchaseActor(true);
-    if (!access.actor) return purchaseAccessError(access.status);
-    void userId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const parsed = createPurchaseInputSchema.safeParse({ purchaseData, purchaseItems });
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const { purchaseData: data, purchaseItems: items } = parsed.data;
+    const organizationId = actor.organizationId;
 
-    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
-    orgId = access.actor.organizationId;
-
-    validatePurchaseItems(purchaseItems);
-
-    // Verificar que el proveedor existe y pertenece a la organización
     const supplier = await prisma.supplier.findFirst({
-      where: {
-        id: purchaseData.supplierId,
-        organizationId: orgId,
-        isDeleted: false,
-      },
+      where: { id: data.supplierId, organizationId, isDeleted: false },
+      select: { id: true },
     });
+    if (!supplier) return invalidInput('El proveedor especificado no existe');
 
-    if (!supplier) {
-      return {
-        status: 400,
-        message: 'El proveedor especificado no existe',
-        data: null,
-      };
-    }
-
-    // Verificar productos
-    const productIds = purchaseItems.map((item) => item.productId);
+    const productIds = [...new Set(items.map((item) => item.productId))];
     const products = await prisma.product.findMany({
-      where: {
-        id: { in: productIds },
-        organizationId: orgId,
-        isDeleted: false,
-        isActive: true,
-      },
+      where: { id: { in: productIds }, organizationId, isDeleted: false, isActive: true },
+      select: { id: true },
     });
-
     if (products.length !== productIds.length) {
-      return {
-        status: 400,
-        message: 'Uno o más productos no existen o están inactivos',
-        data: null,
-      };
+      return invalidInput('Uno o más productos no existen o están inactivos');
     }
 
-    // Calcular totales
-    const { total } = await calculatePurchaseTotals(purchaseItems);
+    // Totals come from the items, never from the client.
+    const lines = items.map((item) => ({ ...item, subtotal: item.quantity * item.unitPrice }));
+    const total = lines.reduce((sum, line) => sum + line.subtotal, 0);
 
     // Number, purchase and items share a transaction and its advisory lock.
     const newPurchase = await prisma.$transaction(
       async (tx) => {
-        const { purchaseNumber, createdAt } = await generatePurchaseNumber(tx, orgId);
+        const { purchaseNumber, createdAt } = await generatePurchaseNumber(tx, organizationId);
         const purchase = await tx.purchase.create({
           data: {
-            ...purchaseData,
-            organizationId: orgId,
+            supplierId: data.supplierId,
+            purchaseDate: data.purchaseDate,
+            notes: data.notes ?? null,
+            status: 'PENDING',
+            organizationId,
             purchaseNumber,
             createdAt,
             total,
           },
         });
 
-        // Crear items de compra
-        for (const itemData of purchaseItems) {
+        for (const line of lines) {
           await tx.purchaseItem.create({
             data: {
-              ...itemData,
+              productId: line.productId,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              subtotal: line.subtotal,
               purchaseId: purchase.id,
-              subtotal: itemData.quantity * itemData.unitPrice,
             },
           });
         }
@@ -198,131 +186,48 @@ export const createPurchase = async (
           include: purchaseInclude,
         });
       },
-      {
-        maxWait: 10000, // 10s
-        timeout: 30000, // 30s
-      }
+      { maxWait: 10000, timeout: 30000 }
     );
 
-    return {
-      status: 201,
-      message: 'Compra creada exitosamente',
-      data: serializeDecimals(newPurchase),
-    };
+    return { status: 201, message: 'Compra creada exitosamente', data: serializeDecimals(newPurchase) };
   } catch (error) {
-    console.error('Error creating purchase:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        return {
-          status: 409,
-          message: 'Ya existe una compra con ese número',
-          data: null,
-        };
-      }
-      if (error.code === 'P2003') {
-        return {
-          status: 400,
-          message: 'Una de las referencias especificadas no existe',
-          data: null,
-        };
-      }
-    }
-
-    if (error instanceof Error) {
-      return {
-        status: 400,
-        message: error.message,
-        data: null,
-      };
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'creating purchase');
   }
 };
 
-// GET PURCHASES BY ORG
-export const getPurchasesByOrgId = async (
-  orgId: string,
-  filters?: {
-    supplierId?: string;
-    status?: PurchaseStatus;
-    dateFrom?: Date | string;
-    dateTo?: Date | string;
-    search?: string;
-    minAmount?: number;
-    maxAmount?: number;
-  },
+// GET MANY
+export const getPurchases = async (
+  filters?: PurchaseFiltersInput,
   includeDeleted: boolean = false,
-  pagination?: {
-    page?: number;
-    limit?: number;
-  }
-): Promise<
-  ActionResponse<{ purchases: Serialized<Purchase>[]; total: number } | null>
-> => {
+  pagination?: PaginationInput
+): Promise<ActionResponse<{ purchases: Serialized<Purchase>[]; total: number } | null>> => {
   try {
-    const access = await getPurchaseActor();
-    if (!access.actor) return purchaseAccessError(access.status);
-    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
-    orgId = access.actor.organizationId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const parsedFilters = purchaseFiltersSchema.safeParse(filters);
+    const parsedPagination = paginationSchema.safeParse(pagination);
+    if (!parsedFilters.success || !parsedPagination.success) return invalidInput();
+    const f = parsedFilters.data;
 
     const whereClause: Prisma.PurchaseWhereInput = {
-      organizationId: orgId,
-      isDeleted: includeDeleted ? undefined : false,
+      organizationId: actor.organizationId,
+      isDeleted: includeDeleted === true ? undefined : false,
     };
-
-    if (filters?.supplierId) {
-      whereClause.supplierId = filters.supplierId;
+    if (f?.supplierId) whereClause.supplierId = f.supplierId;
+    if (f?.status) whereClause.status = f.status;
+    if (f?.dateFrom || f?.dateTo) whereClause.purchaseDate = { gte: f.dateFrom, lte: f.dateTo };
+    if (f?.minAmount !== undefined || f?.maxAmount !== undefined) {
+      whereClause.total = { gte: f.minAmount, lte: f.maxAmount };
     }
-
-    if (filters?.status) {
-      whereClause.status = filters.status;
-    }
-
-    if (filters?.dateFrom || filters?.dateTo) {
-      whereClause.purchaseDate = {};
-      if (filters.dateFrom) {
-        whereClause.purchaseDate.gte =
-          typeof filters.dateFrom === 'string'
-            ? new Date(filters.dateFrom)
-            : filters.dateFrom;
-      }
-      if (filters.dateTo) {
-        whereClause.purchaseDate.lte =
-          typeof filters.dateTo === 'string'
-            ? new Date(filters.dateTo)
-            : filters.dateTo;
-      }
-    }
-
-    // Filtro por rango de montos
-    if (filters?.minAmount !== undefined || filters?.maxAmount !== undefined) {
-      whereClause.total = {};
-      if (filters.minAmount !== undefined) {
-        whereClause.total.gte = filters.minAmount;
-      }
-      if (filters.maxAmount !== undefined) {
-        whereClause.total.lte = filters.maxAmount;
-      }
-    }
-
-    // Búsqueda por texto en número de compra, notas y nombre del proveedor
-    if (filters?.search) {
+    if (f?.search) {
       whereClause.OR = [
-        { purchaseNumber: { contains: filters.search, mode: 'insensitive' } },
-        { notes: { contains: filters.search, mode: 'insensitive' } },
-        {
-          supplier: {
-            name: { contains: filters.search, mode: 'insensitive' },
-          },
-        },
+        { purchaseNumber: { contains: f.search, mode: 'insensitive' } },
+        { notes: { contains: f.search, mode: 'insensitive' } },
+        { supplier: { name: { contains: f.search, mode: 'insensitive' } } },
       ];
     }
 
-    const page = pagination?.page || 1;
-    const limit = pagination?.limit || 50;
-    const skip = (page - 1) * limit;
+    const page = parsedPagination.data?.page ?? 1;
+    const limit = parsedPagination.data?.limit ?? 50;
 
     const [total, purchases] = await Promise.all([
       prisma.purchase.count({ where: whereClause }),
@@ -330,7 +235,7 @@ export const getPurchasesByOrgId = async (
         where: whereClause,
         include: purchaseInclude,
         orderBy: { createdAt: 'desc' },
-        skip,
+        skip: (page - 1) * limit,
         take: limit,
       }),
     ]);
@@ -341,58 +246,24 @@ export const getPurchasesByOrgId = async (
       data: { purchases: serializeDecimals(purchases), total },
     };
   } catch (error) {
-    console.error('Error fetching purchases:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching purchases');
   }
 };
 
-// Definir el tipo de include sin where clauses para correcta inferencia de tipos
-type PurchaseIncludeForType = {
-  supplier: true,
-  purchaseItems: {
-    include: {
-      product: {
-        include: {
-          brand: true,
-          category: true,
-          unitMeasure: true,
-        },
-      },
-    },
-  },
-  _count: {
-    select: { purchaseItems: true },
-  },
-};
-
-// Tipo para compra con todas las relaciones incluidas
-export type PurchaseWithRelations = Prisma.PurchaseGetPayload<{
-  include: PurchaseIncludeForType;
-}>;
-
-// GET PURCHASE BY ID
+// GET BY ID
 export const getPurchaseById = async (
   purchaseId: string
 ): Promise<ActionResponse<Serialized<PurchaseWithRelations> | null>> => {
   try {
-    const access = await getPurchaseActor();
-    if (!access.actor) return purchaseAccessError(access.status);
-    if (!purchaseId) {
-      return {
-        status: 400,
-        message: 'ID de compra es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(purchaseId);
+    if (!id.success) return invalidPurchaseId();
 
     const purchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
+      where: { id: id.data, organizationId: actor.organizationId, isDeleted: false },
       include: purchaseInclude,
     });
-
-    if (!purchase) {
-      return { status: 404, message: 'Compra no encontrada', data: null };
-    }
+    if (!purchase) return purchaseNotFound();
 
     return {
       status: 200,
@@ -400,42 +271,24 @@ export const getPurchaseById = async (
       data: serializeDecimals(purchase) as unknown as Serialized<PurchaseWithRelations>,
     };
   } catch (error) {
-    console.error('Error fetching purchase:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching purchase');
   }
 };
 
-// GET PURCHASE BY NUMBER
+// GET BY NUMBER
 export const getPurchaseByNumber = async (
-  orgId: string,
   purchaseNumber: string
 ): Promise<ActionResponse<Serialized<PurchaseWithRelations> | null>> => {
   try {
-    const access = await getPurchaseActor();
-    if (!access.actor) return purchaseAccessError(access.status);
-    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
-    orgId = access.actor.organizationId;
-
-    if (!purchaseNumber) {
-      return {
-        status: 400,
-        message: 'Número de compra es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const number = purchaseNumberSchema.safeParse(purchaseNumber);
+    if (!number.success) return invalidInput(firstIssue(number.error));
 
     const purchase = await prisma.purchase.findFirst({
-      where: {
-        organizationId: orgId,
-        purchaseNumber,
-        isDeleted: false,
-      },
+      where: { organizationId: actor.organizationId, purchaseNumber: number.data, isDeleted: false },
       include: purchaseInclude,
     });
-
-    if (!purchase) {
-      return { status: 404, message: 'Compra no encontrada', data: null };
-    }
+    if (!purchase) return purchaseNotFound();
 
     return {
       status: 200,
@@ -443,165 +296,97 @@ export const getPurchaseByNumber = async (
       data: serializeDecimals(purchase) as unknown as Serialized<PurchaseWithRelations>,
     };
   } catch (error) {
-    console.error('Error fetching purchase by number:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching purchase by number');
   }
 };
 
-// UPDATE PURCHASE
+// UPDATE (only the notes; status changes go through receive/cancel)
 export const updatePurchase = async (
   purchaseId: string,
-  userId: string,
-  updateData: Partial<{
-    notes: string;
-  }>
+  input: UpdatePurchaseInput
 ): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
-    const access = await getPurchaseActor(true);
-    if (!access.actor) return purchaseAccessError(access.status);
-    void userId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(purchaseId);
+    if (!id.success) return invalidPurchaseId();
+    const parsed = updatePurchaseInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
 
-    if (!purchaseId) {
-      return {
-        status: 400,
-        message: 'ID de compra es requerido',
-        data: null,
-      };
-    }
-
-    const existingPurchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
-    });
-
-    if (!existingPurchase) {
-      return { status: 404, message: 'Compra no encontrada', data: null };
-    }
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: false };
+    const existing = await prisma.purchase.findFirst({ where, select: { id: true } });
+    if (!existing) return purchaseNotFound();
 
     const updatedPurchase = await prisma.purchase.update({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
-      data: {
-        notes: updateData.notes,
-        updatedAt: new Date(),
-      },
+      where,
+      data: { notes: parsed.data.notes, updatedAt: new Date() },
       include: purchaseInclude,
     });
 
-    return {
-      status: 200,
-      message: 'Compra actualizada exitosamente',
-      data: serializeDecimals(updatedPurchase),
-    };
+    return { status: 200, message: 'Compra actualizada exitosamente', data: serializeDecimals(updatedPurchase) };
   } catch (error) {
-    console.error('Error updating purchase:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Compra no encontrada', data: null };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'updating purchase');
   }
 };
 
-// RECEIVE PURCHASE - CRÍTICO: Actualiza stock y crea movimientos
-export const receivePurchase = async (
-  purchaseId: string,
-  userId: string
-): Promise<ActionResponse<Serialized<Purchase> | null>> => {
+// RECEIVE - updates stock and records the movements
+export const receivePurchase = async (purchaseId: string): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
-    const access = await getPurchaseActor(true);
-    if (!access.actor) return purchaseAccessError(access.status);
-    void userId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(purchaseId);
+    if (!id.success) return invalidPurchaseId();
+    const organizationId = actor.organizationId;
 
-    if (!purchaseId) {
-      return {
-        status: 400,
-        message: 'ID de compra es requerido',
-        data: null,
-      };
-    }
-
-    const existingPurchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
+    const where = { id: id.data, organizationId, isDeleted: false };
+    const existing = await prisma.purchase.findFirst({
+      where,
       include: { purchaseItems: { where: { isDeleted: false } } },
     });
+    if (!existing) return purchaseNotFound();
 
-    if (!existingPurchase) {
-      return { status: 404, message: 'Compra no encontrada', data: null };
+    if (existing.status !== 'PENDING') {
+      return invalidInput(`No se puede recibir una compra en estado ${existing.status}`);
     }
 
-    if (existingPurchase.status !== 'PENDING') {
-      return {
-        status: 400,
-        message: `No se puede recibir una compra en estado ${existingPurchase.status}`,
-        data: null,
-      };
-    }
-
-    // Recibir compra y actualizar stock en transacción con timeout aumentado
     const receivedPurchase = await prisma.$transaction(
       async (tx) => {
-        // Actualizar status de la compra
+        // The PENDING condition makes a concurrent second receive fail (P2025).
         await tx.purchase.update({
-          where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false, status: 'PENDING' },
-          data: {
-            status: 'RECEIVED',
-            receivedDate: new Date(),
-            updatedAt: new Date(),
-          },
+          where: { ...where, status: 'PENDING' },
+          data: { status: 'RECEIVED', receivedDate: new Date(), updatedAt: new Date() },
         });
 
-        // Para cada purchaseItem, crear movimiento de stock y actualizar producto
-        for (const item of existingPurchase.purchaseItems) {
-          // Obtener stock actual del producto
-          const product = await tx.product.findUnique({
-            where: { id: item.productId, organizationId: access.actor.organizationId, isDeleted: false },
-            select: { currentStock: true },
-          });
-
-          if (!product) {
-            throw new Error(`Producto ${item.productId} no encontrado`);
-          }
+        for (const item of existing.purchaseItems) {
+          const productWhere = { id: item.productId, organizationId, isDeleted: false };
+          const product = await tx.product.findUnique({ where: productWhere, select: { currentStock: true } });
+          if (!product) throw new PurchaseRuleError(`Producto ${item.productId} no encontrado`);
 
           const previousStock = product.currentStock;
           const newStock = previousStock + item.quantity;
 
-          // Crear movimiento de stock tipo IN
           await tx.stockMovement.create({
             data: {
               productId: item.productId,
-              userId: access.actor.userId,
-              storeId: null, // Las compras son a nivel de organización, no de tienda específica
+              userId: actor.userId,
+              storeId: null, // Las compras son a nivel de organización, no de tienda
               type: 'IN',
               quantity: item.quantity,
-              previousStock: previousStock,
-              newStock: newStock,
-              reason: `Recepción de compra ${existingPurchase.purchaseNumber}`,
-              reference: purchaseId,
-              organizationId: access.actor.organizationId,
+              previousStock,
+              newStock,
+              reason: `Recepción de compra ${existing.purchaseNumber}`,
+              reference: existing.id,
+              organizationId,
             },
           });
 
-          // Actualizar stock del producto
           await tx.product.update({
-            where: { id: item.productId, organizationId: access.actor.organizationId, isDeleted: false },
-            data: {
-              currentStock: newStock,
-              updatedAt: new Date(),
-            },
+            where: productWhere,
+            data: { currentStock: newStock, updatedAt: new Date() },
           });
         }
 
-        return tx.purchase.findUnique({
-          where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
-          include: purchaseInclude,
-        });
+        return tx.purchase.findUnique({ where, include: purchaseInclude });
       },
-      {
-        maxWait: 10000, // 10s
-        timeout: 30000, // 30s
-      }
+      { maxWait: 10000, timeout: 30000 }
     );
 
     return {
@@ -610,134 +395,67 @@ export const receivePurchase = async (
       data: serializeDecimals(receivedPurchase),
     };
   } catch (error) {
-    console.error('Error receiving purchase:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      return { status: 404, message: 'Compra no encontrada', data: null };
-    }
-    if (error instanceof Error) {
-      return {
-        status: 400,
-        message: error.message,
-        data: null,
-      };
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'receiving purchase');
   }
 };
 
-// CANCEL PURCHASE
+// CANCEL (does not revert stock: business decision)
 export const cancelPurchase = async (
   purchaseId: string,
-  userId: string,
   reason?: string
 ): Promise<ActionResponse<Serialized<Purchase> | null>> => {
   try {
-    const access = await getPurchaseActor(true);
-    if (!access.actor) return purchaseAccessError(access.status);
-    void userId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(purchaseId);
+    if (!id.success) return invalidPurchaseId();
+    const cancelReason = cancelReasonSchema.safeParse(reason);
+    if (!cancelReason.success) return invalidInput(firstIssue(cancelReason.error));
 
-    if (!purchaseId) {
-      return {
-        status: 400,
-        message: 'ID de compra es requerido',
-        data: null,
-      };
-    }
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: false };
+    const existing = await prisma.purchase.findFirst({ where, select: { status: true, notes: true } });
+    if (!existing) return purchaseNotFound();
 
-    const existingPurchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
-    });
+    if (existing.status === 'CANCELLED') return invalidInput('La compra ya está cancelada');
 
-    if (!existingPurchase) {
-      return { status: 404, message: 'Compra no encontrada', data: null };
-    }
-
-    if (existingPurchase.status === 'CANCELLED') {
-      return {
-        status: 400,
-        message: 'La compra ya está cancelada',
-        data: null,
-      };
-    }
-
-    // Cancelar compra (NO revertir stock - decisión de negocio)
     const cancelledPurchase = await prisma.purchase.update({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
+      where,
       data: {
         status: 'CANCELLED',
-        notes: reason
-          ? `${existingPurchase.notes || ''}\nCANCELADO: ${reason}`
-          : existingPurchase.notes,
+        notes: cancelReason.data ? `${existing.notes || ''}\nCANCELADO: ${cancelReason.data}` : existing.notes,
         updatedAt: new Date(),
       },
       include: purchaseInclude,
     });
 
-    return {
-      status: 200,
-      message: 'Compra cancelada exitosamente',
-      data: serializeDecimals(cancelledPurchase),
-    };
+    return { status: 200, message: 'Compra cancelada exitosamente', data: serializeDecimals(cancelledPurchase) };
   } catch (error) {
-    console.error('Error cancelling purchase:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'cancelling purchase');
   }
 };
 
-// SOFT DELETE PURCHASE
-export const softDeletePurchase = async (
-  purchaseId: string,
-  userId: string
-): Promise<ActionResponse> => {
+// SOFT DELETE (only PENDING purchases)
+export const softDeletePurchase = async (purchaseId: string): Promise<ActionResponse> => {
   try {
-    const access = await getPurchaseActor(true);
-    if (!access.actor) return purchaseAccessError(access.status);
-    void userId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(purchaseId);
+    if (!id.success) return invalidPurchaseId();
 
-    if (!purchaseId) {
-      return {
-        status: 400,
-        message: 'ID de compra es requerido',
-        data: null,
-      };
-    }
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: false };
+    const existing = await prisma.purchase.findFirst({ where, select: { status: true } });
+    if (!existing) return purchaseNotFound();
 
-    const existingPurchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
-    });
-
-    if (!existingPurchase) {
-      return { status: 404, message: 'Compra no encontrada', data: null };
-    }
-
-    // Solo permitir eliminar compras PENDING
-    if (existingPurchase.status !== 'PENDING') {
-      return {
-        status: 400,
-        message: 'Solo se pueden eliminar compras en estado PENDING',
-        data: null,
-      };
+    if (existing.status !== 'PENDING') {
+      return invalidInput('Solo se pueden eliminar compras en estado PENDING');
     }
 
     await prisma.purchase.update({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-        updatedAt: new Date(),
-      },
+      where,
+      data: { isDeleted: true, deletedAt: new Date(), updatedAt: new Date() },
     });
 
-    return {
-      status: 200,
-      message: 'Compra eliminada (soft) exitosamente',
-      data: null,
-    };
+    return { status: 200, message: 'Compra eliminada (soft) exitosamente', data: null };
   } catch (error) {
-    console.error('Error soft deleting purchase:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'soft deleting purchase');
   }
 };
 
@@ -745,9 +463,8 @@ export const softDeletePurchase = async (
 // ANALYTICS AND REPORTS
 // ===========================
 
-// GET PURCHASES ANALYTICS
+// ANALYTICS
 export const getPurchasesAnalytics = async (
-  orgId: string,
   dateFrom?: Date | string,
   dateTo?: Date | string
 ): Promise<
@@ -763,29 +480,18 @@ export const getPurchasesAnalytics = async (
   } | null>
 > => {
   try {
-    const access = await getPurchaseActor();
-    if (!access.actor) return purchaseAccessError(access.status);
-    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
-    orgId = access.actor.organizationId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const range = dateRangeSchema.safeParse({ dateFrom, dateTo });
+    if (!range.success) return invalidInput();
 
     const whereClause: Prisma.PurchaseWhereInput = {
-      organizationId: orgId,
+      organizationId: actor.organizationId,
       isDeleted: false,
     };
-
-    if (dateFrom || dateTo) {
-      whereClause.purchaseDate = {};
-      if (dateFrom) {
-        whereClause.purchaseDate.gte =
-          typeof dateFrom === 'string' ? new Date(dateFrom) : dateFrom;
-      }
-      if (dateTo) {
-        whereClause.purchaseDate.lte =
-          typeof dateTo === 'string' ? new Date(dateTo) : dateTo;
-      }
+    if (range.data.dateFrom || range.data.dateTo) {
+      whereClause.purchaseDate = { gte: range.data.dateFrom, lte: range.data.dateTo };
     }
 
-    // Agregaciones básicas
     const [totalStats, purchasesByStatus] = await Promise.all([
       prisma.purchase.aggregate({
         where: whereClause,
@@ -816,27 +522,16 @@ export const getPurchasesAnalytics = async (
       },
     };
   } catch (error) {
-    console.error('Error fetching purchases analytics:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching purchases analytics');
   }
 };
 
-// GET PENDING PURCHASES
-export const getPendingPurchases = async (
-  orgId: string
-): Promise<ActionResponse<Serialized<Purchase>[] | null>> => {
+// PENDING
+export const getPendingPurchases = async (): Promise<ActionResponse<Serialized<Purchase>[] | null>> => {
   try {
-    const access = await getPurchaseActor();
-    if (!access.actor) return purchaseAccessError(access.status);
-    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
-    orgId = access.actor.organizationId;
-
+    const actor = await requireActor(ADMIN_ONLY);
     const pendingPurchases = await prisma.purchase.findMany({
-      where: {
-        organizationId: orgId,
-        isDeleted: false,
-        status: 'PENDING',
-      },
+      where: { organizationId: actor.organizationId, isDeleted: false, status: 'PENDING' },
       include: purchaseInclude,
       orderBy: { purchaseDate: 'asc' },
     });
@@ -847,27 +542,16 @@ export const getPendingPurchases = async (
       data: serializeDecimals(pendingPurchases),
     };
   } catch (error) {
-    console.error('Error fetching pending purchases:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching pending purchases');
   }
 };
 
-// GET RECEIVED PURCHASES
-export const getReceivedPurchases = async (
-  orgId: string
-): Promise<ActionResponse<Serialized<Purchase>[] | null>> => {
+// RECEIVED
+export const getReceivedPurchases = async (): Promise<ActionResponse<Serialized<Purchase>[] | null>> => {
   try {
-    const access = await getPurchaseActor();
-    if (!access.actor) return purchaseAccessError(access.status);
-    if (orgId !== access.actor.organizationId) return purchaseAccessError(403);
-    orgId = access.actor.organizationId;
-
+    const actor = await requireActor(ADMIN_ONLY);
     const receivedPurchases = await prisma.purchase.findMany({
-      where: {
-        organizationId: orgId,
-        isDeleted: false,
-        status: 'RECEIVED',
-      },
+      where: { organizationId: actor.organizationId, isDeleted: false, status: 'RECEIVED' },
       include: purchaseInclude,
       orderBy: { receivedDate: 'desc' },
     });
@@ -878,7 +562,6 @@ export const getReceivedPurchases = async (
       data: serializeDecimals(receivedPurchases),
     };
   } catch (error) {
-    console.error('Error fetching received purchases:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching received purchases');
   }
 };

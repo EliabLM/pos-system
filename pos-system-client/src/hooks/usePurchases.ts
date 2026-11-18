@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   createPurchase,
-  getPurchasesByOrgId,
+  getPurchases,
   getPurchaseById,
   getPurchaseByNumber,
   updatePurchase,
@@ -89,8 +89,7 @@ export const usePurchases = (
         throw new Error('Usuario no tiene organizaci�n asignada');
       }
 
-      const response = await getPurchasesByOrgId(
-        user.organizationId,
+      const response = await getPurchases(
         filters,
         includeDeleted,
         pagination
@@ -146,10 +145,7 @@ export const usePurchaseByNumber = (purchaseNumber: string) => {
         throw new Error('N�mero de compra requerido');
       }
 
-      const response = await getPurchaseByNumber(
-        user.organizationId,
-        purchaseNumber
-      );
+      const response = await getPurchaseByNumber(purchaseNumber);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -178,7 +174,7 @@ export const usePendingPurchases = () => {
         throw new Error('Usuario no tiene organizaci�n asignada');
       }
 
-      const response = await getPendingPurchases(user.organizationId);
+      const response = await getPendingPurchases();
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -203,7 +199,7 @@ export const useReceivedPurchases = () => {
         throw new Error('Usuario no tiene organizaci�n asignada');
       }
 
-      const response = await getReceivedPurchases(user.organizationId);
+      const response = await getReceivedPurchases();
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -236,7 +232,6 @@ export const usePurchasesAnalytics = (
       }
 
       const response = await getPurchasesAnalytics(
-        user.organizationId,
         dateFrom,
         dateTo
       );
@@ -269,8 +264,6 @@ export const useCreatePurchase = () => {
       }
 
       const response = await createPurchase(
-        user.organizationId,
-        user.id,
         purchaseData,
         purchaseItems
       );
@@ -324,7 +317,7 @@ export const useUpdatePurchase = () => {
         throw new Error('Usuario no tiene organizaci�n asignada');
       }
 
-      const response = await updatePurchase(purchaseId, user.id, updateData);
+      const response = await updatePurchase(purchaseId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -381,7 +374,7 @@ export const useReceivePurchase = () => {
         throw new Error('Usuario no tiene organizaci�n asignada');
       }
 
-      const response = await receivePurchase(purchaseId, user.id);
+      const response = await receivePurchase(purchaseId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -448,7 +441,7 @@ export const useCancelPurchase = () => {
         throw new Error('Usuario no tiene organizaci�n asignada');
       }
 
-      const response = await cancelPurchase(purchaseId, user.id, reason);
+      const response = await cancelPurchase(purchaseId, reason);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -502,7 +495,7 @@ export const useSoftDeletePurchase = () => {
         throw new Error('Usuario no tiene organizaci�n asignada');
       }
 
-      const response = await softDeletePurchase(purchaseId, user.id);
+      const response = await softDeletePurchase(purchaseId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
