@@ -11,7 +11,6 @@ import { MembershipRole, MembershipStatus, Organization, PaymentMethod, Prisma }
 import { ActionResponse } from '@/interfaces';
 import { actorErrorResponse, requireOnboardingUser } from '@/lib/auth/actor';
 import { prisma } from '../utils';
-import { createPaymentMethod } from '../payment-methods';
 import { setBusinessType } from '../system-config';
 
 
@@ -150,7 +149,6 @@ const FOOTWEAR_UNIT_MEASURES = [
 
 const createInitialConfigurations = async (
   organizationId: string,
-  adminUserId: string,
   businessType?: 'liquor_store' | 'shoe_store' | null
 ): Promise<void> => {
   try {
@@ -177,8 +175,8 @@ const createInitialConfigurations = async (
     // EJECUTAR OPERACIONES SECUENCIALMENTE POR TIPO
     // Sin transacción global para evitar conflictos con transacciones anidadas
 
-    // Catálogo inicial de la organización recién creada: se escribe directo
-    // (no por las actions de catálogo, que exigen el actor de sesión).
+    // Catálogo inicial y métodos de pago de la organización recién creada: se
+    // escriben directo (no por las actions, que exigen el actor de sesión).
     // 1. Crear categorías
     await prisma.category.createMany({
       data: categories.map((category) => ({
@@ -190,15 +188,16 @@ const createInitialConfigurations = async (
       skipDuplicates: true,
     });
 
-    // 2. Crear métodos de pago en paralelo
-    const paymentMethodPromises = DEFAULT_PAYMENT_METHODS.map((method) =>
-      createPaymentMethod(organizationId, adminUserId, {
+    // 2. Crear métodos de pago
+    await prisma.paymentMethod.createMany({
+      data: DEFAULT_PAYMENT_METHODS.map((method) => ({
+        organizationId,
         name: method.name,
         type: method.type,
         isActive: true,
-      })
-    );
-    await Promise.all(paymentMethodPromises);
+      })),
+      skipDuplicates: true,
+    });
 
     // 3. Crear marcas según tipo de negocio
     await prisma.brand.createMany({
@@ -315,7 +314,7 @@ export const createOrganization = async (
     // Configuraciones iniciales (categorías, marcas, métodos de pago...). Ya
     // existe la membresía ADMIN, así que pasan las comprobaciones de sesión.
     try {
-      await createInitialConfigurations(newOrganization.id, userId, type);
+      await createInitialConfigurations(newOrganization.id, type);
     } catch (error) {
       console.error('Error creating initial configurations for organization:', newOrganization.id, error);
       // No falla la creación: el usuario puede crearlas manualmente después.

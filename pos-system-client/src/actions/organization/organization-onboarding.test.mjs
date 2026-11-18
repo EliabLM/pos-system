@@ -4,7 +4,7 @@ import { loadWithMocks } from '../../../test/load-with-mocks.mjs';
 
 // Onboarding (#11): solo el usuario con sesión y SIN membresía crea SU
 // organización y queda como ADMIN. Identidad y rol salen de la sesión.
-const state = { session: null, memberInTx: false, writes: [], initial: [], catalog: [] };
+const state = { session: null, memberInTx: false, writes: [], catalog: [] };
 globalThis.__orgTest = state;
 
 const prisma = {
@@ -18,13 +18,12 @@ const prisma = {
   },
   category: { createMany: async ({ data }) => { state.catalog.push({ model: 'category', data }); return { count: data.length }; } },
   brand: { createMany: async ({ data }) => { state.catalog.push({ model: 'brand', data }); return { count: data.length }; } },
+  paymentMethod: { createMany: async ({ data }) => { state.catalog.push({ model: 'paymentMethod', data }); return { count: data.length }; } },
   unitMeasure: { createMany: async ({ data }) => { state.catalog.push({ model: 'unitMeasure', data }); return { count: data.length }; } },
   $queryRaw: async () => [],
   $transaction: async (fn) => fn(prisma),
 };
 globalThis.__orgPrisma = prisma;
-
-const initial = (name) => `export const ${name} = async (orgId, userId) => { globalThis.__orgTest.initial.push({ fn: '${name}', orgId, userId }); return { status: 201 }; };`;
 
 const { createOrganization } = await loadWithMocks('src/actions/organization/organization.action.ts', {
   '@/generated/prisma': `
@@ -41,12 +40,11 @@ const { createOrganization } = await loadWithMocks('src/actions/organization/org
     };
     export const actorErrorResponse = (error) => error instanceof ActorError ? { status: error.status, message: error.message, data: null } : null;`,
   '../utils': 'export const prisma = globalThis.__orgPrisma;',
-  '../payment-methods': initial('createPaymentMethod'),
   '../system-config': 'export const setBusinessType = async () => ({ status: 201 });',
 });
 
 function reset(session) {
-  Object.assign(state, { session, memberInTx: false, writes: [], initial: [], catalog: [] });
+  Object.assign(state, { session, memberInTx: false, writes: [], catalog: [] });
 }
 
 // Payload hostil: campos de tenancy/identidad que el servidor debe ignorar.
@@ -68,9 +66,8 @@ test('onboarding: el usuario sin membresía crea su organización y queda como A
     { userId: membership.data.userId, organizationId: membership.data.organizationId, role: membership.data.role, status: membership.data.status },
     { userId: 'user-new', organizationId: 'org-new', role: 'ADMIN', status: 'ACTIVE' },
   );
-  assert.ok(state.initial.length > 0 && state.initial.every((c) => c.orgId === 'org-new' && c.userId === 'user-new'));
-  // Catálogo inicial (categorías, marcas, unidades) en la organización nueva.
-  assert.deepEqual(state.catalog.map((c) => c.model), ['category', 'brand', 'unitMeasure']);
+  // Catálogo inicial (categorías, métodos de pago, marcas, unidades) en la organización nueva.
+  assert.deepEqual(state.catalog.map((c) => c.model), ['category', 'paymentMethod', 'brand', 'unitMeasure']);
   for (const { data } of state.catalog) assert.ok(data.length > 0 && data.every((row) => row.organizationId === 'org-new'));
 });
 
