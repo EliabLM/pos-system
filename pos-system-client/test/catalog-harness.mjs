@@ -3,7 +3,7 @@ import { loadWithMocks } from './load-with-mocks.mjs';
 
 /**
  * Doble de BD y de sesión para las pruebas de contrato de catálogo e
- * inventario (#12). La BD solo tiene registros de la organización B: un actor
+ * inventario (#12) y de clientes, proveedores, compras y medios de pago (#13). La BD solo tiene registros de la organización B: un actor
  * de A que los pida por id debe recibir 404 (o lista vacía) sin escrituras.
  */
 export const ID = {
@@ -13,6 +13,11 @@ export const ID = {
   unitMeasure: '00000000-0000-4000-8000-0000000000b4',
   stockMovement: '00000000-0000-4000-8000-0000000000b5',
   storeB: '00000000-0000-4000-8000-0000000000b6',
+  customer: '00000000-0000-4000-8000-0000000000b7',
+  supplier: '00000000-0000-4000-8000-0000000000b8',
+  paymentMethod: '00000000-0000-4000-8000-0000000000b9',
+  purchase: '00000000-0000-4000-8000-0000000000ba',
+  purchaseItem: '00000000-0000-4000-8000-0000000000bb',
   categoryA: '00000000-0000-4000-8000-0000000000a1',
   storeA: '00000000-0000-4000-8000-0000000000a2',
 };
@@ -39,20 +44,46 @@ const records = {
     id: ID.stockMovement, organizationId: 'org-b', productId: ID.product, type: 'IN', quantity: 1, previousStock: 4, newStock: 5,
   }),
   store: () => ({ id: ID.storeB, organizationId: 'org-b' }),
+  customer: () => ({
+    id: ID.customer, organizationId: 'org-b', firstName: 'Cliente', lastName: 'B', email: 'b@example.com',
+    document: '123', isActive: true, isDeleted: false, _count: { sales: 0 },
+  }),
+  supplier: () => ({
+    id: ID.supplier, organizationId: 'org-b', name: 'Proveedor B', email: 'p@example.com', taxId: '900',
+    isActive: true, isDeleted: false, _count: { purchases: 0 },
+  }),
+  paymentMethod: () => ({ id: ID.paymentMethod, organizationId: 'org-b', name: 'Efectivo', type: 'CASH', isActive: true, isDeleted: false }),
+  purchase: () => ({
+    id: ID.purchase, organizationId: 'org-b', supplierId: ID.supplier, purchaseNumber: 'COMP-20261118-0001',
+    status: 'PENDING', notes: null, total: dec(8), isDeleted: false,
+    purchaseItems: [{ id: ID.purchaseItem, productId: ID.product, quantity: 2 }],
+  }),
+  // Sin organizationId propio: pertenece a la organización de su compra.
+  purchaseItem: () => ({
+    id: ID.purchaseItem, purchaseId: ID.purchase, productId: ID.product, quantity: 2,
+    unitPrice: dec(4), subtotal: dec(8), isDeleted: false, purchase: { status: 'PENDING' },
+  }),
+  sale: () => ({ id: 'sale-b', organizationId: 'org-b', customerId: ID.customer, total: dec(10) }),
 };
 
-/** Modelos con organizationId: toda consulta sobre ellos debe filtrar por la organización del actor. */
+/** Organización por la que filtra una consulta: la propia o, para los ítems, la de su compra. */
+const scopeOf = (model, where = {}) => (model === 'purchaseItem' ? where.purchase?.organizationId : where.organizationId);
+
+/** Modelos de una organización: toda consulta sobre ellos debe filtrar por la organización del actor. */
 export const SCOPED_MODELS = new Set(Object.keys(records));
 
 export const state = { actor: null, calls: [], writes: [] };
 globalThis.__catalogTest = state;
 
-const visibleToB = (where = {}) => where.organizationId === undefined || where.organizationId === 'org-b';
-const matches = (rec, where = {}) =>
-  visibleToB(where) && (where.id === undefined || where.id === rec.id || typeof where.id === 'object');
+const visibleToB = (model, where = {}) => {
+  const org = scopeOf(model, where);
+  return org === undefined || org === 'org-b';
+};
+const matches = (model, rec, where = {}) =>
+  visibleToB(model, where) && (where.id === undefined || where.id === rec.id || typeof where.id === 'object');
 
 const read = (model, method, handler) => async (args = {}) => {
-  state.calls.push({ model, method, where: args.where });
+  state.calls.push({ model, method, where: args.where, include: args.include });
   return handler(args);
 };
 const write = (model, method) => async (args = {}) => {
@@ -64,11 +95,11 @@ const write = (model, method) => async (args = {}) => {
 function modelFake(model) {
   const rec = records[model];
   return {
-    findFirst: read(model, 'findFirst', ({ where }) => (matches(rec(), where) ? rec() : null)),
-    findUnique: read(model, 'findUnique', ({ where }) => (matches(rec(), where) ? rec() : null)),
-    findMany: read(model, 'findMany', ({ where }) => (matches(rec(), where) ? [rec()] : [])),
-    count: read(model, 'count', ({ where }) => (matches(rec(), where) ? 1 : 0)),
-    aggregate: read(model, 'aggregate', () => ({ _sum: { quantity: null } })),
+    findFirst: read(model, 'findFirst', ({ where }) => (matches(model, rec(), where) ? rec() : null)),
+    findUnique: read(model, 'findUnique', ({ where }) => (matches(model, rec(), where) ? rec() : null)),
+    findMany: read(model, 'findMany', ({ where }) => (matches(model, rec(), where) ? [rec()] : [])),
+    count: read(model, 'count', ({ where }) => (matches(model, rec(), where) ? 1 : 0)),
+    aggregate: read(model, 'aggregate', () => ({ _count: { id: 0 }, _sum: { quantity: null, total: null }, _avg: { total: null } })),
     groupBy: read(model, 'groupBy', () => []),
     create: write(model, 'create'),
     createMany: write(model, 'createMany'),
@@ -79,11 +110,13 @@ function modelFake(model) {
 
 export const prisma = {
   ...Object.fromEntries(Object.keys(records).map((m) => [m, modelFake(m)])),
-  saleItem: { count: read('saleItem', 'count', () => 0) },
-  purchaseItem: { count: read('purchaseItem', 'count', () => 0) },
+  saleItem: { count: read('saleItem', 'count', () => 0), groupBy: read('saleItem', 'groupBy', () => []) },
   $transaction: async (fn) => fn(prisma),
 };
 prisma.product.fields = { minStock: 'minStock' };
+// Uso de un producto en compras (catálogo): sin ítems. Los conteos de una compra sí ven el ítem de B.
+const purchaseItemCount = prisma.purchaseItem.count;
+prisma.purchaseItem.count = (args = {}) => (args.where?.productId ? read('purchaseItem', 'count', () => 0)(args) : purchaseItemCount(args));
 globalThis.__catalogPrisma = prisma;
 
 export const mocks = {
@@ -161,6 +194,6 @@ export function assertContract(test, name, { run, expectA, adminOnly = false, em
 /** Toda consulta sobre un modelo con organizationId filtra por `org`. */
 export function assertScopedTo(org) {
   for (const call of state.calls.filter((c) => SCOPED_MODELS.has(c.model))) {
-    assert.equal(call.where?.organizationId, org, `${call.model}.${call.method} filtra por la organización del actor`);
+    assert.equal(scopeOf(call.model, call.where), org, `${call.model}.${call.method} filtra por la organización del actor`);
   }
 }

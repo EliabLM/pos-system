@@ -11,6 +11,22 @@ export const name = z.string().trim().min(1, 'El nombre es requerido').max(255);
 export const shortText = z.string().trim().max(255);
 export const longText = z.string().trim().max(2000);
 
+/**
+ * Optional short text. Forms send `''` for a blank field, so empty or
+ * whitespace-only values are stored as `null`. This matters for the values
+ * under a per-organization unique index (barcode, SKU, email, document, tax
+ * id): otherwise two records without the value would collide.
+ */
+export const optionalText = shortText
+  .nullish()
+  .transform((value) => (value === '' ? null : value));
+
+/** How many rows a ranking returns. */
+export const topLimitSchema = z.number().int().positive().max(100);
+
+/** Date or ISO string from the client. */
+export const dateInput = z.coerce.date();
+
 export const paginationSchema = z
   .object({
     page: z.number().int().positive().max(100_000).optional(),

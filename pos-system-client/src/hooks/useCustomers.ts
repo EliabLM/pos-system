@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createCustomer,
-  getCustomersByOrgId,
+  getCustomers,
   getCustomerById,
   getCustomerByEmail,
   getCustomerByDocument,
@@ -76,8 +76,7 @@ export const useCustomers = (
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getCustomersByOrgId(
-        user.organizationId,
+      const response = await getCustomers(
         filters,
         includeDeleted,
         pagination
@@ -133,7 +132,7 @@ export const useCustomerByEmail = (email: string) => {
         throw new Error('Email requerido');
       }
 
-      const response = await getCustomerByEmail(user.organizationId, email);
+      const response = await getCustomerByEmail(email);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -162,10 +161,7 @@ export const useCustomerByDocument = (document: string) => {
         throw new Error('Documento requerido');
       }
 
-      const response = await getCustomerByDocument(
-        user.organizationId,
-        document
-      );
+      const response = await getCustomerByDocument(document);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -190,11 +186,7 @@ export const useCreateCustomer = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await createCustomer(
-        user.organizationId,
-        user.id,
-        customerData
-      );
+      const response = await createCustomer(customerData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -225,7 +217,7 @@ export const useUpdateCustomer = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await updateCustomer(customerId, user.id, updateData);
+      const response = await updateCustomer(customerId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -273,7 +265,7 @@ export const useSoftDeleteCustomer = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await softDeleteCustomer(customerId, user.id);
+      const response = await softDeleteCustomer(customerId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -306,7 +298,7 @@ export const useToggleCustomerActiveStatus = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await toggleCustomerActiveStatus(customerId, user.id);
+      const response = await toggleCustomerActiveStatus(customerId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -388,10 +380,7 @@ export const useTopCustomersByPurchases = (limit: number = 10) => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getTopCustomersByPurchases(
-        user.organizationId,
-        limit
-      );
+      const response = await getTopCustomersByPurchases(limit);
 
       if (response.status !== 200) {
         throw new Error(response.message);
