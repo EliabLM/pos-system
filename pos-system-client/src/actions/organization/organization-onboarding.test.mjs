@@ -4,7 +4,7 @@ import { loadWithMocks } from '../../../test/load-with-mocks.mjs';
 
 // Onboarding (#11): solo el usuario con sesión y SIN membresía crea SU
 // organización y queda como ADMIN. Identidad y rol salen de la sesión.
-const state = { session: null, memberInTx: false, writes: [], initial: [] };
+const state = { session: null, memberInTx: false, writes: [], initial: [], catalog: [] };
 globalThis.__orgTest = state;
 
 const prisma = {
@@ -16,6 +16,9 @@ const prisma = {
     findFirst: async () => (state.memberInTx ? { id: 'm-1' } : null),
     create: async ({ data }) => { state.writes.push({ model: 'membership', data }); return { id: 'm-new', ...data }; },
   },
+  category: { createMany: async ({ data }) => { state.catalog.push({ model: 'category', data }); return { count: data.length }; } },
+  brand: { createMany: async ({ data }) => { state.catalog.push({ model: 'brand', data }); return { count: data.length }; } },
+  unitMeasure: { createMany: async ({ data }) => { state.catalog.push({ model: 'unitMeasure', data }); return { count: data.length }; } },
   $queryRaw: async () => [],
   $transaction: async (fn) => fn(prisma),
 };
@@ -38,15 +41,12 @@ const { createOrganization } = await loadWithMocks('src/actions/organization/org
     };
     export const actorErrorResponse = (error) => error instanceof ActorError ? { status: error.status, message: error.message, data: null } : null;`,
   '../utils': 'export const prisma = globalThis.__orgPrisma;',
-  '../category': initial('createCategory'),
   '../payment-methods': initial('createPaymentMethod'),
-  '../brand': initial('createBrand'),
-  '../unit-measure': initial('createUnitMeasure'),
   '../system-config': 'export const setBusinessType = async () => ({ status: 201 });',
 });
 
 function reset(session) {
-  Object.assign(state, { session, memberInTx: false, writes: [], initial: [] });
+  Object.assign(state, { session, memberInTx: false, writes: [], initial: [], catalog: [] });
 }
 
 // Payload hostil: campos de tenancy/identidad que el servidor debe ignorar.
@@ -69,6 +69,9 @@ test('onboarding: el usuario sin membresía crea su organización y queda como A
     { userId: 'user-new', organizationId: 'org-new', role: 'ADMIN', status: 'ACTIVE' },
   );
   assert.ok(state.initial.length > 0 && state.initial.every((c) => c.orgId === 'org-new' && c.userId === 'user-new'));
+  // Catálogo inicial (categorías, marcas, unidades) en la organización nueva.
+  assert.deepEqual(state.catalog.map((c) => c.model), ['category', 'brand', 'unitMeasure']);
+  for (const { data } of state.catalog) assert.ok(data.length > 0 && data.every((row) => row.organizationId === 'org-new'));
 });
 
 test('onboarding: quien ya pertenece a una organización no crea otra (403)', async () => {

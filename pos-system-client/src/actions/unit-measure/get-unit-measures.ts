@@ -1,39 +1,21 @@
 'use server';
 
-import { UnitMeasure, Prisma } from '@/generated/prisma';
+import { Prisma, UnitMeasure } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma } from '../utils';
+import { unitMeasureInclude } from './unit-measure.include';
 
-const unitMeasureInclude: Prisma.UnitMeasureInclude = {
-  organization: true,
-  products: {
-    take: 5,
-    where: { isDeleted: false },
-  },
-  _count: {
-    select: {
-      products: true,
-      saleItems: true,
-    },
-  },
-};
-
-export const getUnitMeasuresByOrgId = async (
-  orgId: string,
-  isActive?: boolean
-): Promise<ActionResponse<UnitMeasure[] | null>> => {
+/** Unit measures of the actor's organization. Any member can read them. */
+export const getUnitMeasures = async (isActive?: boolean): Promise<ActionResponse<UnitMeasure[] | null>> => {
   try {
-    // Validación de orgId
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
 
     const whereClause: Prisma.UnitMeasureWhereInput = {
-      organizationId: orgId,
+      organizationId: actor.organizationId,
       isDeleted: false,
     };
-
-    if (isActive !== undefined) {
-      whereClause.isActive = isActive;
-    }
+    if (typeof isActive === 'boolean') whereClause.isActive = isActive;
 
     const unitMeasures = await prisma.unitMeasure.findMany({
       where: whereClause,
@@ -41,19 +23,11 @@ export const getUnitMeasuresByOrgId = async (
       orderBy: { name: 'asc' },
     });
 
-    return {
-      status: 200,
-      message: 'Unidades de medida obtenidas exitosamente',
-      data: unitMeasures,
-    };
+    return { status: 200, message: 'Unidades de medida obtenidas exitosamente', data: unitMeasures };
   } catch (error) {
-    console.error('🚀 ~ getUnitMeasuresByOrgId ~ error:', error);
-    return {
-      status: 500,
-      message: 'Error interno del servidor al obtener las unidades de medida',
-      data: null,
-    };
-  } finally {
-    await prisma.$disconnect();
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+    console.error('Error fetching unit measures:', error);
+    return { status: 500, message: 'Error interno del servidor al obtener las unidades de medida', data: null };
   }
 };

@@ -1,90 +1,50 @@
 'use server';
 
-import { UnitMeasure, Prisma } from '@/generated/prisma';
+import { MembershipRole, UnitMeasure } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
-import { prisma, checkAdminRole, unauthorizedResponse, checkOrgId, emptyOrgIdResponse } from '../utils';
-
-const unitMeasureInclude: Prisma.UnitMeasureInclude = {
-  organization: true,
-  products: {
-    take: 5,
-    where: { isDeleted: false },
-  },
-  _count: {
-    select: {
-      products: true,
-      saleItems: true,
-    },
-  },
-};
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma } from '../utils';
+import { firstIssue, invalidInput } from '../common.schemas';
+import { unitMeasureInclude } from './unit-measure.include';
+import { createUnitMeasureInputSchema, type CreateUnitMeasureInput } from './unit-measure.schemas';
 
 export const createUnitMeasure = async (
-  orgId: string,
-  userId: string,
-  unitMeasureData: Omit<UnitMeasure, 'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>
+  input: CreateUnitMeasureInput
 ): Promise<ActionResponse<UnitMeasure | null>> => {
   try {
-    // Validación de orgId
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: [MembershipRole.ADMIN] });
+    const parsed = createUnitMeasureInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const { name, abbreviation, isActive } = parsed.data;
+    const organizationId = actor.organizationId;
 
-    const isAdmin = await checkAdminRole(userId, orgId);
-    if (!isAdmin) return unauthorizedResponse();
-
-    // Verificar que no exista una unidad con el mismo nombre (considerando soft delete)
+    // Unique name and abbreviation among the organization's live units
     const existingUnit = await prisma.unitMeasure.findFirst({
-      where: {
-        organizationId: orgId,
-        name: unitMeasureData.name,
-        isDeleted: false,
-      },
+      where: { organizationId, name, isDeleted: false },
+      select: { id: true },
     });
-
     if (existingUnit) {
-      return {
-        status: 400,
-        message: 'Ya existe una unidad de medida con este nombre',
-        data: null,
-      };
+      return { status: 400, message: 'Ya existe una unidad de medida con este nombre', data: null };
     }
 
-    // Verificar que no exista una unidad con la misma abreviación (considerando soft delete)
     const existingAbbrev = await prisma.unitMeasure.findFirst({
-      where: {
-        organizationId: orgId,
-        abbreviation: unitMeasureData.abbreviation,
-        isDeleted: false,
-      },
+      where: { organizationId, abbreviation, isDeleted: false },
+      select: { id: true },
     });
-
     if (existingAbbrev) {
-      return {
-        status: 400,
-        message: 'Ya existe una unidad de medida con esta abreviación',
-        data: null,
-      };
+      return { status: 400, message: 'Ya existe una unidad de medida con esta abreviación', data: null };
     }
 
     const newUnitMeasure = await prisma.unitMeasure.create({
-      data: {
-        ...unitMeasureData,
-        organizationId: orgId,
-      },
+      data: { name, abbreviation, isActive: isActive ?? true, organizationId },
       include: unitMeasureInclude,
     });
 
-    return {
-      status: 201,
-      message: 'Unidad de medida creada exitosamente',
-      data: newUnitMeasure,
-    };
+    return { status: 201, message: 'Unidad de medida creada exitosamente', data: newUnitMeasure };
   } catch (error) {
-    console.error('🚀 ~ createUnitMeasure ~ error:', error);
-    return {
-      status: 500,
-      message: 'Error interno del servidor al crear la unidad de medida',
-      data: null,
-    };
-  } finally {
-    await prisma.$disconnect();
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
+    console.error('Error creating unit measure:', error);
+    return { status: 500, message: 'Error interno del servidor al crear la unidad de medida', data: null };
   }
 };

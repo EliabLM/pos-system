@@ -1,5 +1,6 @@
 export * from './create-category'
-export * from './get-categories-by-org-id'
+export * from './get-categories'
 export * from './get-category-by-id'
 export * from './soft-delete-category'
 export * from './update-category'
+export type { CreateCategoryInput, UpdateCategoryInput } from './category.schemas'

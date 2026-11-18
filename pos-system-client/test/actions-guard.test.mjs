@@ -20,7 +20,7 @@ const GUARDS = new Set(['getActor', 'requireActor']);
 
 /** Módulos pendientes de migrar (ruta relativa a src/actions → issue). */
 const PENDING = {
-  category: '#12', brand: '#12', 'unit-measure': '#12', 'stock-movement': '#12',
+  'stock-movement': '#12',
   customer: '#13', supplier: '#13', purchase: '#13', 'purchase-item': '#13', 'payment-methods': '#13',
   store: '#14', 'system-config': '#14',
   reports: '#15', dashboard: '#15',
@@ -133,7 +133,7 @@ test('guardián: listas de pendientes y públicas al día', () => {
     assert.ok(!migrated, `${mod} ya usa el actor central: sácalo de PENDING (${issue})`);
   }
   for (const rel of Object.keys(ONBOARDING)) assert.ok(existsSync(join(ACTIONS_DIR, rel)), `ONBOARDING obsoleto: ${rel}`);
-  const MIGRATED = ['sale', 'sale-item', 'sale-payment', 'user', 'organization', 'product'];
+  const MIGRATED = ['sale', 'sale-item', 'sale-payment', 'user', 'organization', 'product', 'category', 'brand', 'unit-measure'];
   for (const mod of MIGRATED) {
     assert.ok(!PENDING[mod], `${mod} no puede volver a PENDING`);
     assert.ok(results.some((r) => r.module === mod), `${mod} debe tener actions 'use server'`);
