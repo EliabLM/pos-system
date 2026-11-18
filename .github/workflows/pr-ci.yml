@@ -1,7 +1,10 @@
 name: PR CI
 on:
+  # Cualquier rama base: también corre en PR apilados (base distinta de main).
   pull_request:
-    branches: [main]
+concurrency:
+  group: pr-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
