@@ -8,14 +8,19 @@ import {
   ProductWithIncludesNumberPrice,
   Serialized,
 } from '@/interfaces';
+import { prisma, serializeDecimals } from '../utils';
+import { firstIssue, idSchema, internalError, invalidInput } from '../common.schemas';
 import {
-  prisma,
-  checkAdminRole,
-  unauthorizedResponse,
-  checkOrgId,
-  emptyOrgIdResponse,
-  serializeDecimals,
-} from '../utils';
+  createProductInputSchema,
+  lookupCodeSchema,
+  productFiltersSchema,
+  updateProductInputSchema,
+  updateStockInputSchema,
+  type CreateProductInput,
+  type ProductFiltersInput,
+  type StockUpdateType,
+  type UpdateProductInput,
+} from './product.schemas';
 
 const invalidImageResponse = () => ({
   status: 400,
@@ -75,119 +80,109 @@ const productInclude: Prisma.ProductInclude = {
   },
 };
 
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
+
+const productNotFound = () => ({ status: 404, message: 'Producto no encontrado', data: null }) as const;
+const invalidProductId = () => invalidInput('ID del producto es requerido');
+
+const handleError = (error: unknown, context: string) => {
+  const denied = actorErrorResponse(error);
+  if (denied) return denied;
+  console.error(`Error ${context}:`, error);
+  return internalError();
+};
+
+/** Maps Prisma unique/foreign-key errors on products to user-facing responses. */
+const productWriteError = (error: unknown) => {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return null;
+  if (error.code === 'P2002') {
+    const target = error.meta?.target;
+    const fields = Array.isArray(target) ? target.map(String) : [];
+    if (fields.includes('barcode')) {
+      return { status: 409, message: 'Ya existe un producto con ese código de barras', data: null };
+    }
+    if (fields.includes('sku')) {
+      return { status: 409, message: 'Ya existe un producto con ese SKU', data: null };
+    }
+  }
+  if (error.code === 'P2025') return productNotFound();
+  if (error.code === 'P2003') {
+    return { status: 400, message: 'Una de las referencias especificadas no existe', data: null };
+  }
+  return null;
+};
+
+/**
+ * Checks that the referenced category, brand and unit measure belong to the
+ * organization. Returns an error response, or null when all are valid.
+ */
+const checkReferences = async (
+  organizationId: string,
+  refs: { categoryId?: string | null; brandId?: string | null; unitMeasureId?: string | null }
+) => {
+  const scope = { organizationId, isDeleted: false };
+  if (refs.categoryId) {
+    const category = await prisma.category.findFirst({ where: { id: refs.categoryId, ...scope }, select: { id: true } });
+    if (!category) return invalidInput('La categoría especificada no existe');
+  }
+  if (refs.brandId) {
+    const brand = await prisma.brand.findFirst({ where: { id: refs.brandId, ...scope }, select: { id: true } });
+    if (!brand) return invalidInput('La marca especificada no existe');
+  }
+  if (refs.unitMeasureId) {
+    const unit = await prisma.unitMeasure.findFirst({ where: { id: refs.unitMeasureId, ...scope }, select: { id: true } });
+    if (!unit) return invalidInput('La unidad de medida especificada no existe');
+  }
+  return null;
+};
+
+/** Checks barcode/SKU uniqueness among the organization's live products. */
+const checkUniqueCodes = async (
+  organizationId: string,
+  codes: { barcode?: string | null; sku?: string | null },
+  excludeId?: string
+) => {
+  const scope = { organizationId, isDeleted: false, ...(excludeId ? { id: { not: excludeId } } : {}) };
+  if (codes.barcode) {
+    const duplicate = await prisma.product.findFirst({ where: { ...scope, barcode: codes.barcode }, select: { id: true } });
+    if (duplicate) {
+      return { status: 409, message: 'Ya existe un producto con ese código de barras en la organización', data: null };
+    }
+  }
+  if (codes.sku) {
+    const duplicate = await prisma.product.findFirst({ where: { ...scope, sku: codes.sku }, select: { id: true } });
+    if (duplicate) {
+      return { status: 409, message: 'Ya existe un producto con ese SKU en la organización', data: null };
+    }
+  }
+  return null;
+};
+
 // CREATE
 export const createProduct = async (
-  orgId: string,
-  userId: string,
-  productData: Omit<
-    Serialized<Product>,
-    'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >
+  input: CreateProductInput
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
+  // Uploaded image to discard if the save fails.
+  let pendingImage: { url: string; organizationId: string } | null = null;
   try {
-    const isAdmin = await checkAdminRole(userId, orgId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const parsed = createProductInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const data = parsed.data;
+    const organizationId = actor.organizationId;
 
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    if (!isOrgProductImageUrl(data.image, organizationId)) return invalidImageResponse();
+    if (data.image) pendingImage = { url: data.image, organizationId };
 
-    if (!isOrgProductImageUrl(productData.image, orgId)) return invalidImageResponse();
-
-    // Verificar unicidad de barcode si se proporciona
-    if (productData.barcode) {
-      const existingProductByBarcode = await prisma.product.findFirst({
-        where: {
-          organizationId: orgId,
-          barcode: productData.barcode,
-          isDeleted: false,
-        },
-      });
-
-      if (existingProductByBarcode) {
-        return {
-          status: 409,
-          message: 'Ya existe un producto con ese código de barras en la organización',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar unicidad de SKU si se proporciona
-    if (productData.sku) {
-      const existingProductBySku = await prisma.product.findFirst({
-        where: {
-          organizationId: orgId,
-          sku: productData.sku,
-          isDeleted: false,
-        },
-      });
-
-      if (existingProductBySku) {
-        return {
-          status: 409,
-          message: 'Ya existe un producto con ese SKU en la organización',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar que unitMeasureId existe
-    // if (productData.unitMeasureId) {
-    //   const unitMeasure = await prisma.unitMeasure.findUnique({
-    //     where: { id: productData.unitMeasureId },
-    //   });
-
-    //   if (!unitMeasure) {
-    //     return {
-    //       status: 400,
-    //       message: 'La unidad de medida especificada no existe',
-    //       data: null,
-    //     };
-    //   }
-    // }
-
-    // Verificar que categoryId existe si se proporciona
-    if (productData.categoryId) {
-      const category = await prisma.category.findFirst({
-        where: {
-          id: productData.categoryId,
-          organizationId: orgId,
-          isDeleted: false,
-        },
-      });
-
-      if (!category) {
-        return {
-          status: 400,
-          message: 'La categoría especificada no existe',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar que brandId existe si se proporciona
-    if (productData.brandId) {
-      const brand = await prisma.brand.findFirst({
-        where: {
-          id: productData.brandId,
-          organizationId: orgId,
-          isDeleted: false,
-        },
-      });
-
-      if (!brand) {
-        return {
-          status: 400,
-          message: 'La marca especificada no existe',
-          data: null,
-        };
-      }
+    const conflict =
+      (await checkUniqueCodes(organizationId, data)) ?? (await checkReferences(organizationId, data));
+    if (conflict) {
+      await deleteImageIfUnused(pendingImage?.url, organizationId).catch(() => undefined);
+      return conflict;
     }
 
     const newProduct = await prisma.product.create({
-      data: {
-        ...productData,
-        organizationId: orgId,
-      },
+      data: { ...data, organizationId },
       include: productInclude,
     });
 
@@ -197,85 +192,42 @@ export const createProduct = async (
       data: serializeDecimals(newProduct),
     };
   } catch (error) {
-    console.error('Error creating product:', error);
-
-    await deleteImageIfUnused(productData.image, orgId).catch(() => undefined);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        const target = error.meta?.target as string[];
-        if (target?.includes('barcode')) {
-          return {
-            status: 409,
-            message: 'Ya existe un producto con ese código de barras',
-            data: null,
-          };
-        }
-        if (target?.includes('sku')) {
-          return {
-            status: 409,
-            message: 'Ya existe un producto con ese SKU',
-            data: null,
-          };
-        }
-      }
-      if (error.code === 'P2003') {
-        return {
-          status: 400,
-          message: 'Una de las referencias especificadas no existe',
-          data: null,
-        };
-      }
+    if (pendingImage) {
+      await deleteImageIfUnused(pendingImage.url, pendingImage.organizationId).catch(() => undefined);
     }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return productWriteError(error) ?? handleError(error, 'creating product');
   }
 };
 
-// GET MANY
-export const getProductsByOrgId = async (
-  orgId: string,
-  filters?: {
-    isActive?: boolean;
-    categoryId?: string;
-    brandId?: string;
-    lowStock?: boolean;
-    search?: string;
-  },
+// GET MANY. Any member; a SELLER only sees active, non-deleted products (what it can sell).
+export const getProducts = async (
+  filters?: ProductFiltersInput,
   includeDeleted: boolean = false
 ): Promise<ActionResponse<ProductWithIncludesNumberPrice[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
+    const parsed = productFiltersSchema.safeParse(filters);
+    if (!parsed.success) return invalidInput('Filtros inválidos');
+    const f = parsed.data;
+    const isAdmin = actor.role === MembershipRole.ADMIN;
 
     const whereClause: Prisma.ProductWhereInput = {
-      organizationId: orgId,
-      isDeleted: includeDeleted ? undefined : false,
+      organizationId: actor.organizationId,
+      isDeleted: isAdmin && includeDeleted === true ? undefined : false,
     };
 
-    if (filters?.isActive !== undefined) {
-      whereClause.isActive = filters.isActive;
-    }
+    if (!isAdmin) whereClause.isActive = true;
+    else if (typeof f?.isActive === 'boolean') whereClause.isActive = f.isActive;
 
-    if (filters?.categoryId) {
-      whereClause.categoryId = filters.categoryId;
-    }
-
-    if (filters?.brandId) {
-      whereClause.brandId = filters.brandId;
-    }
-
-    if (filters?.lowStock) {
-      whereClause.currentStock = {
-        lte: prisma.product.fields.minStock,
-      };
-    }
-
-    if (filters?.search) {
+    if (f?.categoryId) whereClause.categoryId = f.categoryId;
+    if (f?.brandId) whereClause.brandId = f.brandId;
+    if (f?.lowStock) whereClause.currentStock = { lte: prisma.product.fields.minStock };
+    if (f?.search) {
       whereClause.OR = [
-        { name: { contains: filters.search, mode: 'insensitive' } },
-        { description: { contains: filters.search, mode: 'insensitive' } },
-        { barcode: { contains: filters.search, mode: 'insensitive' } },
-        { sku: { contains: filters.search, mode: 'insensitive' } },
+        { name: { contains: f.search, mode: 'insensitive' } },
+        { description: { contains: f.search, mode: 'insensitive' } },
+        { barcode: { contains: f.search, mode: 'insensitive' } },
+        { sku: { contains: f.search, mode: 'insensitive' } },
       ];
     }
 
@@ -291,30 +243,24 @@ export const getProductsByOrgId = async (
       data: serializeDecimals(products),
     };
   } catch (error) {
-    console.error('Error fetching products:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching products');
   }
 };
 
-// GET ONE
+// GET ONE (product detail, ADMIN)
 export const getProductById = async (
   productId: string
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    if (!id.success) return invalidProductId();
 
     const product = await prisma.product.findFirst({
-      where: { id: productId, isDeleted: false },
+      where: { id: id.data, organizationId: actor.organizationId, isDeleted: false },
       include: productInclude,
     });
-
-    if (!product)
-      return { status: 404, message: 'Producto no encontrado', data: null };
+    if (!product) return productNotFound();
 
     return {
       status: 200,
@@ -322,240 +268,105 @@ export const getProductById = async (
       data: serializeDecimals(product),
     };
   } catch (error) {
-    console.error('Error fetching product:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching product');
   }
 };
 
-// GET BY BARCODE
+/** Active product of the organization by barcode or SKU. */
+const findActiveProductByCode = async (organizationId: string, field: 'barcode' | 'sku', code: string) => {
+  const product = await prisma.product.findFirst({
+    where: { organizationId, [field]: code, isDeleted: false, isActive: true },
+    include: productInclude,
+  });
+  if (!product) return productNotFound();
+  return {
+    status: 200,
+    message: 'Producto obtenido exitosamente',
+    data: serializeDecimals(product),
+  };
+};
+
+// GET BY BARCODE (any member, for selling)
 export const getProductByBarcode = async (
-  orgId: string,
   barcode: string
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    if (!barcode)
-      return {
-        status: 400,
-        message: 'Código de barras es requerido',
-        data: null,
-      };
-
-    const product = await prisma.product.findFirst({
-      where: {
-        organizationId: orgId,
-        barcode,
-        isDeleted: false,
-        isActive: true,
-      },
-      include: productInclude,
-    });
-
-    if (!product)
-      return { status: 404, message: 'Producto no encontrado', data: null };
-
-    return {
-      status: 200,
-      message: 'Producto obtenido exitosamente',
-      data: serializeDecimals(product),
-    };
+    const actor = await requireActor();
+    const code = lookupCodeSchema.safeParse(barcode);
+    if (!code.success) return invalidInput('Código de barras es requerido');
+    return await findActiveProductByCode(actor.organizationId, 'barcode', code.data);
   } catch (error) {
-    console.error('Error fetching product by barcode:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching product by barcode');
   }
 };
 
-// GET BY SKU
+// GET BY SKU (any member, for selling)
 export const getProductBySku = async (
-  orgId: string,
   sku: string
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    if (!sku)
-      return {
-        status: 400,
-        message: 'SKU es requerido',
-        data: null,
-      };
-
-    const product = await prisma.product.findFirst({
-      where: {
-        organizationId: orgId,
-        sku,
-        isDeleted: false,
-        isActive: true,
-      },
-      include: productInclude,
-    });
-
-    if (!product)
-      return { status: 404, message: 'Producto no encontrado', data: null };
-
-    return {
-      status: 200,
-      message: 'Producto obtenido exitosamente',
-      data: serializeDecimals(product),
-    };
+    const actor = await requireActor();
+    const code = lookupCodeSchema.safeParse(sku);
+    if (!code.success) return invalidInput('SKU es requerido');
+    return await findActiveProductByCode(actor.organizationId, 'sku', code.data);
   } catch (error) {
-    console.error('Error fetching product by SKU:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching product by SKU');
   }
 };
 
 // UPDATE
 export const updateProduct = async (
   productId: string,
-  userId: string,
-  updateData: Partial<
-    Omit<
-      Serialized<Product>,
-      'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-    >
-  >
+  input: UpdateProductInput
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
   // Newly uploaded image to discard if the update fails.
   let pendingImage: { url: string; organizationId: string } | null = null;
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    if (!id.success) return invalidProductId();
+    const parsed = updateProductInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const data = parsed.data;
+    const organizationId = actor.organizationId;
 
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
-
-    // Verificar que el producto exista y no esté eliminado
-    const existingProduct = await prisma.product.findFirst({
-      where: { id: productId, isDeleted: false },
-    });
-
-    if (!existingProduct) {
-      return { status: 404, message: 'Producto no encontrado', data: null };
-    }
+    const where = { id: id.data, organizationId, isDeleted: false };
+    const existingProduct = await prisma.product.findFirst({ where });
+    if (!existingProduct) return productNotFound();
 
     // `image: undefined` means "not changing"; `null` removes it.
     const oldImageUrl = existingProduct.image;
-    const imageChanged = updateData.image !== undefined && updateData.image !== oldImageUrl;
-    if (imageChanged && !isOrgProductImageUrl(updateData.image, existingProduct.organizationId)) {
+    const imageChanged = data.image !== undefined && data.image !== oldImageUrl;
+    if (imageChanged && !isOrgProductImageUrl(data.image, organizationId)) {
       return invalidImageResponse();
     }
-    if (imageChanged && updateData.image) {
-      pendingImage = { url: updateData.image, organizationId: existingProduct.organizationId };
-    }
+    if (imageChanged && data.image) pendingImage = { url: data.image, organizationId };
 
-    // Verificar unicidad de barcode si se está actualizando
-    if (updateData.barcode && updateData.barcode !== existingProduct.barcode) {
-      const duplicateProductByBarcode = await prisma.product.findFirst({
-        where: {
-          organizationId: existingProduct.organizationId,
-          barcode: updateData.barcode,
-          isDeleted: false,
-          id: { not: productId },
-        },
-      });
-
-      if (duplicateProductByBarcode) {
-        return {
-          status: 409,
-          message: 'Ya existe un producto con ese código de barras',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar unicidad de SKU si se está actualizando
-    if (updateData.sku && updateData.sku !== existingProduct.sku) {
-      const duplicateProductBySku = await prisma.product.findFirst({
-        where: {
-          organizationId: existingProduct.organizationId,
-          sku: updateData.sku,
-          isDeleted: false,
-          id: { not: productId },
-        },
-      });
-
-      if (duplicateProductBySku) {
-        return {
-          status: 409,
-          message: 'Ya existe un producto con ese SKU',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar referencias si se están actualizando
-    if (updateData.categoryId && updateData.categoryId !== existingProduct.categoryId) {
-      const category = await prisma.category.findFirst({
-        where: {
-          id: updateData.categoryId,
-          organizationId: existingProduct.organizationId,
-          isDeleted: false,
-        },
-      });
-
-      if (!category) {
-        return {
-          status: 400,
-          message: 'La categoría especificada no existe',
-          data: null,
-        };
-      }
-    }
-
-    if (updateData.brandId && updateData.brandId !== existingProduct.brandId) {
-      const brand = await prisma.brand.findFirst({
-        where: {
-          id: updateData.brandId,
-          organizationId: existingProduct.organizationId,
-          isDeleted: false,
-        },
-      });
-
-      if (!brand) {
-        return {
-          status: 400,
-          message: 'La marca especificada no existe',
-          data: null,
-        };
-      }
-    }
-
-    if (updateData.unitMeasureId && updateData.unitMeasureId !== existingProduct.unitMeasureId) {
-      const unitMeasure = await prisma.unitMeasure.findFirst({
-        where: {
-          id: updateData.unitMeasureId,
-          organizationId: existingProduct.organizationId,
-          isDeleted: false,
-        },
-      });
-
-      if (!unitMeasure) {
-        return {
-          status: 400,
-          message: 'La unidad de medida especificada no existe',
-          data: null,
-        };
-      }
+    // Only check codes and references that change.
+    const changed = <K extends 'barcode' | 'sku' | 'categoryId' | 'brandId' | 'unitMeasureId'>(key: K) =>
+      data[key] !== existingProduct[key] ? data[key] : undefined;
+    const conflict =
+      (await checkUniqueCodes(organizationId, { barcode: changed('barcode'), sku: changed('sku') }, existingProduct.id)) ??
+      (await checkReferences(organizationId, {
+        categoryId: changed('categoryId'),
+        brandId: changed('brandId'),
+        unitMeasureId: changed('unitMeasureId'),
+      }));
+    if (conflict) {
+      if (pendingImage) await deleteImageIfUnused(pendingImage.url, organizationId).catch(() => undefined);
+      return conflict;
     }
 
     const updatedProduct = await prisma.product.update({
-      where: { id: productId },
-      data: {
-        ...updateData,
-        updatedAt: new Date(),
-      },
+      where,
+      data: { ...data, updatedAt: new Date() },
       include: productInclude,
     });
     pendingImage = null;
 
     // Remove the previous file only after the new reference is saved.
     if (imageChanged) {
-      await deleteImageIfUnused(oldImageUrl, existingProduct.organizationId).catch(() => undefined);
+      await deleteImageIfUnused(oldImageUrl, organizationId).catch(() => undefined);
     }
 
     return {
@@ -564,105 +375,45 @@ export const updateProduct = async (
       data: serializeDecimals(updatedProduct),
     };
   } catch (error) {
-    console.error('Error updating product:', error);
-
     if (pendingImage) {
       await deleteImageIfUnused(pendingImage.url, pendingImage.organizationId).catch(() => undefined);
     }
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        const target = error.meta?.target as string[];
-        if (target?.includes('barcode')) {
-          return {
-            status: 409,
-            message: 'Ya existe un producto con ese código de barras',
-            data: null,
-          };
-        }
-        if (target?.includes('sku')) {
-          return {
-            status: 409,
-            message: 'Ya existe un producto con ese SKU',
-            data: null,
-          };
-        }
-      }
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Producto no encontrado', data: null };
-      }
-      if (error.code === 'P2003') {
-        return {
-          status: 400,
-          message: 'Una de las referencias especificadas no existe',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return productWriteError(error) ?? handleError(error, 'updating product');
   }
 };
 
 // UPDATE STOCK
 export const updateStock = async (
   productId: string,
-  userId: string,
   stockChange: number,
-  type: 'SET' | 'INCREMENT' | 'DECREMENT'
+  type: StockUpdateType
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    if (!id.success) return invalidProductId();
+    const parsed = updateStockInputSchema.safeParse({ stockChange, type });
+    if (!parsed.success) return invalidInput('Operación de stock inválida');
 
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: false };
+    const existingProduct = await prisma.product.findFirst({ where, select: { currentStock: true } });
+    if (!existingProduct) return productNotFound();
 
-    const existingProduct = await prisma.product.findFirst({
-      where: { id: productId, isDeleted: false },
-    });
-
-    if (!existingProduct) {
-      return { status: 404, message: 'Producto no encontrado', data: null };
-    }
-
-    let newStock: number;
-    switch (type) {
-      case 'SET':
-        newStock = stockChange;
-        break;
-      case 'INCREMENT':
-        newStock = existingProduct.currentStock + stockChange;
-        break;
-      case 'DECREMENT':
-        newStock = existingProduct.currentStock - stockChange;
-        break;
-      default:
-        return {
-          status: 400,
-          message: 'Tipo de operación de stock inválido',
-          data: null,
-        };
-    }
+    const { stockChange: change } = parsed.data;
+    const newStock =
+      parsed.data.type === 'SET'
+        ? change
+        : parsed.data.type === 'INCREMENT'
+          ? existingProduct.currentStock + change
+          : existingProduct.currentStock - change;
 
     if (newStock < 0) {
-      return {
-        status: 400,
-        message: 'El stock no puede ser negativo',
-        data: null,
-      };
+      return { status: 400, message: 'El stock no puede ser negativo', data: null };
     }
 
     const updatedProduct = await prisma.product.update({
-      where: { id: productId },
-      data: {
-        currentStock: newStock,
-        updatedAt: new Date(),
-      },
+      where,
+      data: { currentStock: newStock, updatedAt: new Date() },
       include: productInclude,
     });
 
@@ -672,33 +423,21 @@ export const updateStock = async (
       data: serializeDecimals(updatedProduct),
     };
   } catch (error) {
-    console.error('Error updating stock:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Producto no encontrado', data: null };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return productWriteError(error) ?? handleError(error, 'updating stock');
   }
 };
 
-// GET LOW STOCK PRODUCTS
-export const getLowStockProducts = async (
-  orgId: string
-): Promise<ActionResponse<Serialized<Product>[] | null>> => {
+// GET LOW STOCK PRODUCTS (inventory, ADMIN)
+export const getLowStockProducts = async (): Promise<ActionResponse<Serialized<Product>[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
 
     const products = await prisma.product.findMany({
       where: {
-        organizationId: orgId,
+        organizationId: actor.organizationId,
         isDeleted: false,
         isActive: true,
-        currentStock: {
-          lte: prisma.product.fields.minStock,
-        },
+        currentStock: { lte: prisma.product.fields.minStock },
       },
       include: productInclude,
       orderBy: { currentStock: 'asc' },
@@ -710,36 +449,25 @@ export const getLowStockProducts = async (
       data: serializeDecimals(products),
     };
   } catch (error) {
-    console.error('Error fetching low stock products:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching low stock products');
   }
 };
 
 // SOFT DELETE
-export const softDeleteProduct = async (
-  productId: string,
-  userId: string
-): Promise<ActionResponse> => {
+export const softDeleteProduct = async (productId: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    if (!id.success) return invalidProductId();
 
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: false };
+    const product = await prisma.product.findFirst({ where, select: { id: true } });
+    if (!product) return productNotFound();
 
-    // Verificar si hay items de venta asociados
-    const saleItemsCount = await prisma.saleItem.count({
-      where: { productId },
-    });
-
-    // Verificar si hay items de compra asociados
-    const purchaseItemsCount = await prisma.purchaseItem.count({
-      where: { productId },
-    });
+    const [saleItemsCount, purchaseItemsCount] = await Promise.all([
+      prisma.saleItem.count({ where: { productId: product.id } }),
+      prisma.purchaseItem.count({ where: { productId: product.id } }),
+    ]);
 
     if (saleItemsCount > 0 || purchaseItemsCount > 0) {
       return {
@@ -750,56 +478,32 @@ export const softDeleteProduct = async (
     }
 
     await prisma.product.update({
-      where: { id: productId },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-        isActive: false,
-        updatedAt: new Date(),
-      },
+      where,
+      data: { isDeleted: true, deletedAt: new Date(), isActive: false, updatedAt: new Date() },
     });
 
-    return {
-      status: 200,
-      message: 'Producto eliminado (soft) exitosamente',
-      data: null,
-    };
+    return { status: 200, message: 'Producto eliminado (soft) exitosamente', data: null };
   } catch (error) {
-    console.error('Error soft deleting product:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Producto no encontrado', data: null };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return productWriteError(error) ?? handleError(error, 'soft deleting product');
   }
 };
 
 // RESTORE
 export const restoreProduct = async (
-  productId: string,
-  userId: string
+  productId: string
 ): Promise<ActionResponse<Serialized<Product> | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    if (!id.success) return invalidProductId();
 
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: true };
+    const product = await prisma.product.findFirst({ where, select: { id: true } });
+    if (!product) return productNotFound();
 
     const restoredProduct = await prisma.product.update({
-      where: { id: productId },
-      data: {
-        isDeleted: false,
-        deletedAt: null,
-        updatedAt: new Date(),
-      },
+      where,
+      data: { isDeleted: false, deletedAt: null, updatedAt: new Date() },
       include: productInclude,
     });
 
@@ -809,138 +513,77 @@ export const restoreProduct = async (
       data: serializeDecimals(restoredProduct),
     };
   } catch (error) {
-    console.error('Error restoring product:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Producto no encontrado', data: null };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return productWriteError(error) ?? handleError(error, 'restoring product');
   }
 };
 
 // HARD DELETE
-export const deleteProduct = async (
-  productId: string,
-  userId: string
-): Promise<ActionResponse> => {
+export const deleteProduct = async (productId: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    if (!id.success) return invalidProductId();
+    const organizationId = actor.organizationId;
 
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
+    const where = { id: id.data, organizationId };
+    const product = await prisma.product.findFirst({ where, select: { id: true, image: true } });
+    if (!product) return productNotFound();
 
-    // Verificar si hay transacciones asociadas
-    const saleItemsCount = await prisma.saleItem.count({
-      where: { productId },
-    });
-
-    const purchaseItemsCount = await prisma.purchaseItem.count({
-      where: { productId },
-    });
-
-    const stockMovementsCount = await prisma.stockMovement.count({
-      where: { productId },
-    });
+    const [saleItemsCount, purchaseItemsCount, stockMovementsCount] = await Promise.all([
+      prisma.saleItem.count({ where: { productId: product.id } }),
+      prisma.purchaseItem.count({ where: { productId: product.id } }),
+      prisma.stockMovement.count({ where: { organizationId, productId: product.id } }),
+    ]);
 
     if (saleItemsCount > 0 || purchaseItemsCount > 0 || stockMovementsCount > 0) {
       return {
         status: 409,
-        message: `No se puede eliminar permanentemente el producto. Tiene transacciones o movimientos asociados. Use eliminación suave en su lugar.`,
+        message: 'No se puede eliminar permanentemente el producto. Tiene transacciones o movimientos asociados. Use eliminación suave en su lugar.',
         data: null,
       };
     }
 
-    const productToDelete = await prisma.product.findUnique({
-      where: { id: productId },
-    });
+    await prisma.product.delete({ where });
 
-    await prisma.product.delete({ where: { id: productId } });
-
-    if (productToDelete?.image) {
-      await deleteImageIfUnused(productToDelete.image, productToDelete.organizationId).catch(() => undefined);
+    if (product.image) {
+      await deleteImageIfUnused(product.image, organizationId).catch(() => undefined);
     }
 
-    return {
-      status: 200,
-      message: 'Producto eliminado permanentemente',
-      data: null,
-    };
+    return { status: 200, message: 'Producto eliminado permanentemente', data: null };
   } catch (error) {
-    console.error('Error hard deleting product:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Producto no encontrado', data: null };
-      }
-      if (error.code === 'P2003') {
-        return {
-          status: 409,
-          message: 'No se puede eliminar el producto debido a relaciones existentes',
-          data: null,
-        };
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+      return {
+        status: 409,
+        message: 'No se puede eliminar el producto debido a relaciones existentes',
+        data: null,
+      };
     }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return productWriteError(error) ?? handleError(error, 'hard deleting product');
   }
 };
 
-export const deleteProductImage = async (
-  productId: string,
-  userId: string
-): Promise<ActionResponse> => {
+// DELETE IMAGE
+export const deleteProductImage = async (productId: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    if (!id.success) return invalidProductId();
+    const organizationId = actor.organizationId;
 
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
-
-    const product = await prisma.product.findFirst({
-      where: { id: productId, isDeleted: false },
-    });
-
-    if (!product) {
-      return { status: 404, message: 'Producto no encontrado', data: null };
-    }
+    const where = { id: id.data, organizationId, isDeleted: false };
+    const product = await prisma.product.findFirst({ where, select: { id: true, image: true } });
+    if (!product) return productNotFound();
 
     if (!product.image) {
-      return {
-        status: 400,
-        message: 'El producto no tiene imagen para eliminar',
-        data: null,
-      };
+      return { status: 400, message: 'El producto no tiene imagen para eliminar', data: null };
     }
 
     // Quitar la referencia y luego borrar el archivo
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        image: null,
-        updatedAt: new Date(),
-      },
-    });
-    await deleteImageIfUnused(product.image, product.organizationId);
+    await prisma.product.update({ where, data: { image: null, updatedAt: new Date() } });
+    await deleteImageIfUnused(product.image, organizationId);
 
-    return {
-      status: 200,
-      message: 'Imagen del producto eliminada exitosamente',
-      data: null,
-    };
+    return { status: 200, message: 'Imagen del producto eliminada exitosamente', data: null };
   } catch (error) {
-    console.error('Error deleting product image:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'deleting product image');
   }
 };

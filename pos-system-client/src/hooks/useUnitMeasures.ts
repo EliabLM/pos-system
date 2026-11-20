@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createUnitMeasure,
-  getUnitMeasuresByOrgId,
+  getUnitMeasures,
+  type CreateUnitMeasureInput,
+  type UpdateUnitMeasureInput,
   updateUnitMeasure,
   softDeleteUnitMeasure,
 } from '@/actions/unit-measure';
 import { useStore } from '@/store';
-import { UnitMeasure } from '@/generated/prisma';
 
 export const useUnitMeasures = (isActive?: boolean) => {
   const user = useStore((state) => state.user);
@@ -18,10 +19,7 @@ export const useUnitMeasures = (isActive?: boolean) => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getUnitMeasuresByOrgId(
-        user.organizationId,
-        isActive
-      );
+      const response = await getUnitMeasures(isActive);
 
       // Manejar errores de la respuesta
       if (response.status !== 200) {
@@ -43,25 +41,13 @@ export const useCreateUnitMeasure = () => {
 
   return useMutation({
     mutationFn: async (
-      unitMeasureData: Omit<
-        UnitMeasure,
-        | 'id'
-        | 'organizationId'
-        | 'createdAt'
-        | 'updatedAt'
-        | 'isDeleted'
-        | 'deletedAt'
-      >
+      unitMeasureData: CreateUnitMeasureInput
     ) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await createUnitMeasure(
-        user.organizationId,
-        user.id,
-        unitMeasureData
-      );
+      const response = await createUnitMeasure(unitMeasureData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -92,27 +78,13 @@ export const useUpdateUnitMeasure = () => {
       unitMeasureData,
     }: {
       unitMeasureId: string;
-      unitMeasureData: Partial<
-        Omit<
-          UnitMeasure,
-          | 'id'
-          | 'organizationId'
-          | 'createdAt'
-          | 'updatedAt'
-          | 'isDeleted'
-          | 'deletedAt'
-        >
-      >;
+      unitMeasureData: UpdateUnitMeasureInput;
     }) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await updateUnitMeasure(
-        unitMeasureId,
-        user.id,
-        unitMeasureData
-      );
+      const response = await updateUnitMeasure(unitMeasureId, unitMeasureData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -143,7 +115,7 @@ export const useSoftDeleteUnitMeasure = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await softDeleteUnitMeasure(unitMeasureId, user.id);
+      const response = await softDeleteUnitMeasure(unitMeasureId);
 
       if (response.status !== 200) {
         throw new Error(response.message);

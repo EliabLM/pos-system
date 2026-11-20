@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createStockMovement,
-  getStockMovementsByOrgId,
+  getStockMovements,
   getStockMovementById,
   getStockMovementsByProductId,
   updateStockMovement,
@@ -36,7 +36,6 @@ interface CreateStockMovementData {
   reason?: string;
   reference?: string;
   storeId?: string;
-  userId: string;
 }
 
 interface UpdateStockMovementData {
@@ -59,11 +58,7 @@ export const useStockMovements = (
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getStockMovementsByOrgId(
-        user.organizationId,
-        filters,
-        pagination
-      );
+      const response = await getStockMovements(filters, pagination);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -118,11 +113,7 @@ export const useStockMovementsByProduct = (
         throw new Error('ID de producto requerido');
       }
 
-      const response = await getStockMovementsByProductId(
-        user.organizationId,
-        productId,
-        pagination
-      );
+      const response = await getStockMovementsByProductId(productId, pagination);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -151,7 +142,7 @@ export const useStockSummaryByProduct = (productId: string) => {
         throw new Error('ID de producto requerido');
       }
 
-      const response = await getStockSummaryByProduct(user.organizationId, productId);
+      const response = await getStockSummaryByProduct(productId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -180,12 +171,7 @@ export const useStockMovementsByDateRange = (
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getStockMovementsByDateRange(
-        user.organizationId,
-        dateFrom,
-        dateTo,
-        filters
-      );
+      const response = await getStockMovementsByDateRange(dateFrom, dateTo, filters);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -210,11 +196,7 @@ export const useStockAnalytics = (dateFrom?: Date, dateTo?: Date) => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getStockAnalytics(
-        user.organizationId,
-        dateFrom,
-        dateTo
-      );
+      const response = await getStockAnalytics(dateFrom, dateTo);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -234,24 +216,12 @@ export const useCreateStockMovement = () => {
   const user = useStore((state) => state.user);
 
   return useMutation({
-    mutationFn: async (
-      stockMovementData: Omit<CreateStockMovementData, 'userId'>
-    ) => {
+    mutationFn: async (stockMovementData: CreateStockMovementData) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await createStockMovement(
-        user.organizationId,
-        user.id,
-        {
-          ...stockMovementData,
-          userId: user.id,
-          storeId: stockMovementData.storeId ?? null,
-          reference: stockMovementData.reference ?? null,
-          reason: stockMovementData.reason ?? null
-        }
-      );
+      const response = await createStockMovement(stockMovementData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -314,7 +284,7 @@ export const useUpdateStockMovement = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await updateStockMovement(movementId, user.id, updateData);
+      const response = await updateStockMovement(movementId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -357,7 +327,7 @@ export const useDeleteStockMovement = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await deleteStockMovement(movementId, user.id);
+      const response = await deleteStockMovement(movementId);
 
       if (response.status !== 200) {
         throw new Error(response.message);

@@ -1,79 +1,54 @@
 'use server';
 
+import { MembershipRole, UnitMeasure } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
-import { prisma, checkAdminRole, unauthorizedResponse } from '../utils';
-import { UnitMeasure } from '@/generated/prisma';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma } from '../utils';
+import { firstIssue, idSchema, invalidInput } from '../common.schemas';
+import { unitMeasureNotFound } from './unit-measure.include';
+import { updateUnitMeasureInputSchema, type UpdateUnitMeasureInput } from './unit-measure.schemas';
 
-/**
- * Update Unit Measure Server Action
- *
- * Updates an existing unit measure with validation.
- * Requires ADMIN role.
- */
+/** Updates a unit measure of the actor's organization. ADMIN only. */
 export const updateUnitMeasure = async (
   unitMeasureId: string,
-  userId: string,
-  unitMeasureData: Partial<Omit<UnitMeasure, 'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>>
+  input: UpdateUnitMeasureInput
 ): Promise<ActionResponse<UnitMeasure | null>> => {
   try {
-    // Check admin role
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor({ roles: [MembershipRole.ADMIN] });
+    const id = idSchema.safeParse(unitMeasureId);
+    if (!id.success) return invalidInput('ID de la unidad de medida es requerido');
+    const parsed = updateUnitMeasureInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const data = parsed.data;
+    const organizationId = actor.organizationId;
 
-    // Verify unit measure exists
-    const existingUnitMeasure = await prisma.unitMeasure.findUnique({
-      where: { id: unitMeasureId },
-    });
-
-    if (!existingUnitMeasure) {
-      return {
-        status: 404,
-        message: 'Unidad de medida no encontrada',
-        data: null,
-      };
-    }
+    const where = { id: id.data, organizationId, isDeleted: false };
+    const existing = await prisma.unitMeasure.findFirst({ where, select: { id: true } });
+    if (!existing) return unitMeasureNotFound();
 
     // Check for duplicate name or abbreviation if being updated
-    if (unitMeasureData.name || unitMeasureData.abbreviation) {
-      const duplicateCheck = await prisma.unitMeasure.findFirst({
-        where: {
-          id: { not: unitMeasureId },
-          organizationId: existingUnitMeasure.organizationId,
-          isDeleted: false,
-          OR: [
-            unitMeasureData.name ? { name: unitMeasureData.name } : {},
-            unitMeasureData.abbreviation ? { abbreviation: unitMeasureData.abbreviation } : {},
-          ].filter(obj => Object.keys(obj).length > 0),
-        },
+    const duplicateFilters = [
+      ...(data.name ? [{ name: data.name }] : []),
+      ...(data.abbreviation ? [{ abbreviation: data.abbreviation }] : []),
+    ];
+    if (duplicateFilters.length > 0) {
+      const duplicate = await prisma.unitMeasure.findFirst({
+        where: { id: { not: id.data }, organizationId, isDeleted: false, OR: duplicateFilters },
+        select: { name: true },
       });
-
-      if (duplicateCheck) {
-        const field = duplicateCheck.name === unitMeasureData.name ? 'nombre' : 'abreviación';
-        return {
-          status: 400,
-          message: `Ya existe una unidad de medida con este ${field}`,
-          data: null,
-        };
+      if (duplicate) {
+        const field = duplicate.name === data.name ? 'nombre' : 'abreviación';
+        return { status: 400, message: `Ya existe una unidad de medida con este ${field}`, data: null };
       }
     }
 
-    // Update unit measure
-    const updatedUnitMeasure = await prisma.unitMeasure.update({
-      where: { id: unitMeasureId },
-      data: unitMeasureData,
-    });
+    const updatedUnitMeasure = await prisma.unitMeasure.update({ where, data });
 
-    return {
-      status: 200,
-      message: 'Unidad de medida actualizada exitosamente',
-      data: updatedUnitMeasure,
-    };
+    return { status: 200, message: 'Unidad de medida actualizada exitosamente', data: updatedUnitMeasure };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error updating unit measure:', error);
-    return {
-      status: 500,
-      message: 'Error al actualizar la unidad de medida',
-      data: null,
-    };
+    return { status: 500, message: 'Error al actualizar la unidad de medida', data: null };
   }
 };

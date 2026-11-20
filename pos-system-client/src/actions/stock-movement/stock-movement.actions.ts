@@ -1,233 +1,127 @@
 'use server';
 
-import { StockMovement, Prisma, StockMovementType } from '@/generated/prisma';
+import { MembershipRole, Prisma, StockMovement, StockMovementType } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma } from '../utils';
 import {
-  prisma,
-  checkAdminRole,
-  unauthorizedResponse,
-  checkOrgId,
-  emptyOrgIdResponse,
-} from '../utils';
+  firstIssue,
+  idSchema,
+  internalError,
+  invalidInput,
+  paginationSchema,
+  type PaginationInput,
+} from '../common.schemas';
+import { recordStockMovement } from './record-stock-movement';
+import { stockMovementInclude, type StockMovementWithRelations } from './stock-movement.include';
+import {
+  createStockMovementInputSchema,
+  dateRangeFiltersSchema,
+  optionalDate,
+  requiredDate,
+  stockMovementFiltersSchema,
+  updateStockMovementInputSchema,
+  type CreateStockMovementInput,
+  type DateRangeFiltersInput,
+  type StockMovementFiltersInput,
+  type UpdateStockMovementInput,
+} from './stock-movement.schemas';
 
-const stockMovementInclude = {
-  organization: true,
-  product: {
-    include: {
-      brand: true,
-      category: true,
-      unitMeasure: true,
-    },
-  },
-  user: {
-    select: {
-      id: true,
-      email: true,
-      name: true,
-    },
-  },
-} satisfies Prisma.StockMovementInclude;
+export type { StockMovementWithRelations } from './stock-movement.include';
 
-// Type for StockMovement with includes
-export type StockMovementWithRelations = Prisma.StockMovementGetPayload<{
-  include: typeof stockMovementInclude;
-}>;
+/** Inventory (movements, summaries, analytics) is ADMIN only, reads included. */
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
+
+const movementNotFound = () =>
+  ({ status: 404, message: 'Movimiento de stock no encontrado', data: null }) as const;
+const productNotFound = () => ({ status: 404, message: 'Producto no encontrado', data: null }) as const;
+const invalidMovementId = () => invalidInput('ID del movimiento de stock es requerido');
+const invalidProductId = () => invalidInput('ID del producto es requerido');
+
+const handleError = (error: unknown, context: string) => {
+  const denied = actorErrorResponse(error);
+  if (denied) return denied;
+  console.error(`Error ${context}:`, error);
+  return internalError();
+};
+
+const storeBelongsTo = async (storeId: string, organizationId: string) =>
+  !!(await prisma.store.findFirst({
+    where: { id: storeId, organizationId, isDeleted: false },
+    select: { id: true },
+  }));
+
+const findOrgProduct = (productId: string, organizationId: string) =>
+  prisma.product.findFirst({
+    where: { id: productId, organizationId, isDeleted: false },
+    select: { id: true, currentStock: true },
+  });
 
 // CREATE
 export const createStockMovement = async (
-  orgId: string,
-  userId: string,
-  stockMovementData: Omit<
-    StockMovement,
-    'id' | 'organizationId' | 'createdAt' | 'previousStock' | 'newStock'
-  >
+  input: CreateStockMovementInput
 ): Promise<ActionResponse<StockMovement | null>> => {
   try {
+    const actor = await requireActor(ADMIN_ONLY);
+    const parsed = createStockMovementInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const movement = parsed.data;
 
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    // Verificar que el producto existe y pertenece a la organización
-    const product = await prisma.product.findFirst({
-      where: {
-        id: stockMovementData.productId,
-        organizationId: orgId,
-        isDeleted: false,
-      },
-    });
-
-    if (!product) {
-      return {
-        status: 400,
-        message: 'El producto especificado no existe o no pertenece a la organización',
-        data: null,
-      };
+    if (movement.storeId && !(await storeBelongsTo(movement.storeId, actor.organizationId))) {
+      return invalidInput('La tienda especificada no existe');
     }
 
-    // Validar cantidad
-    if (stockMovementData.quantity <= 0) {
-      return {
-        status: 400,
-        message: 'La cantidad debe ser mayor a 0',
-        data: null,
-      };
-    }
-
-    // Calcular nuevo stock basado en el tipo de movimiento
-    let newStock: number;
-    const currentStock = product.currentStock;
-
-    switch (stockMovementData.type) {
-      case 'IN':
-        newStock = currentStock + stockMovementData.quantity;
-        break;
-      case 'OUT':
-        newStock = currentStock - stockMovementData.quantity;
-        if (newStock < 0) {
-          return {
-            status: 400,
-            message: 'No hay suficiente stock disponible para este movimiento',
-            data: null,
-          };
-        }
-        break;
-      case 'ADJUSTMENT':
-        newStock = stockMovementData.quantity;
-        break;
-      default:
-        return {
-          status: 400,
-          message: 'Tipo de movimiento de stock inválido',
-          data: null,
-        };
-    }
-
-    // Crear el movimiento de stock y actualizar el producto en una transacción
-    const result = await prisma.$transaction(async (tx) => {
-      // Crear el movimiento de stock
-      const newStockMovement = await tx.stockMovement.create({
-        data: {
-          ...stockMovementData,
-          organizationId: orgId,
-          previousStock: currentStock,
-          newStock: newStock,
-        },
-        include: stockMovementInclude,
-      });
-
-      // Actualizar el stock del producto
-      await tx.product.update({
-        where: { id: stockMovementData.productId },
-        data: {
-          currentStock: newStock,
-          updatedAt: new Date(),
-        },
-      });
-
-      return newStockMovement;
-    });
-
-    return {
-      status: 201,
-      message: 'Movimiento de stock creado exitosamente',
-      data: result,
-    };
+    return await recordStockMovement(actor.organizationId, actor.userId, movement);
   } catch (error) {
-    console.error('Error creating stock movement:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2003') {
-        return {
-          status: 400,
-          message: 'Una de las referencias especificadas no existe',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'creating stock movement');
   }
 };
 
 // GET MANY
-export const getStockMovementsByOrgId = async (
-  orgId: string,
-  filters?: {
-    productId?: string;
-    type?: StockMovementType;
-    userId?: string;
-    storeId?: string;
-    dateFrom?: Date;
-    dateTo?: Date;
-    search?: string;
-  },
-  pagination?: {
-    page?: number;
-    limit?: number;
-  }
+export const getStockMovements = async (
+  filters?: StockMovementFiltersInput,
+  pagination?: PaginationInput
 ): Promise<ActionResponse<{ movements: StockMovement[]; total: number } | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const parsedFilters = stockMovementFiltersSchema.safeParse(filters);
+    const parsedPagination = paginationSchema.safeParse(pagination);
+    if (!parsedFilters.success || !parsedPagination.success) return invalidInput('Filtros inválidos');
+    const f = parsedFilters.data;
 
     const whereClause: Prisma.StockMovementWhereInput = {
-      organizationId: orgId,
+      organizationId: actor.organizationId,
     };
-
-    if (filters?.productId) {
-      whereClause.productId = filters.productId;
-    }
-
-    if (filters?.type) {
-      whereClause.type = filters.type;
-    }
-
-    if (filters?.userId) {
-      whereClause.userId = filters.userId;
-    }
-
-    if (filters?.storeId) {
-      whereClause.storeId = filters.storeId;
-    }
-
-    if (filters?.dateFrom || filters?.dateTo) {
+    if (f?.productId) whereClause.productId = f.productId;
+    if (f?.type) whereClause.type = f.type;
+    if (f?.userId) whereClause.userId = f.userId;
+    if (f?.storeId) whereClause.storeId = f.storeId;
+    if (f?.dateFrom || f?.dateTo) {
       whereClause.createdAt = {};
-      if (filters.dateFrom) {
-        whereClause.createdAt.gte = filters.dateFrom;
-      }
-      if (filters.dateTo) {
-        whereClause.createdAt.lte = filters.dateTo;
-      }
+      if (f.dateFrom) whereClause.createdAt.gte = f.dateFrom;
+      if (f.dateTo) whereClause.createdAt.lte = f.dateTo;
     }
-
-    if (filters?.search) {
+    if (f?.search) {
       whereClause.OR = [
-        { reason: { contains: filters.search, mode: 'insensitive' } },
-        { reference: { contains: filters.search, mode: 'insensitive' } },
-        {
-          product: {
-            name: { contains: filters.search, mode: 'insensitive' },
-          },
-        },
+        { reason: { contains: f.search, mode: 'insensitive' } },
+        { reference: { contains: f.search, mode: 'insensitive' } },
+        { product: { name: { contains: f.search, mode: 'insensitive' } } },
       ];
     }
 
-    // Configuración de paginación
-    const page = pagination?.page || 1;
-    const limit = pagination?.limit || 50;
-    const skip = (page - 1) * limit;
+    const page = parsedPagination.data?.page || 1;
+    const limit = parsedPagination.data?.limit || 50;
 
-    // Obtener total de registros
-    const total = await prisma.stockMovement.count({
-      where: whereClause,
-    });
-
-    // Obtener movimientos
-    const movements = await prisma.stockMovement.findMany({
-      where: whereClause,
-      include: stockMovementInclude,
-      orderBy: { createdAt: 'desc' },
-      skip: skip,
-      take: limit,
-    });
+    const [total, movements] = await Promise.all([
+      prisma.stockMovement.count({ where: whereClause }),
+      prisma.stockMovement.findMany({
+        where: whereClause,
+        include: stockMovementInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
 
     return {
       status: 200,
@@ -235,8 +129,7 @@ export const getStockMovementsByOrgId = async (
       data: { movements, total },
     };
   } catch (error) {
-    console.error('Error fetching stock movements:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching stock movements');
   }
 };
 
@@ -245,89 +138,51 @@ export const getStockMovementById = async (
   movementId: string
 ): Promise<ActionResponse<StockMovementWithRelations | null>> => {
   try {
-    if (!movementId)
-      return {
-        status: 400,
-        message: 'ID del movimiento de stock es requerido',
-        data: null,
-      };
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(movementId);
+    if (!id.success) return invalidMovementId();
 
-    const movement = await prisma.stockMovement.findUnique({
-      where: { id: movementId },
+    const movement = await prisma.stockMovement.findFirst({
+      where: { id: id.data, organizationId: actor.organizationId },
       include: stockMovementInclude,
     });
+    if (!movement) return movementNotFound();
 
-    if (!movement)
-      return { status: 404, message: 'Movimiento de stock no encontrado', data: null };
-
-    return {
-      status: 200,
-      message: 'Movimiento de stock obtenido exitosamente',
-      data: movement,
-    };
+    return { status: 200, message: 'Movimiento de stock obtenido exitosamente', data: movement };
   } catch (error) {
-    console.error('Error fetching stock movement:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching stock movement');
   }
 };
 
 // GET BY PRODUCT
 export const getStockMovementsByProductId = async (
-  orgId: string,
   productId: string,
-  pagination?: {
-    page?: number;
-    limit?: number;
-  }
+  pagination?: PaginationInput
 ): Promise<ActionResponse<{ movements: StockMovement[]; total: number } | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    const parsedPagination = paginationSchema.safeParse(pagination);
+    if (!id.success) return invalidProductId();
+    if (!parsedPagination.success) return invalidInput('Paginación inválida');
 
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
+    const product = await findOrgProduct(id.data, actor.organizationId);
+    if (!product) return productNotFound();
 
-    // Verificar que el producto existe y pertenece a la organización
-    const product = await prisma.product.findFirst({
-      where: {
-        id: productId,
-        organizationId: orgId,
-        isDeleted: false,
-      },
-    });
+    const page = parsedPagination.data?.page || 1;
+    const limit = parsedPagination.data?.limit || 50;
+    const where = { organizationId: actor.organizationId, productId: product.id };
 
-    if (!product) {
-      return {
-        status: 404,
-        message: 'Producto no encontrado',
-        data: null,
-      };
-    }
-
-    const page = pagination?.page || 1;
-    const limit = pagination?.limit || 50;
-    const skip = (page - 1) * limit;
-
-    const total = await prisma.stockMovement.count({
-      where: {
-        organizationId: orgId,
-        productId: productId,
-      },
-    });
-
-    const movements = await prisma.stockMovement.findMany({
-      where: {
-        organizationId: orgId,
-        productId: productId,
-      },
-      include: stockMovementInclude,
-      orderBy: { createdAt: 'desc' },
-      skip: skip,
-      take: limit,
-    });
+    const [total, movements] = await Promise.all([
+      prisma.stockMovement.count({ where }),
+      prisma.stockMovement.findMany({
+        where,
+        include: stockMovementInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
 
     return {
       status: 200,
@@ -335,88 +190,54 @@ export const getStockMovementsByProductId = async (
       data: { movements, total },
     };
   } catch (error) {
-    console.error('Error fetching stock movements by product:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching stock movements by product');
   }
 };
 
-// UPDATE
+// UPDATE (only descriptive fields; quantity and type never change)
 export const updateStockMovement = async (
   movementId: string,
-  userId: string,
-  updateData: Partial<{
-    reason: string;
-    reference: string;
-    storeId: string;
-  }>
+  input: UpdateStockMovementInput
 ): Promise<ActionResponse<StockMovement | null>> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(movementId);
+    if (!id.success) return invalidMovementId();
+    const parsed = updateStockMovementInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
 
-    if (!movementId)
-      return {
-        status: 400,
-        message: 'ID del movimiento de stock es requerido',
-        data: null,
-      };
-
-    // Verificar que el movimiento existe
-    const existingMovement = await prisma.stockMovement.findUnique({
-      where: { id: movementId },
-    });
-
-    if (!existingMovement) {
-      return { status: 404, message: 'Movimiento de stock no encontrado', data: null };
+    const updates = Object.fromEntries(
+      Object.entries(parsed.data).filter(([, value]) => value !== undefined)
+    );
+    if (Object.keys(updates).length === 0) {
+      return { status: 400, message: 'No hay campos válidos para actualizar', data: null };
     }
 
-    // Solo permitir actualizar campos específicos (no cantidad, tipo, etc.)
-    const allowedUpdates = {
-      reason: updateData.reason,
-      reference: updateData.reference,
-      storeId: updateData.storeId,
-    };
+    const where = { id: id.data, organizationId: actor.organizationId };
+    const existing = await prisma.stockMovement.findFirst({ where, select: { id: true } });
+    if (!existing) return movementNotFound();
 
-    // Remover campos undefined
-    const cleanUpdates = Object.fromEntries(
-      Object.entries(allowedUpdates).filter(([, value]) => value !== undefined)
-    );
-
-    if (Object.keys(cleanUpdates).length === 0) {
-      return {
-        status: 400,
-        message: 'No hay campos válidos para actualizar',
-        data: null,
-      };
+    if (parsed.data.storeId && !(await storeBelongsTo(parsed.data.storeId, actor.organizationId))) {
+      return invalidInput('La tienda especificada no existe');
     }
 
     const updatedMovement = await prisma.stockMovement.update({
-      where: { id: movementId },
-      data: cleanUpdates,
+      where,
+      data: updates,
       include: stockMovementInclude,
     });
 
-    return {
-      status: 200,
-      message: 'Movimiento de stock actualizado exitosamente',
-      data: updatedMovement,
-    };
+    return { status: 200, message: 'Movimiento de stock actualizado exitosamente', data: updatedMovement };
   } catch (error) {
-    console.error('Error updating stock movement:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Movimiento de stock no encontrado', data: null };
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return movementNotFound();
     }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'updating stock movement');
   }
 };
 
 // GET STOCK SUMMARY BY PRODUCT
 export const getStockSummaryByProduct = async (
-  orgId: string,
   productId: string
 ): Promise<ActionResponse<{
   currentStock: number;
@@ -425,62 +246,19 @@ export const getStockSummaryByProduct = async (
   recentMovements: StockMovement[];
 } | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(productId);
+    if (!id.success) return invalidProductId();
 
-    if (!productId)
-      return {
-        status: 400,
-        message: 'ID del producto es requerido',
-        data: null,
-      };
+    const product = await findOrgProduct(id.data, actor.organizationId);
+    if (!product) return productNotFound();
 
-    const product = await prisma.product.findFirst({
-      where: {
-        id: productId,
-        organizationId: orgId,
-        isDeleted: false,
-      },
-    });
-
-    if (!product) {
-      return {
-        status: 404,
-        message: 'Producto no encontrado',
-        data: null,
-      };
-    }
-
-    // Calcular totales de entrada y salida
+    const where = { organizationId: actor.organizationId, productId: product.id };
     const [totalInResult, totalOutResult, recentMovements] = await Promise.all([
-      prisma.stockMovement.aggregate({
-        where: {
-          organizationId: orgId,
-          productId: productId,
-          type: {
-            in: ['IN'],
-          },
-        },
-        _sum: {
-          quantity: true,
-        },
-      }),
-      prisma.stockMovement.aggregate({
-        where: {
-          organizationId: orgId,
-          productId: productId,
-          type: {
-            in: ['OUT'],
-          },
-        },
-        _sum: {
-          quantity: true,
-        },
-      }),
+      prisma.stockMovement.aggregate({ where: { ...where, type: 'IN' }, _sum: { quantity: true } }),
+      prisma.stockMovement.aggregate({ where: { ...where, type: 'OUT' }, _sum: { quantity: true } }),
       prisma.stockMovement.findMany({
-        where: {
-          organizationId: orgId,
-          productId: productId,
-        },
+        where,
         include: stockMovementInclude,
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -498,47 +276,30 @@ export const getStockSummaryByProduct = async (
       },
     };
   } catch (error) {
-    console.error('Error fetching stock summary:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching stock summary');
   }
 };
 
-// DELETE (Solo permitido si no afecta integridad de datos)
-export const deleteStockMovement = async (
-  movementId: string,
-  userId: string
-): Promise<ActionResponse> => {
+// DELETE (only the last movement of the product; reverts its stock)
+export const deleteStockMovement = async (movementId: string): Promise<ActionResponse> => {
   try {
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(movementId);
+    if (!id.success) return invalidMovementId();
+    const organizationId = actor.organizationId;
 
-    if (!movementId)
-      return {
-        status: 400,
-        message: 'ID del movimiento de stock es requerido',
-        data: null,
-      };
-
-    const movement = await prisma.stockMovement.findUnique({
-      where: { id: movementId },
-      include: {
-        product: true,
-      },
+    const movement = await prisma.stockMovement.findFirst({
+      where: { id: id.data, organizationId },
     });
+    if (!movement) return movementNotFound();
 
-    if (!movement) {
-      return { status: 404, message: 'Movimiento de stock no encontrado', data: null };
-    }
-
-    // Verificar si es el último movimiento del producto
     const lastMovement = await prisma.stockMovement.findFirst({
-      where: {
-        productId: movement.productId,
-      },
+      where: { organizationId, productId: movement.productId },
       orderBy: { createdAt: 'desc' },
+      select: { id: true },
     });
 
-    if (lastMovement?.id !== movementId) {
+    if (lastMovement?.id !== movement.id) {
       return {
         status: 409,
         message: 'Solo se puede eliminar el último movimiento de stock registrado',
@@ -546,69 +307,42 @@ export const deleteStockMovement = async (
       };
     }
 
-    // Revertir el stock del producto y eliminar el movimiento en una transacción
     await prisma.$transaction(async (tx) => {
-      // Revertir el stock del producto
       await tx.product.update({
-        where: { id: movement.productId },
-        data: {
-          currentStock: movement.previousStock,
-          updatedAt: new Date(),
-        },
+        where: { id: movement.productId, organizationId },
+        data: { currentStock: movement.previousStock, updatedAt: new Date() },
       });
-
-      // Eliminar el movimiento
-      await tx.stockMovement.delete({
-        where: { id: movementId },
-      });
+      await tx.stockMovement.delete({ where: { id: movement.id, organizationId } });
     });
 
-    return {
-      status: 200,
-      message: 'Movimiento de stock eliminado exitosamente',
-      data: null,
-    };
+    return { status: 200, message: 'Movimiento de stock eliminado exitosamente', data: null };
   } catch (error) {
-    console.error('Error deleting stock movement:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Movimiento de stock no encontrado', data: null };
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return movementNotFound();
     }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'deleting stock movement');
   }
 };
 
 // GET MOVEMENTS BY DATE RANGE
 export const getStockMovementsByDateRange = async (
-  orgId: string,
   dateFrom: Date,
   dateTo: Date,
-  filters?: {
-    productId?: string;
-    type?: StockMovementType;
-  }
+  filters?: DateRangeFiltersInput
 ): Promise<ActionResponse<StockMovement[] | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const from = requiredDate.safeParse(dateFrom);
+    const to = requiredDate.safeParse(dateTo);
+    const parsedFilters = dateRangeFiltersSchema.safeParse(filters);
+    if (!from.success || !to.success || !parsedFilters.success) return invalidInput('Filtros inválidos');
 
     const whereClause: Prisma.StockMovementWhereInput = {
-      organizationId: orgId,
-      createdAt: {
-        gte: dateFrom,
-        lte: dateTo,
-      },
+      organizationId: actor.organizationId,
+      createdAt: { gte: from.data, lte: to.data },
     };
-
-    if (filters?.productId) {
-      whereClause.productId = filters.productId;
-    }
-
-    if (filters?.type) {
-      whereClause.type = filters.type;
-    }
+    if (parsedFilters.data?.productId) whereClause.productId = parsedFilters.data.productId;
+    if (parsedFilters.data?.type) whereClause.type = parsedFilters.data.type;
 
     const movements = await prisma.stockMovement.findMany({
       where: whereClause,
@@ -622,14 +356,12 @@ export const getStockMovementsByDateRange = async (
       data: movements,
     };
   } catch (error) {
-    console.error('Error fetching stock movements by date range:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching stock movements by date range');
   }
 };
 
 // GET STOCK ANALYTICS
 export const getStockAnalytics = async (
-  orgId: string,
   dateFrom?: Date,
   dateTo?: Date
 ): Promise<ActionResponse<{
@@ -638,70 +370,51 @@ export const getStockAnalytics = async (
   topMovedProducts: { productId: string; productName: string; totalMovements: number }[];
 } | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const from = optionalDate.safeParse(dateFrom);
+    const to = optionalDate.safeParse(dateTo);
+    if (!from.success || !to.success) return invalidInput('Fechas inválidas');
+    const organizationId = actor.organizationId;
 
-    const whereClause: Prisma.StockMovementWhereInput = {
-      organizationId: orgId,
-    };
-
-    if (dateFrom || dateTo) {
+    const whereClause: Prisma.StockMovementWhereInput = { organizationId };
+    if (from.data || to.data) {
       whereClause.createdAt = {};
-      if (dateFrom) whereClause.createdAt.gte = dateFrom;
-      if (dateTo) whereClause.createdAt.lte = dateTo;
+      if (from.data) whereClause.createdAt.gte = from.data;
+      if (to.data) whereClause.createdAt.lte = to.data;
     }
 
-    // Agregaciones por tipo
     const movementsByType = await prisma.stockMovement.groupBy({
       by: ['type'],
       where: whereClause,
-      _count: {
-        id: true,
-      },
-      _sum: {
-        quantity: true,
-      },
+      _count: { id: true },
+      _sum: { quantity: true },
     });
 
-    // Productos con más movimientos
     const topMovedProducts = await prisma.stockMovement.groupBy({
       by: ['productId'],
       where: whereClause,
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
-      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
       take: 10,
     });
 
-    // Obtener información de productos
-    const productIds = topMovedProducts.map(item => item.productId);
     const products = await prisma.product.findMany({
-      where: {
-        id: { in: productIds },
-      },
-      select: {
-        id: true,
-        name: true,
-      },
+      where: { organizationId, id: { in: topMovedProducts.map((item) => item.productId) } },
+      select: { id: true, name: true },
     });
-
-    const productMap = new Map(products.map(p => [p.id, p.name]));
+    const productMap = new Map(products.map((p) => [p.id, p.name]));
 
     return {
       status: 200,
       message: 'Analíticas de stock obtenidas exitosamente',
       data: {
-        movementsByType: movementsByType.map(item => ({
+        movementsByType: movementsByType.map((item) => ({
           type: item.type,
           count: item._count.id,
           totalQuantity: item._sum.quantity || 0,
         })),
         movementsByDate: [], // Se podría implementar una agregación por fecha si es necesario
-        topMovedProducts: topMovedProducts.map(item => ({
+        topMovedProducts: topMovedProducts.map((item) => ({
           productId: item.productId,
           productName: productMap.get(item.productId) || 'Producto desconocido',
           totalMovements: item._count.id,
@@ -709,7 +422,6 @@ export const getStockAnalytics = async (
       },
     };
   } catch (error) {
-    console.error('Error fetching stock analytics:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching stock analytics');
   }
 };

@@ -110,7 +110,7 @@ const mocks = {
     };
     export const actorErrorResponse = (error) => error instanceof ActorError ? { status: error.status, message: error.message, data: null } : null;`,
   '../utils': 'export const prisma = globalThis.__salePrisma; export const serializeDecimals = (value) => value;',
-  '../stock-movement': 'export const createStockMovement = async (orgId, userId, data) => { globalThis.__saleTest.stock.push({ orgId, userId, data }); return { status: 201 }; };',
+  '../stock-movement/record-stock-movement': 'export const recordStockMovement = async (orgId, userId, data) => { globalThis.__saleTest.stock.push({ orgId, userId, data }); return { status: 201 }; };',
 };
 
 const sale = await loadWithMocks('src/actions/sale/sale.actions.ts', mocks);
@@ -216,7 +216,7 @@ test('createSale: ignora organizationId/userId/totales enviados por el cliente',
   const payment = state.writes.find((w) => w.model === 'salePayment').data;
   assert.equal(payment.saleId, 'new-sale');
   assert.equal(payment.userId, undefined);
-  assert.deepEqual(state.stock.map((s) => [s.orgId, s.userId, s.data.userId]), [['org-a', 'seller-a', 'seller-a']]);
+  assert.deepEqual(state.stock.map((s) => [s.orgId, s.userId]), [['org-a', 'seller-a']]);
   for (const call of state.calls.filter((c) => ['store', 'product', 'paymentMethod'].includes(c.model) && c.method !== 'findUnique')) {
     assert.equal(call.where.organizationId, 'org-a');
   }

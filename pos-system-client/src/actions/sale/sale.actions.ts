@@ -4,7 +4,7 @@ import { Sale, Prisma, SaleStatus, MembershipRole } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
 import { actorErrorResponse, requireActor, type Actor } from '@/lib/auth/actor';
 import { prisma, serializeDecimals } from '../utils';
-import { createStockMovement } from '../stock-movement';
+import { recordStockMovement } from '../stock-movement/record-stock-movement';
 import { calculateSaleTotals } from './sale-totals';
 import {
   analyticsInputSchema,
@@ -263,9 +263,8 @@ export const createSale = async (
           });
 
           // Crear movimiento y actualizar producto
-          await createStockMovement(orgId, actor.userId, {
+          await recordStockMovement(orgId, actor.userId, {
             productId: itemData.productId,
-            userId: actor.userId,
             storeId: saleData.storeId,
             type: 'OUT',
             quantity: itemData.quantity,
@@ -678,9 +677,8 @@ export const cancelSale = async (
 
         // Restaurar stock de productos
         for (const item of existingSale.saleItems) {
-          await createStockMovement(actor.organizationId, actor.userId, {
+          await recordStockMovement(actor.organizationId, actor.userId, {
             productId: item.productId,
-            userId: actor.userId,
             storeId: existingSale.storeId,
             type: 'IN',
             quantity: item.quantity,

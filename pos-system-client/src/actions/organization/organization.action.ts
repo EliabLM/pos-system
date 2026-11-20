@@ -11,11 +11,8 @@ import { MembershipRole, MembershipStatus, Organization, PaymentMethod, Prisma }
 import { ActionResponse } from '@/interfaces';
 import { actorErrorResponse, requireOnboardingUser } from '@/lib/auth/actor';
 import { prisma } from '../utils';
-import { createCategory } from '../category';
 import { createPaymentMethod } from '../payment-methods';
-import { createBrand } from '../brand';
 import { setBusinessType } from '../system-config';
-import { createUnitMeasure } from '../unit-measure';
 
 
 // Definir constantes para configuraciones por defecto
@@ -180,15 +177,18 @@ const createInitialConfigurations = async (
     // EJECUTAR OPERACIONES SECUENCIALMENTE POR TIPO
     // Sin transacción global para evitar conflictos con transacciones anidadas
 
-    // 1. Crear categorías en paralelo
-    const categoryPromises = categories.map((category) =>
-      createCategory(organizationId, adminUserId, {
+    // Catálogo inicial de la organización recién creada: se escribe directo
+    // (no por las actions de catálogo, que exigen el actor de sesión).
+    // 1. Crear categorías
+    await prisma.category.createMany({
+      data: categories.map((category) => ({
+        organizationId,
         name: category.name,
         description: category.description,
         isActive: true,
-      })
-    );
-    await Promise.all(categoryPromises);
+      })),
+      skipDuplicates: true,
+    });
 
     // 2. Crear métodos de pago en paralelo
     const paymentMethodPromises = DEFAULT_PAYMENT_METHODS.map((method) =>
@@ -201,24 +201,26 @@ const createInitialConfigurations = async (
     await Promise.all(paymentMethodPromises);
 
     // 3. Crear marcas según tipo de negocio
-    const brandsPromises = brands.map((brand) =>
-      createBrand(organizationId, adminUserId, {
+    await prisma.brand.createMany({
+      data: brands.map((brand) => ({
+        organizationId,
         name: brand.name,
         description: brand.description,
         isActive: true,
-      })
-    );
-    await Promise.all(brandsPromises);
+      })),
+      skipDuplicates: true,
+    });
 
     // 4. Crear unidades de medida según tipo de negocio
-    const unitMeasurePromises = unitMeasures.map((unit) =>
-      createUnitMeasure(organizationId, adminUserId, {
+    await prisma.unitMeasure.createMany({
+      data: unitMeasures.map((unit) => ({
+        organizationId,
         name: unit.name,
         abbreviation: unit.abbreviation,
         isActive: true,
-      })
-    );
-    await Promise.all(unitMeasurePromises);
+      })),
+      skipDuplicates: true,
+    });
   } catch (error) {
     // Re-lanzar el error para que sea manejado por el caller
     throw error;
