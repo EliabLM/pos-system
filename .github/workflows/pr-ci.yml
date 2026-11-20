@@ -1,7 +1,10 @@
 name: PR CI
 on:
+  # Cualquier rama base: también corre en PR apilados (base distinta de main).
   pull_request:
-    branches: [main]
+concurrency:
+  group: pr-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -52,6 +55,11 @@ jobs:
           node scripts/ci/assert-tests.mjs server-tests.json vitest
           pnpm --filter @pos/server test
           pnpm --filter @pos/server lint
+      - name: Tests client (node --test e imágenes)
+        working-directory: pos-system-client
+        run: |
+          pnpm --ignore-workspace test
+          pnpm --ignore-workspace test:images
       - name: Lint y build client (Next producción, solo runner GitHub)
         working-directory: pos-system-client
         run: |
