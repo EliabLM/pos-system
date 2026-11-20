@@ -1,18 +1,27 @@
 'use server';
 
-import { Customer, Prisma } from '@/generated/prisma';
+import { Customer, MembershipRole, Prisma } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
+import { actorErrorResponse, requireActor, type Actor } from '@/lib/auth/actor';
+import { prisma, serializeDecimals } from '../utils';
+import { firstIssue, idSchema, internalError, invalidInput, paginationSchema, topLimitSchema, type PaginationInput } from '../common.schemas';
 import {
-  prisma,
-  checkAdminOrSellerRole,
-  unauthorizedResponse,
-  checkOrgId,
-  emptyOrgIdResponse,
-} from '../utils';
+  createCustomerInputSchema,
+  customerFiltersSchema,
+  customerLookupSchema,
+  updateCustomerInputSchema,
+  type CreateCustomerInput,
+  type CustomerFiltersInput,
+  type UpdateCustomerInput,
+} from './customer.schemas';
 
-// CUSTOMER INCLUDES
-const customerInclude: Prisma.CustomerInclude = {
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
+
+// The admin sees the latest sales of each customer; the seller only needs
+// the customer's own data to pick it in a sale.
+const customerInclude = {
   sales: {
+    where: { isDeleted: false },
     select: {
       id: true,
       saleNumber: true,
@@ -20,605 +29,331 @@ const customerInclude: Prisma.CustomerInclude = {
       status: true,
       saleDate: true,
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
+    orderBy: { createdAt: 'desc' },
     take: 10,
   },
-  _count: {
-    select: {
-      sales: true,
-    },
-  },
+  _count: { select: { sales: true } },
+} satisfies Prisma.CustomerInclude;
+
+const includeFor = (actor: Actor) => (actor.role === MembershipRole.ADMIN ? customerInclude : undefined);
+
+const customerNotFound = () => ({ status: 404, message: 'Cliente no encontrado', data: null }) as const;
+const invalidCustomerId = () => invalidInput('ID de cliente es requerido');
+
+const handleError = (error: unknown, context: string) => {
+  const denied = actorErrorResponse(error);
+  if (denied) return denied;
+  console.error(`Error ${context}:`, error);
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      return { status: 409, message: 'Ya existe un cliente con esos datos únicos', data: null } as const;
+    }
+    if (error.code === 'P2025') return customerNotFound();
+  }
+  return internalError();
+};
+
+/** Checks email/document uniqueness among the organization's live customers. */
+const checkUniqueFields = async (
+  organizationId: string,
+  fields: { email?: string | null; document?: string | null },
+  excludeId?: string
+) => {
+  const who = excludeId ? 'otro cliente' : 'un cliente';
+  const scope = { organizationId, isDeleted: false, ...(excludeId ? { id: { not: excludeId } } : {}) };
+  if (fields.email) {
+    const duplicate = await prisma.customer.findFirst({ where: { ...scope, email: fields.email }, select: { id: true } });
+    if (duplicate) return { status: 409, message: `Ya existe ${who} con ese email`, data: null } as const;
+  }
+  if (fields.document) {
+    const duplicate = await prisma.customer.findFirst({ where: { ...scope, document: fields.document }, select: { id: true } });
+    if (duplicate) return { status: 409, message: `Ya existe ${who} con ese documento`, data: null } as const;
+  }
+  return null;
 };
 
 // ===========================
 // CUSTOMER ACTIONS
 // ===========================
 
-// CREATE CUSTOMER
-export const createCustomer = async (
-  orgId: string,
-  userId: string,
-  customerData: Omit<
-    Customer,
-    | 'id'
-    | 'organizationId'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'isDeleted'
-    | 'deletedAt'
-  >
-): Promise<ActionResponse<Customer | null>> => {
+// CREATE (any member: the seller registers the customer while selling)
+export const createCustomer = async (input: CreateCustomerInput): Promise<ActionResponse<Customer | null>> => {
   try {
-    const hasAccess = await checkAdminOrSellerRole(userId, orgId);
-    if (!hasAccess) return unauthorizedResponse();
+    const actor = await requireActor();
+    const parsed = createCustomerInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const data = parsed.data;
 
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    // Verificar si ya existe un cliente con el mismo email (si se proporciona)
-    if (customerData.email) {
-      const existingByEmail = await prisma.customer.findFirst({
-        where: {
-          organizationId: orgId,
-          email: customerData.email,
-          isDeleted: false,
-        },
-      });
-
-      if (existingByEmail) {
-        return {
-          status: 409,
-          message: 'Ya existe un cliente con ese email',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar si ya existe un cliente con el mismo documento (si se proporciona)
-    if (customerData.document) {
-      const existingByDocument = await prisma.customer.findFirst({
-        where: {
-          organizationId: orgId,
-          document: customerData.document,
-          isDeleted: false,
-        },
-      });
-
-      if (existingByDocument) {
-        return {
-          status: 409,
-          message: 'Ya existe un cliente con ese documento',
-          data: null,
-        };
-      }
-    }
+    const conflict = await checkUniqueFields(actor.organizationId, data);
+    if (conflict) return conflict;
 
     const newCustomer = await prisma.customer.create({
-      data: {
-        ...customerData,
-        organizationId: orgId,
-      },
-      include: customerInclude,
+      data: { ...data, organizationId: actor.organizationId },
+      include: includeFor(actor),
     });
 
-    return {
-      status: 201,
-      message: 'Cliente creado exitosamente',
-      data: newCustomer,
-    };
+    return { status: 201, message: 'Cliente creado exitosamente', data: serializeDecimals(newCustomer) };
   } catch (error) {
-    console.error('Error creating customer:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        return {
-          status: 409,
-          message: 'Ya existe un cliente con esos datos únicos',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'creating customer');
   }
 };
 
-// GET CUSTOMERS BY ORG
-export const getCustomersByOrgId = async (
-  orgId: string,
-  filters?: {
-    search?: string;
-    isActive?: boolean;
-    city?: string;
-    department?: string;
-  },
+// GET MANY (any member; the seller only sees active customers)
+export const getCustomers = async (
+  filters?: CustomerFiltersInput,
   includeDeleted: boolean = false,
-  pagination?: {
-    page?: number;
-    limit?: number;
-  }
+  pagination?: PaginationInput
 ): Promise<ActionResponse<{ customers: Customer[]; total: number } | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
+    const parsedFilters = customerFiltersSchema.safeParse(filters);
+    const parsedPagination = paginationSchema.safeParse(pagination);
+    if (!parsedFilters.success || !parsedPagination.success) return invalidInput();
+    const f = parsedFilters.data;
+    const isAdmin = actor.role === MembershipRole.ADMIN;
 
     const whereClause: Prisma.CustomerWhereInput = {
-      organizationId: orgId,
-      isDeleted: includeDeleted ? undefined : false,
+      organizationId: actor.organizationId,
+      isDeleted: isAdmin && includeDeleted === true ? undefined : false,
     };
-
-    if (filters?.isActive !== undefined) {
-      whereClause.isActive = filters.isActive;
-    }
-
-    if (filters?.city) {
-      whereClause.city = filters.city;
-    }
-
-    if (filters?.department) {
-      whereClause.department = filters.department;
-    }
-
-    if (filters?.search) {
+    if (!isAdmin) whereClause.isActive = true;
+    else if (f?.isActive !== undefined) whereClause.isActive = f.isActive;
+    if (f?.city) whereClause.city = f.city;
+    if (f?.department) whereClause.department = f.department;
+    if (f?.search) {
       whereClause.OR = [
-        { firstName: { contains: filters.search, mode: 'insensitive' } },
-        { lastName: { contains: filters.search, mode: 'insensitive' } },
-        { email: { contains: filters.search, mode: 'insensitive' } },
-        { phone: { contains: filters.search, mode: 'insensitive' } },
-        { document: { contains: filters.search, mode: 'insensitive' } },
+        { firstName: { contains: f.search, mode: 'insensitive' } },
+        { lastName: { contains: f.search, mode: 'insensitive' } },
+        { email: { contains: f.search, mode: 'insensitive' } },
+        { phone: { contains: f.search, mode: 'insensitive' } },
+        { document: { contains: f.search, mode: 'insensitive' } },
       ];
     }
 
-    const page = pagination?.page || 1;
-    const limit = pagination?.limit || 50;
-    const skip = (page - 1) * limit;
+    const page = parsedPagination.data?.page ?? 1;
+    const limit = parsedPagination.data?.limit ?? 50;
 
     const [total, customers] = await Promise.all([
       prisma.customer.count({ where: whereClause }),
       prisma.customer.findMany({
         where: whereClause,
-        include: customerInclude,
+        include: includeFor(actor),
         orderBy: { createdAt: 'desc' },
-        skip,
+        skip: (page - 1) * limit,
         take: limit,
       }),
     ]);
 
-    return {
-      status: 200,
-      message: 'Clientes obtenidos exitosamente',
-      data: { customers, total },
-    };
+    return { status: 200, message: 'Clientes obtenidos exitosamente', data: { customers: serializeDecimals(customers), total } };
   } catch (error) {
-    console.error('Error fetching customers:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching customers');
   }
 };
 
-// GET CUSTOMER BY ID
-export const getCustomerById = async (
-  customerId: string
-): Promise<ActionResponse<Customer | null>> => {
+/** One live customer of the organization; the seller only finds active ones. */
+const findCustomer = async (actor: Actor, where: Prisma.CustomerWhereInput) => {
+  const customer = await prisma.customer.findFirst({
+    where: {
+      ...where,
+      organizationId: actor.organizationId,
+      isDeleted: false,
+      ...(actor.role === MembershipRole.ADMIN ? {} : { isActive: true }),
+    },
+    include: includeFor(actor),
+  });
+  if (!customer) return customerNotFound();
+  return { status: 200, message: 'Cliente obtenido exitosamente', data: serializeDecimals(customer) } as const;
+};
+
+// GET BY ID (any member)
+export const getCustomerById = async (customerId: string): Promise<ActionResponse<Customer | null>> => {
   try {
-    if (!customerId) {
-      return {
-        status: 400,
-        message: 'ID de cliente es requerido',
-        data: null,
-      };
-    }
-
-    const customer = await prisma.customer.findFirst({
-      where: { id: customerId, isDeleted: false },
-      include: customerInclude,
-    });
-
-    if (!customer) {
-      return { status: 404, message: 'Cliente no encontrado', data: null };
-    }
-
-    return {
-      status: 200,
-      message: 'Cliente obtenido exitosamente',
-      data: customer,
-    };
+    const actor = await requireActor();
+    const id = idSchema.safeParse(customerId);
+    if (!id.success) return invalidCustomerId();
+    return await findCustomer(actor, { id: id.data });
   } catch (error) {
-    console.error('Error fetching customer:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching customer');
   }
 };
 
-// GET CUSTOMER BY EMAIL
-export const getCustomerByEmail = async (
-  orgId: string,
-  email: string
-): Promise<ActionResponse<Customer | null>> => {
+// GET BY EMAIL (any member)
+export const getCustomerByEmail = async (email: string): Promise<ActionResponse<Customer | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    if (!email) {
-      return {
-        status: 400,
-        message: 'Email es requerido',
-        data: null,
-      };
-    }
-
-    const customer = await prisma.customer.findFirst({
-      where: {
-        organizationId: orgId,
-        email,
-        isDeleted: false,
-      },
-      include: customerInclude,
-    });
-
-    if (!customer) {
-      return { status: 404, message: 'Cliente no encontrado', data: null };
-    }
-
-    return {
-      status: 200,
-      message: 'Cliente obtenido exitosamente',
-      data: customer,
-    };
+    const actor = await requireActor();
+    const value = customerLookupSchema.safeParse(email);
+    if (!value.success) return invalidInput('Email es requerido');
+    return await findCustomer(actor, { email: value.data });
   } catch (error) {
-    console.error('Error fetching customer by email:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching customer by email');
   }
 };
 
-// GET CUSTOMER BY DOCUMENT
-export const getCustomerByDocument = async (
-  orgId: string,
-  document: string
-): Promise<ActionResponse<Customer | null>> => {
+// GET BY DOCUMENT (any member)
+export const getCustomerByDocument = async (document: string): Promise<ActionResponse<Customer | null>> => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
-
-    if (!document) {
-      return {
-        status: 400,
-        message: 'Documento es requerido',
-        data: null,
-      };
-    }
-
-    const customer = await prisma.customer.findFirst({
-      where: {
-        organizationId: orgId,
-        document,
-        isDeleted: false,
-      },
-      include: customerInclude,
-    });
-
-    if (!customer) {
-      return { status: 404, message: 'Cliente no encontrado', data: null };
-    }
-
-    return {
-      status: 200,
-      message: 'Cliente obtenido exitosamente',
-      data: customer,
-    };
+    const actor = await requireActor();
+    const value = customerLookupSchema.safeParse(document);
+    if (!value.success) return invalidInput('Documento es requerido');
+    return await findCustomer(actor, { document: value.data });
   } catch (error) {
-    console.error('Error fetching customer by document:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching customer by document');
   }
 };
 
-// UPDATE CUSTOMER
+// UPDATE
 export const updateCustomer = async (
   customerId: string,
-  userId: string,
-  updateData: Partial<
-    Omit<
-      Customer,
-      | 'id'
-      | 'organizationId'
-      | 'createdAt'
-      | 'updatedAt'
-      | 'isDeleted'
-      | 'deletedAt'
-    >
-  >
+  input: UpdateCustomerInput
 ): Promise<ActionResponse<Customer | null>> => {
   try {
-    const hasAccess = await checkAdminOrSellerRole(userId);
-    if (!hasAccess) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(customerId);
+    if (!id.success) return invalidCustomerId();
+    const parsed = updateCustomerInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const data = parsed.data;
 
-    if (!customerId) {
-      return {
-        status: 400,
-        message: 'ID de cliente es requerido',
-        data: null,
-      };
-    }
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: false };
+    const existing = await prisma.customer.findFirst({ where });
+    if (!existing) return customerNotFound();
 
-    const existingCustomer = await prisma.customer.findFirst({
-      where: { id: customerId, isDeleted: false },
-    });
-
-    if (!existingCustomer) {
-      return { status: 404, message: 'Cliente no encontrado', data: null };
-    }
-
-    // Verificar email único si se está actualizando
-    if (updateData.email && updateData.email !== existingCustomer.email) {
-      const emailExists = await prisma.customer.findFirst({
-        where: {
-          organizationId: existingCustomer.organizationId,
-          email: updateData.email,
-          isDeleted: false,
-          id: { not: customerId },
-        },
-      });
-
-      if (emailExists) {
-        return {
-          status: 409,
-          message: 'Ya existe otro cliente con ese email',
-          data: null,
-        };
-      }
-    }
-
-    // Verificar documento único si se está actualizando
-    if (updateData.document && updateData.document !== existingCustomer.document) {
-      const documentExists = await prisma.customer.findFirst({
-        where: {
-          organizationId: existingCustomer.organizationId,
-          document: updateData.document,
-          isDeleted: false,
-          id: { not: customerId },
-        },
-      });
-
-      if (documentExists) {
-        return {
-          status: 409,
-          message: 'Ya existe otro cliente con ese documento',
-          data: null,
-        };
-      }
-    }
+    const conflict = await checkUniqueFields(
+      actor.organizationId,
+      {
+        email: data.email !== existing.email ? data.email : undefined,
+        document: data.document !== existing.document ? data.document : undefined,
+      },
+      existing.id
+    );
+    if (conflict) return conflict;
 
     const updatedCustomer = await prisma.customer.update({
-      where: { id: customerId },
-      data: {
-        ...updateData,
-        updatedAt: new Date(),
-      },
+      where,
+      data: { ...data, updatedAt: new Date() },
       include: customerInclude,
     });
 
-    return {
-      status: 200,
-      message: 'Cliente actualizado exitosamente',
-      data: updatedCustomer,
-    };
+    return { status: 200, message: 'Cliente actualizado exitosamente', data: serializeDecimals(updatedCustomer) };
   } catch (error) {
-    console.error('Error updating customer:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Cliente no encontrado', data: null };
-      }
-      if (error.code === 'P2002') {
-        return {
-          status: 409,
-          message: 'Ya existe un cliente con esos datos únicos',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'updating customer');
   }
 };
 
-// SOFT DELETE CUSTOMER
-export const softDeleteCustomer = async (
-  customerId: string,
-  userId: string
-): Promise<ActionResponse> => {
+// SOFT DELETE
+export const softDeleteCustomer = async (customerId: string): Promise<ActionResponse> => {
   try {
-    const hasAccess = await checkAdminOrSellerRole(userId);
-    if (!hasAccess) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(customerId);
+    if (!id.success) return invalidCustomerId();
 
-    if (!customerId) {
-      return {
-        status: 400,
-        message: 'ID de cliente es requerido',
-        data: null,
-      };
-    }
-
-    const existingCustomer = await prisma.customer.findFirst({
-      where: { id: customerId, isDeleted: false },
-      include: {
-        _count: {
-          select: {
-            sales: true,
-          },
-        },
-      },
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: false };
+    const existing = await prisma.customer.findFirst({
+      where,
+      include: { _count: { select: { sales: true } } },
     });
+    if (!existing) return customerNotFound();
 
-    if (!existingCustomer) {
-      return { status: 404, message: 'Cliente no encontrado', data: null };
-    }
-
-    // Verificar si tiene ventas asociadas
-    if (existingCustomer._count.sales > 0) {
+    if (existing._count.sales > 0) {
       return {
         status: 400,
-        message: `No se puede eliminar el cliente porque tiene ${existingCustomer._count.sales} venta(s) asociada(s). Desactívelo en su lugar.`,
+        message: `No se puede eliminar el cliente porque tiene ${existing._count.sales} venta(s) asociada(s). Desactívelo en su lugar.`,
         data: null,
       };
     }
 
     await prisma.customer.update({
-      where: { id: customerId },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-        updatedAt: new Date(),
-      },
+      where,
+      data: { isDeleted: true, deletedAt: new Date(), updatedAt: new Date() },
     });
 
-    return {
-      status: 200,
-      message: 'Cliente eliminado exitosamente',
-      data: null,
-    };
+    return { status: 200, message: 'Cliente eliminado exitosamente', data: null };
   } catch (error) {
-    console.error('Error deleting customer:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'deleting customer');
   }
 };
 
-// TOGGLE CUSTOMER ACTIVE STATUS
-export const toggleCustomerActiveStatus = async (
-  customerId: string,
-  userId: string
-): Promise<ActionResponse<Customer | null>> => {
+// TOGGLE ACTIVE STATUS
+export const toggleCustomerActiveStatus = async (customerId: string): Promise<ActionResponse<Customer | null>> => {
   try {
-    const hasAccess = await checkAdminOrSellerRole(userId);
-    if (!hasAccess) return unauthorizedResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(customerId);
+    if (!id.success) return invalidCustomerId();
 
-    if (!customerId) {
-      return {
-        status: 400,
-        message: 'ID de cliente es requerido',
-        data: null,
-      };
-    }
-
-    const existingCustomer = await prisma.customer.findFirst({
-      where: { id: customerId, isDeleted: false },
-    });
-
-    if (!existingCustomer) {
-      return { status: 404, message: 'Cliente no encontrado', data: null };
-    }
+    const where = { id: id.data, organizationId: actor.organizationId, isDeleted: false };
+    const existing = await prisma.customer.findFirst({ where, select: { isActive: true } });
+    if (!existing) return customerNotFound();
 
     const updatedCustomer = await prisma.customer.update({
-      where: { id: customerId },
-      data: {
-        isActive: !existingCustomer.isActive,
-        updatedAt: new Date(),
-      },
+      where,
+      data: { isActive: !existing.isActive, updatedAt: new Date() },
       include: customerInclude,
     });
 
     return {
       status: 200,
       message: `Cliente ${updatedCustomer.isActive ? 'activado' : 'desactivado'} exitosamente`,
-      data: updatedCustomer,
+      data: serializeDecimals(updatedCustomer),
     };
   } catch (error) {
-    console.error('Error toggling customer status:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'toggling customer status');
   }
 };
 
 // ===========================
-// ANALYTICS AND REPORTS
+// ANALYTICS AND REPORTS (admin)
 // ===========================
 
-// GET CUSTOMER PURCHASE HISTORY
+/** Live customer of the organization, or null. */
+const findOrgCustomer = (organizationId: string, customerId: string) =>
+  prisma.customer.findFirst({ where: { id: customerId, organizationId, isDeleted: false }, select: { id: true } });
+
+// PURCHASE HISTORY
 export const getCustomerPurchaseHistory = async (
   customerId: string,
-  pagination?: {
-    page?: number;
-    limit?: number;
-  }
+  pagination?: PaginationInput
 ): Promise<ActionResponse<{ sales: unknown[]; total: number } | null>> => {
   try {
-    if (!customerId) {
-      return {
-        status: 400,
-        message: 'ID de cliente es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(customerId);
+    if (!id.success) return invalidCustomerId();
+    const parsedPagination = paginationSchema.safeParse(pagination);
+    if (!parsedPagination.success) return invalidInput();
 
-    const customer = await prisma.customer.findFirst({
-      where: { id: customerId, isDeleted: false },
-    });
+    if (!(await findOrgCustomer(actor.organizationId, id.data))) return customerNotFound();
 
-    if (!customer) {
-      return { status: 404, message: 'Cliente no encontrado', data: null };
-    }
-
-    const page = pagination?.page || 1;
-    const limit = pagination?.limit || 20;
-    const skip = (page - 1) * limit;
+    const page = parsedPagination.data?.page ?? 1;
+    const limit = parsedPagination.data?.limit ?? 20;
+    const where = { customerId: id.data, organizationId: actor.organizationId, isDeleted: false };
 
     const [total, sales] = await Promise.all([
-      prisma.sale.count({
-        where: {
-          customerId,
-          isDeleted: false,
-        },
-      }),
+      prisma.sale.count({ where }),
       prisma.sale.findMany({
-        where: {
-          customerId,
-          isDeleted: false,
-        },
+        where,
         include: {
-          store: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+          store: { select: { id: true, name: true } },
           saleItems: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                },
-              },
-            },
+            where: { isDeleted: false },
+            include: { product: { select: { id: true, name: true, image: true } } },
           },
           salePayments: {
-            include: {
-              paymentMethod: {
-                select: {
-                  id: true,
-                  name: true,
-                  type: true,
-                },
-              },
-            },
+            where: { isDeleted: false },
+            include: { paymentMethod: { select: { id: true, name: true, type: true } } },
           },
         },
-        orderBy: {
-          saleDate: 'desc',
-        },
-        skip,
+        orderBy: { saleDate: 'desc' },
+        skip: (page - 1) * limit,
         take: limit,
       }),
     ]);
 
-    return {
-      status: 200,
-      message: 'Historial de compras obtenido exitosamente',
-      data: { sales, total },
-    };
+    return { status: 200, message: 'Historial de compras obtenido exitosamente', data: { sales: serializeDecimals(sales), total } };
   } catch (error) {
-    console.error('Error fetching customer purchase history:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching customer purchase history');
   }
 };
 
-// GET CUSTOMER STATISTICS
+// STATISTICS
 export const getCustomerStatistics = async (
   customerId: string
 ): Promise<
@@ -636,83 +371,43 @@ export const getCustomerStatistics = async (
   } | null>
 > => {
   try {
-    if (!customerId) {
-      return {
-        status: 400,
-        message: 'ID de cliente es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(customerId);
+    if (!id.success) return invalidCustomerId();
+    const organizationId = actor.organizationId;
 
-    const customer = await prisma.customer.findFirst({
-      where: { id: customerId, isDeleted: false },
-    });
+    if (!(await findOrgCustomer(organizationId, id.data))) return customerNotFound();
 
-    if (!customer) {
-      return { status: 404, message: 'Cliente no encontrado', data: null };
-    }
+    const saleWhere = {
+      customerId: id.data,
+      organizationId,
+      isDeleted: false,
+      status: { not: 'CANCELLED' as const },
+    };
 
-    // Obtener estadísticas de ventas
-    const salesStats = await prisma.sale.aggregate({
-      where: {
-        customerId,
-        isDeleted: false,
-        status: { not: 'CANCELLED' },
-      },
-      _count: { id: true },
-      _sum: { total: true },
-      _avg: { total: true },
-    });
+    const [salesStats, lastSale, favoriteProductsRaw] = await Promise.all([
+      prisma.sale.aggregate({
+        where: saleWhere,
+        _count: { id: true },
+        _sum: { total: true },
+        _avg: { total: true },
+      }),
+      prisma.sale.findFirst({ where: saleWhere, orderBy: { saleDate: 'desc' }, select: { saleDate: true } }),
+      prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: { sale: saleWhere, isDeleted: false },
+        _sum: { quantity: true, subtotal: true },
+        orderBy: { _sum: { quantity: 'desc' } },
+        take: 5,
+      }),
+    ]);
 
-    // Obtener última fecha de compra
-    const lastSale = await prisma.sale.findFirst({
-      where: {
-        customerId,
-        isDeleted: false,
-        status: { not: 'CANCELLED' },
-      },
-      orderBy: { saleDate: 'desc' },
-      select: { saleDate: true },
-    });
-
-    // Obtener productos favoritos
-    const favoriteProductsRaw = await prisma.saleItem.groupBy({
-      by: ['productId'],
-      where: {
-        sale: {
-          customerId,
-          isDeleted: false,
-          status: { not: 'CANCELLED' },
-        },
-        isDeleted: false,
-      },
-      _sum: {
-        quantity: true,
-        subtotal: true,
-      },
-      orderBy: {
-        _sum: {
-          quantity: 'desc',
-        },
-      },
-      take: 5,
-    });
-
-    // Obtener nombres de productos
     const productIds = favoriteProductsRaw.map((item) => item.productId);
     const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: { id: { in: productIds }, organizationId },
       select: { id: true, name: true },
     });
-
     const productMap = new Map(products.map((p) => [p.id, p.name]));
-
-    const favoriteProducts = favoriteProductsRaw.map((item) => ({
-      productId: item.productId,
-      productName: productMap.get(item.productId) || 'Producto desconocido',
-      totalQuantity: item._sum.quantity || 0,
-      totalSpent: Number(item._sum.subtotal ?? 0),
-    }));
 
     return {
       status: 200,
@@ -722,18 +417,21 @@ export const getCustomerStatistics = async (
         totalSpent: Number(salesStats._sum.total ?? 0),
         averagePurchase: Number(salesStats._avg.total ?? 0),
         lastPurchaseDate: lastSale?.saleDate || null,
-        favoriteProducts,
+        favoriteProducts: favoriteProductsRaw.map((item) => ({
+          productId: item.productId,
+          productName: productMap.get(item.productId) || 'Producto desconocido',
+          totalQuantity: item._sum.quantity || 0,
+          totalSpent: Number(item._sum.subtotal ?? 0),
+        })),
       },
     };
   } catch (error) {
-    console.error('Error fetching customer statistics:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching customer statistics');
   }
 };
 
-// GET TOP CUSTOMERS BY PURCHASES
+// TOP CUSTOMERS BY PURCHASES
 export const getTopCustomersByPurchases = async (
-  orgId: string,
   limit: number = 10
 ): Promise<
   ActionResponse<
@@ -747,54 +445,43 @@ export const getTopCustomersByPurchases = async (
   >
 > => {
   try {
-    if (checkOrgId(orgId)) return emptyOrgIdResponse();
+    const actor = await requireActor(ADMIN_ONLY);
+    const take = topLimitSchema.safeParse(limit);
+    if (!take.success) return invalidInput();
+    const organizationId = actor.organizationId;
 
     const topCustomers = await prisma.sale.groupBy({
       by: ['customerId'],
       where: {
-        organizationId: orgId,
+        organizationId,
         isDeleted: false,
         status: { not: 'CANCELLED' },
         customerId: { not: null },
       },
       _count: { id: true },
       _sum: { total: true },
-      orderBy: {
-        _sum: {
-          total: 'desc',
-        },
-      },
-      take: limit,
+      orderBy: { _sum: { total: 'desc' } },
+      take: take.data,
     });
 
-    // Obtener información de clientes
-    const customerIds = topCustomers
-      .map((item) => item.customerId)
-      .filter((id): id is string => id !== null);
-
+    const customerIds = topCustomers.map((item) => item.customerId).filter((id): id is string => id !== null);
     const customers = await prisma.customer.findMany({
-      where: { id: { in: customerIds } },
+      where: { id: { in: customerIds }, organizationId },
       select: { id: true, firstName: true, lastName: true },
     });
-
-    const customerMap = new Map(
-      customers.map((c) => [c.id, `${c.firstName} ${c.lastName}`])
-    );
-
-    const result = topCustomers.map((item) => ({
-      customerId: item.customerId || '',
-      customerName: customerMap.get(item.customerId || '') || 'Cliente desconocido',
-      totalPurchases: item._count.id,
-      totalSpent: Number(item._sum.total ?? 0),
-    }));
+    const customerMap = new Map(customers.map((c) => [c.id, `${c.firstName} ${c.lastName}`]));
 
     return {
       status: 200,
       message: 'Top clientes obtenidos exitosamente',
-      data: result,
+      data: topCustomers.map((item) => ({
+        customerId: item.customerId || '',
+        customerName: customerMap.get(item.customerId || '') || 'Cliente desconocido',
+        totalPurchases: item._count.id,
+        totalSpent: Number(item._sum.total ?? 0),
+      })),
     };
   } catch (error) {
-    console.error('Error fetching top customers:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching top customers');
   }
 };

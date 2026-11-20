@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   createSupplier,
-  getSuppliersByOrgId,
+  getSuppliers,
   getSupplierById,
   getSupplierByTaxId,
   getSupplierByEmail,
@@ -77,8 +77,7 @@ export const useSuppliers = (
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getSuppliersByOrgId(
-        user.organizationId,
+      const response = await getSuppliers(
         filters,
         includeDeleted,
         pagination
@@ -134,7 +133,7 @@ export const useSupplierByTaxId = (taxId: string) => {
         throw new Error('TaxId requerido');
       }
 
-      const response = await getSupplierByTaxId(user.organizationId, taxId);
+      const response = await getSupplierByTaxId(taxId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -163,7 +162,7 @@ export const useSupplierByEmail = (email: string) => {
         throw new Error('Email requerido');
       }
 
-      const response = await getSupplierByEmail(user.organizationId, email);
+      const response = await getSupplierByEmail(email);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -192,11 +191,7 @@ export const useCreateSupplier = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await createSupplier(
-        user.organizationId,
-        user.id,
-        supplierData
-      );
+      const response = await createSupplier(supplierData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -233,7 +228,7 @@ export const useUpdateSupplier = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await updateSupplier(supplierId, user.id, updateData);
+      const response = await updateSupplier(supplierId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -288,7 +283,7 @@ export const useSoftDeleteSupplier = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await softDeleteSupplier(supplierId, user.id);
+      const response = await softDeleteSupplier(supplierId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -327,7 +322,7 @@ export const useToggleSupplierActiveStatus = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await toggleSupplierActiveStatus(supplierId, user.id);
+      const response = await toggleSupplierActiveStatus(supplierId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -423,10 +418,7 @@ export const useTopSuppliersByPurchases = (limit: number = 10) => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getTopSuppliersByPurchases(
-        user.organizationId,
-        limit
-      );
+      const response = await getTopSuppliersByPurchases(limit);
 
       if (response.status !== 200) {
         throw new Error(response.message);

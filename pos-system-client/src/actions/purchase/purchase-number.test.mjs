@@ -41,20 +41,31 @@ const prisma = {
 };
 globalThis.__purchaseNumberTest = { state, prisma };
 const mocks = {
-  '@/generated/prisma': 'export const Prisma = { Decimal: class Decimal {}, PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {} }; export const PurchaseStatus = {};',
+  '@/generated/prisma': 'export const Prisma = { Decimal: class Decimal {}, PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {} }; export const PurchaseStatus = {}; export const MembershipRole = { ADMIN: "ADMIN", SELLER: "SELLER" };',
   '../utils': 'export const prisma = globalThis.__purchaseNumberTest.prisma; export const serializeDecimals = x => x;',
-  './purchase-access': 'export const getPurchaseActor = async () => { const actor = globalThis.__purchaseNumberTest.state.actor; return actor && actor.role === "ADMIN" ? { actor } : { status: actor ? 403 : 401 }; }; export const purchaseAccessError = status => ({ status, data: null });',
+  '@/lib/auth/actor': `
+    class ActorError extends Error { constructor(status) { super('denied'); this.status = status; } }
+    export const requireActor = async (options = {}) => {
+      const actor = globalThis.__purchaseNumberTest.state.actor;
+      if (!actor) throw new ActorError(401);
+      if (options.roles && !options.roles.includes(actor.role)) throw new ActorError(403);
+      return actor;
+    };
+    export const actorErrorResponse = error => error instanceof ActorError ? { status: error.status, message: error.message, data: null } : null;`,
 };
 const compiled = await build({
   ...(baseline ? { stdin: { contents: source, resolveDir: dirname(entry), sourcefile: entry, loader: 'ts' } } : { entryPoints: [entry] }),
   bundle: true, platform: 'node', format: 'esm', write: false,
   plugins: [{ name: 'mock-boundary', setup(plugin) {
-    plugin.onResolve({ filter: /^(?:@\/generated\/prisma|\.\.\/utils|\.\/purchase-access)$/ }, args => ({ path: args.path, namespace: 'mock' }));
+    plugin.onResolve({ filter: /^(?:@\/generated\/prisma|\.\.\/utils|@\/lib\/auth\/actor)$/ }, args => ({ path: args.path, namespace: 'mock' }));
     plugin.onLoad({ filter: /.*/, namespace: 'mock' }, args => ({ contents: mocks[args.path], loader: 'js' }));
   } }],
 });
 const { createPurchase } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
-const create = async org => createPurchase(org, 'ignored', { supplierId: 'supplier', status: 'PENDING', purchaseDate: new Date(), total: 0 }, [{ productId: 'product', quantity: 2, unitPrice: 5, subtotal: 10, unitMeasureId: 'unit' }]);
+const SUPPLIER = '00000000-0000-4000-8000-000000000001';
+const PRODUCT = '00000000-0000-4000-8000-000000000002';
+// La organización sale de la sesión; la del cliente se ignora.
+const create = async (org) => createPurchase({ supplierId: SUPPLIER, organizationId: org, status: 'PENDING', purchaseDate: new Date(), total: 0 }, [{ productId: PRODUCT, quantity: 2, unitPrice: 5, subtotal: 10, unitMeasureId: 'unit' }]);
 
 test('P0 contrato: tenants independientes, huecos históricos y soft-delete sin reuso', async () => {
   state.actor = { organizationId: 'org-a', role: 'ADMIN' };
@@ -95,8 +106,8 @@ test('P0 contrato: día de negocio America/Bogota, cambio de día y createdAt co
   assert.equal(after.data.createdAt.toISOString(), '2026-11-16T05:00:00.000Z');
 });
 
-test('P0 contrato: sin sesión, seller y tenant ajeno no adquieren lock ni escriben', async () => {
-  for (const actor of [null, { organizationId: 'org-a', role: 'SELLER' }, { organizationId: 'org-b', role: 'ADMIN' }]) {
+test('P0 contrato: sin sesión y seller no adquieren lock ni escriben', async () => {
+  for (const actor of [null, { organizationId: 'org-a', role: 'SELLER' }]) {
     state.actor = actor;
     const locks = state.locks.length;
     const count = state.purchases.length;

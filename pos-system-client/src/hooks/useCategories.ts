@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createCategory, getCategoriesByOrgId, softDeleteCategory, updateCategory } from '@/actions/category'
+import { createCategory, getCategories, softDeleteCategory, updateCategory, type CreateCategoryInput, type UpdateCategoryInput } from '@/actions/category'
 import { useStore } from '@/store'
-import { Category } from '@/generated/prisma';
 
 export const useCategories = (isActive?: boolean) => {
   const user = useStore(state => state.user);
@@ -13,7 +12,7 @@ export const useCategories = (isActive?: boolean) => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await getCategoriesByOrgId(user.organizationId, isActive)
+      const response = await getCategories(isActive)
 
       // Manejar errores de la respuesta
       if (response.status !== 200) {
@@ -34,12 +33,12 @@ export const useCreateCategory = () => {
   const user = useStore(state => state.user);
 
   return useMutation({
-    mutationFn: async (categoryData: Omit<Category, 'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>) => {
+    mutationFn: async (categoryData: CreateCategoryInput) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await createCategory(user.organizationId, user.id, categoryData)
+      const response = await createCategory(categoryData)
 
       if (response.status !== 201) {
         throw new Error(response.message)
@@ -80,7 +79,7 @@ export const useSoftDeleteCategory = () => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await softDeleteCategory(categoryId, user.id);
+      const response = await softDeleteCategory(categoryId);
 
       if (response.status !== 200) {
         throw new Error(response.message)
@@ -110,8 +109,7 @@ export const useUpdateCategory = () => {
         categoryData }:
         {
           categoryId: string,
-          categoryData: Partial<Omit<Category,
-            'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>>
+          categoryData: UpdateCategoryInput
 
         }) => {
 
@@ -119,7 +117,7 @@ export const useUpdateCategory = () => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await updateCategory(categoryId, user.id, categoryData)
+      const response = await updateCategory(categoryId, categoryData)
 
       if (response.status !== 200) {
         throw new Error(response.message)

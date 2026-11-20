@@ -1,15 +1,21 @@
 'use server';
 
-import { PurchaseItem, Prisma } from '@/generated/prisma';
+import { MembershipRole, Prisma, PurchaseItem } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma, serializeDecimals } from '../utils';
+import { firstIssue, idSchema, internalError, invalidInput } from '../common.schemas';
 import {
-  prisma,
-  serializeDecimals,
-} from '../utils';
-import { getPurchaseActor, purchaseAccessError } from '../purchase/purchase-access';
+  purchaseItemInputSchema,
+  updatePurchaseItemInputSchema,
+  type PurchaseItemInput,
+  type UpdatePurchaseItemInput,
+} from '../purchase/purchase.schemas';
 
-// PURCHASE ITEM INCLUDES
-const purchaseItemInclude: Prisma.PurchaseItemInclude = {
+// Purchases are administration only (lib/rbac.ts).
+const ADMIN_ONLY = { roles: [MembershipRole.ADMIN] } as const;
+
+const purchaseItemInclude = {
   purchase: {
     select: {
       id: true,
@@ -25,347 +31,180 @@ const purchaseItemInclude: Prisma.PurchaseItemInclude = {
       unitMeasure: true,
     },
   },
+} satisfies Prisma.PurchaseItemInclude;
+
+const purchaseNotFound = () => ({ status: 404, message: 'Compra no encontrada', data: null }) as const;
+const itemNotFound = () => ({ status: 404, message: 'Item de compra no encontrado', data: null }) as const;
+
+const handleError = (error: unknown, context: string) => {
+  const denied = actorErrorResponse(error);
+  if (denied) return denied;
+  console.error(`Error ${context}:`, error);
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2003') {
+      return { status: 400, message: 'Una de las referencias especificadas no existe', data: null } as const;
+    }
+    if (error.code === 'P2025') return itemNotFound();
+  }
+  return internalError();
 };
 
-// ===========================
-// PURCHASE ITEM ACTIONS
-// ===========================
+/** Items belong to a purchase; the organization filter goes through it. */
+const orgPurchase = (organizationId: string) => ({ organizationId, isDeleted: false });
 
-// CREATE PURCHASE ITEM
+/** Recomputes the purchase total from its live items. */
+const recalculateTotal = async (organizationId: string, purchaseId: string) => {
+  const items = await prisma.purchaseItem.findMany({
+    where: { purchaseId, isDeleted: false, purchase: orgPurchase(organizationId) },
+    select: { subtotal: true },
+  });
+  const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
+  await prisma.purchase.update({
+    where: { id: purchaseId, ...orgPurchase(organizationId) },
+    data: { total, updatedAt: new Date() },
+  });
+};
+
+// CREATE
 export const createPurchaseItem = async (
   purchaseId: string,
-  userId: string,
-  itemData: Omit<
-    Serialized<PurchaseItem>,
-    'id' | 'purchaseId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-  >
+  input: PurchaseItemInput
 ): Promise<ActionResponse<Serialized<PurchaseItem> | null>> => {
   try {
-    const access = await getPurchaseActor(true);
-    if (!access.actor) return purchaseAccessError(access.status);
-    void userId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(purchaseId);
+    if (!id.success) return invalidInput('ID de compra es requerido');
+    const parsed = purchaseItemInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const data = parsed.data;
+    const organizationId = actor.organizationId;
 
-    if (!purchaseId) {
-      return {
-        status: 400,
-        message: 'ID de compra es requerido',
-        data: null,
-      };
-    }
-
-    // Verificar que la compra existe y está en estado PENDING
     const purchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
+      where: { id: id.data, ...orgPurchase(organizationId) },
+      select: { status: true },
     });
-
-    if (!purchase) {
-      return {
-        status: 404,
-        message: 'Compra no encontrada',
-        data: null,
-      };
-    }
-
+    if (!purchase) return purchaseNotFound();
     if (purchase.status !== 'PENDING') {
-      return {
-        status: 400,
-        message: 'Solo se pueden agregar items a compras en estado PENDING',
-        data: null,
-      };
+      return invalidInput('Solo se pueden agregar items a compras en estado PENDING');
     }
 
-    // Validar cantidad y precio
-    if (itemData.quantity <= 0) {
-      return {
-        status: 400,
-        message: 'La cantidad debe ser mayor a 0',
-        data: null,
-      };
-    }
+    const product = await prisma.product.findFirst({
+      where: { id: data.productId, organizationId, isDeleted: false },
+      select: { id: true },
+    });
+    if (!product) return invalidInput('Producto no encontrado');
 
-    if (itemData.unitPrice < 0) {
-      return {
-        status: 400,
-        message: 'El precio unitario no puede ser negativo',
-        data: null,
-      };
-    }
-
-    const product = await prisma.product.findFirst({ where: { id: itemData.productId, organizationId: access.actor.organizationId, isDeleted: false } });
-    if (!product) return { status: 400, message: 'Producto no encontrado', data: null };
-
-    // Crear el item
     const newItem = await prisma.purchaseItem.create({
       data: {
-        ...itemData,
-        purchaseId,
-        subtotal: itemData.quantity * itemData.unitPrice,
+        productId: data.productId,
+        quantity: data.quantity,
+        unitPrice: data.unitPrice,
+        subtotal: data.quantity * data.unitPrice,
+        purchaseId: id.data,
       },
       include: purchaseItemInclude,
     });
 
-    // Recalcular totales de la compra
-    const items = await prisma.purchaseItem.findMany({
-      where: { purchaseId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
-    });
+    await recalculateTotal(organizationId, id.data);
 
-    const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
-
-    await prisma.purchase.update({
-      where: { id: purchaseId, organizationId: access.actor.organizationId, isDeleted: false },
-      data: {
-        total,
-        updatedAt: new Date(),
-      },
-    });
-
-    return {
-      status: 201,
-      message: 'Item de compra creado exitosamente',
-      data: serializeDecimals(newItem),
-    };
+    return { status: 201, message: 'Item de compra creado exitosamente', data: serializeDecimals(newItem) };
   } catch (error) {
-    console.error('Error creating purchase item:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2003') {
-        return {
-          status: 400,
-          message: 'Una de las referencias especificadas no existe',
-          data: null,
-        };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'creating purchase item');
   }
 };
 
-// GET PURCHASE ITEMS BY PURCHASE ID
+// GET BY PURCHASE
 export const getPurchaseItemsByPurchaseId = async (
   purchaseId: string
 ): Promise<ActionResponse<Serialized<PurchaseItem>[] | null>> => {
   try {
-    const access = await getPurchaseActor();
-    if (!access.actor) return purchaseAccessError(access.status);
-    if (!purchaseId) {
-      return {
-        status: 400,
-        message: 'ID de compra es requerido',
-        data: null,
-      };
-    }
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(purchaseId);
+    if (!id.success) return invalidInput('ID de compra es requerido');
 
     const items = await prisma.purchaseItem.findMany({
-      where: {
-        purchaseId,
-        isDeleted: false,
-        purchase: { organizationId: access.actor.organizationId, isDeleted: false },
-      },
+      where: { purchaseId: id.data, isDeleted: false, purchase: orgPurchase(actor.organizationId) },
       include: purchaseItemInclude,
       orderBy: { createdAt: 'asc' },
     });
 
-    return {
-      status: 200,
-      message: 'Items de compra obtenidos exitosamente',
-      data: serializeDecimals(items),
-    };
+    return { status: 200, message: 'Items de compra obtenidos exitosamente', data: serializeDecimals(items) };
   } catch (error) {
-    console.error('Error fetching purchase items:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'fetching purchase items');
   }
 };
 
-// UPDATE PURCHASE ITEM
+/** Live item of a live purchase of the organization, with its purchase status. */
+const findOrgItem = (organizationId: string, itemId: string) =>
+  prisma.purchaseItem.findFirst({
+    where: { id: itemId, isDeleted: false, purchase: orgPurchase(organizationId) },
+    include: { purchase: { select: { status: true } } },
+  });
+
+// UPDATE
 export const updatePurchaseItem = async (
   itemId: string,
-  userId: string,
-  updateData: Partial<{
-    quantity: number;
-    unitPrice: number;
-  }>
+  input: UpdatePurchaseItemInput
 ): Promise<ActionResponse<Serialized<PurchaseItem> | null>> => {
   try {
-    const access = await getPurchaseActor(true);
-    if (!access.actor) return purchaseAccessError(access.status);
-    void userId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(itemId);
+    if (!id.success) return invalidInput('ID de item es requerido');
+    const parsed = updatePurchaseItemInputSchema.safeParse(input);
+    if (!parsed.success) return invalidInput(firstIssue(parsed.error));
+    const organizationId = actor.organizationId;
 
-    if (!itemId) {
-      return {
-        status: 400,
-        message: 'ID de item es requerido',
-        data: null,
-      };
+    const existing = await findOrgItem(organizationId, id.data);
+    if (!existing) return itemNotFound();
+    if (existing.purchase.status !== 'PENDING') {
+      return invalidInput('Solo se pueden actualizar items de compras en estado PENDING');
     }
 
-    const existingItem = await prisma.purchaseItem.findFirst({
-      where: { id: itemId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
-      include: { purchase: true },
-    });
-
-    if (!existingItem) {
-      return { status: 404, message: 'Item de compra no encontrado', data: null };
-    }
-
-    // Solo permitir actualizar items de compras PENDING
-    if (existingItem.purchase.status !== 'PENDING') {
-      return {
-        status: 400,
-        message: 'Solo se pueden actualizar items de compras en estado PENDING',
-        data: null,
-      };
-    }
-
-    // Validaciones
-    if (updateData.quantity !== undefined && updateData.quantity <= 0) {
-      return {
-        status: 400,
-        message: 'La cantidad debe ser mayor a 0',
-        data: null,
-      };
-    }
-
-    if (updateData.unitPrice !== undefined && updateData.unitPrice < 0) {
-      return {
-        status: 400,
-        message: 'El precio unitario no puede ser negativo',
-        data: null,
-      };
-    }
-
-    const newQuantity = updateData.quantity ?? existingItem.quantity;
-    const newUnitPrice =
-      updateData.unitPrice ?? existingItem.unitPrice.toNumber();
-    const newSubtotal = newQuantity * newUnitPrice;
+    const quantity = parsed.data.quantity ?? existing.quantity;
+    const unitPrice = parsed.data.unitPrice ?? existing.unitPrice.toNumber();
 
     const updatedItem = await prisma.purchaseItem.update({
-      where: { id: itemId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
-      data: {
-        quantity: newQuantity,
-        unitPrice: newUnitPrice,
-        subtotal: newSubtotal,
-        updatedAt: new Date(),
-      },
+      where: { id: id.data, isDeleted: false, purchase: orgPurchase(organizationId) },
+      data: { quantity, unitPrice, subtotal: quantity * unitPrice, updatedAt: new Date() },
       include: purchaseItemInclude,
     });
 
-    // Recalcular totales de la compra
-    const items = await prisma.purchaseItem.findMany({
-      where: { purchaseId: existingItem.purchaseId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
-    });
+    await recalculateTotal(organizationId, existing.purchaseId);
 
-    const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
-
-    await prisma.purchase.update({
-      where: { id: existingItem.purchaseId },
-      data: {
-        total,
-        updatedAt: new Date(),
-      },
-    });
-
-    return {
-      status: 200,
-      message: 'Item de compra actualizado exitosamente',
-      data: serializeDecimals(updatedItem),
-    };
+    return { status: 200, message: 'Item de compra actualizado exitosamente', data: serializeDecimals(updatedItem) };
   } catch (error) {
-    console.error('Error updating purchase item:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { status: 404, message: 'Item de compra no encontrado', data: null };
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'updating purchase item');
   }
 };
 
-// SOFT DELETE PURCHASE ITEM
-export const softDeletePurchaseItem = async (
-  itemId: string,
-  userId: string
-): Promise<ActionResponse> => {
+// SOFT DELETE
+export const softDeletePurchaseItem = async (itemId: string): Promise<ActionResponse> => {
   try {
-    const access = await getPurchaseActor(true);
-    if (!access.actor) return purchaseAccessError(access.status);
-    void userId;
+    const actor = await requireActor(ADMIN_ONLY);
+    const id = idSchema.safeParse(itemId);
+    if (!id.success) return invalidInput('ID de item es requerido');
+    const organizationId = actor.organizationId;
 
-    if (!itemId) {
-      return {
-        status: 400,
-        message: 'ID de item es requerido',
-        data: null,
-      };
+    const existing = await findOrgItem(organizationId, id.data);
+    if (!existing) return itemNotFound();
+    if (existing.purchase.status !== 'PENDING') {
+      return invalidInput('Solo se pueden eliminar items de compras en estado PENDING');
     }
 
-    const existingItem = await prisma.purchaseItem.findFirst({
-      where: { id: itemId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
-      include: { purchase: true },
-    });
-
-    if (!existingItem) {
-      return { status: 404, message: 'Item de compra no encontrado', data: null };
-    }
-
-    // Solo permitir eliminar items de compras PENDING
-    if (existingItem.purchase.status !== 'PENDING') {
-      return {
-        status: 400,
-        message: 'Solo se pueden eliminar items de compras en estado PENDING',
-        data: null,
-      };
-    }
-
-    // Verificar que no sea el último item de la compra
     const itemCount = await prisma.purchaseItem.count({
-      where: {
-        purchaseId: existingItem.purchaseId,
-        isDeleted: false,
-      },
+      where: { purchaseId: existing.purchaseId, isDeleted: false, purchase: orgPurchase(organizationId) },
     });
-
-    if (itemCount === 1) {
-      return {
-        status: 400,
-        message: 'No se puede eliminar el último item de la compra',
-        data: null,
-      };
-    }
+    if (itemCount === 1) return invalidInput('No se puede eliminar el último item de la compra');
 
     await prisma.purchaseItem.update({
-      where: { id: itemId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-        updatedAt: new Date(),
-      },
+      where: { id: id.data, isDeleted: false, purchase: orgPurchase(organizationId) },
+      data: { isDeleted: true, deletedAt: new Date(), updatedAt: new Date() },
     });
 
-    // Recalcular totales de la compra
-    const items = await prisma.purchaseItem.findMany({
-      where: { purchaseId: existingItem.purchaseId, isDeleted: false, purchase: { organizationId: access.actor.organizationId, isDeleted: false } },
-    });
+    await recalculateTotal(organizationId, existing.purchaseId);
 
-    const total = items.reduce((sum, item) => sum + item.subtotal.toNumber(), 0);
-
-    await prisma.purchase.update({
-      where: { id: existingItem.purchaseId },
-      data: {
-        total,
-        updatedAt: new Date(),
-      },
-    });
-
-    return {
-      status: 200,
-      message: 'Item de compra eliminado exitosamente',
-      data: null,
-    };
+    return { status: 200, message: 'Item de compra eliminado exitosamente', data: null };
   } catch (error) {
-    console.error('Error deleting purchase item:', error);
-    return { status: 500, message: 'Error interno del servidor', data: null };
+    return handleError(error, 'deleting purchase item');
   }
 };

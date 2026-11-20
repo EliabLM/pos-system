@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createBrand, updateBrand, getBrandsByOrgId, softDeleteBrand } from '@/actions/brand'
+import { createBrand, updateBrand, getBrands, softDeleteBrand, type CreateBrandInput, type UpdateBrandInput } from '@/actions/brand'
 import { useStore } from '@/store'
-import { Brand } from '@/generated/prisma';
 
 export const useBrands = (isActive?: boolean) => {
   const user = useStore(state => state.user);
@@ -13,7 +12,7 @@ export const useBrands = (isActive?: boolean) => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await getBrandsByOrgId(user.organizationId, isActive)
+      const response = await getBrands(isActive)
 
       // Manejar errores de la respuesta
       if (response.status !== 200) {
@@ -34,12 +33,12 @@ export const useCreateBrand = () => {
   const user = useStore(state => state.user);
 
   return useMutation({
-    mutationFn: async (brandData: Omit<Brand, 'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt' | 'logo'>) => {
+    mutationFn: async (brandData: CreateBrandInput) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await createBrand(user.organizationId, user.id, brandData)
+      const response = await createBrand(brandData)
 
       if (response.status !== 201) {
         throw new Error(response.message)
@@ -79,7 +78,7 @@ export const useSoftDeleteBrand = () => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await softDeleteBrand(brandId, user.id);
+      const response = await softDeleteBrand(brandId);
 
       if (response.status !== 200) {
         throw new Error(response.message)
@@ -104,13 +103,13 @@ export const useUpdateBrand = () => {
 
   return useMutation({
     mutationFn: async ({ brandId, brandData }: {
-      brandId: string, brandData: Partial<Omit<Brand, 'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'>>
+      brandId: string, brandData: UpdateBrandInput
     }) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await updateBrand(brandId, user.id, brandData)
+      const response = await updateBrand(brandId, brandData)
 
       if (response.status !== 200) {
         throw new Error(response.message)

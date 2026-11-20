@@ -11,11 +11,7 @@ import { MembershipRole, MembershipStatus, Organization, PaymentMethod, Prisma }
 import { ActionResponse } from '@/interfaces';
 import { actorErrorResponse, requireOnboardingUser } from '@/lib/auth/actor';
 import { prisma } from '../utils';
-import { createCategory } from '../category';
-import { createPaymentMethod } from '../payment-methods';
-import { createBrand } from '../brand';
 import { setBusinessType } from '../system-config';
-import { createUnitMeasure } from '../unit-measure';
 
 
 // Definir constantes para configuraciones por defecto
@@ -153,7 +149,6 @@ const FOOTWEAR_UNIT_MEASURES = [
 
 const createInitialConfigurations = async (
   organizationId: string,
-  adminUserId: string,
   businessType?: 'liquor_store' | 'shoe_store' | null
 ): Promise<void> => {
   try {
@@ -180,45 +175,51 @@ const createInitialConfigurations = async (
     // EJECUTAR OPERACIONES SECUENCIALMENTE POR TIPO
     // Sin transacción global para evitar conflictos con transacciones anidadas
 
-    // 1. Crear categorías en paralelo
-    const categoryPromises = categories.map((category) =>
-      createCategory(organizationId, adminUserId, {
+    // Catálogo inicial y métodos de pago de la organización recién creada: se
+    // escriben directo (no por las actions, que exigen el actor de sesión).
+    // 1. Crear categorías
+    await prisma.category.createMany({
+      data: categories.map((category) => ({
+        organizationId,
         name: category.name,
         description: category.description,
         isActive: true,
-      })
-    );
-    await Promise.all(categoryPromises);
+      })),
+      skipDuplicates: true,
+    });
 
-    // 2. Crear métodos de pago en paralelo
-    const paymentMethodPromises = DEFAULT_PAYMENT_METHODS.map((method) =>
-      createPaymentMethod(organizationId, adminUserId, {
+    // 2. Crear métodos de pago
+    await prisma.paymentMethod.createMany({
+      data: DEFAULT_PAYMENT_METHODS.map((method) => ({
+        organizationId,
         name: method.name,
         type: method.type,
         isActive: true,
-      })
-    );
-    await Promise.all(paymentMethodPromises);
+      })),
+      skipDuplicates: true,
+    });
 
     // 3. Crear marcas según tipo de negocio
-    const brandsPromises = brands.map((brand) =>
-      createBrand(organizationId, adminUserId, {
+    await prisma.brand.createMany({
+      data: brands.map((brand) => ({
+        organizationId,
         name: brand.name,
         description: brand.description,
         isActive: true,
-      })
-    );
-    await Promise.all(brandsPromises);
+      })),
+      skipDuplicates: true,
+    });
 
     // 4. Crear unidades de medida según tipo de negocio
-    const unitMeasurePromises = unitMeasures.map((unit) =>
-      createUnitMeasure(organizationId, adminUserId, {
+    await prisma.unitMeasure.createMany({
+      data: unitMeasures.map((unit) => ({
+        organizationId,
         name: unit.name,
         abbreviation: unit.abbreviation,
         isActive: true,
-      })
-    );
-    await Promise.all(unitMeasurePromises);
+      })),
+      skipDuplicates: true,
+    });
   } catch (error) {
     // Re-lanzar el error para que sea manejado por el caller
     throw error;
@@ -313,7 +314,7 @@ export const createOrganization = async (
     // Configuraciones iniciales (categorías, marcas, métodos de pago...). Ya
     // existe la membresía ADMIN, así que pasan las comprobaciones de sesión.
     try {
-      await createInitialConfigurations(newOrganization.id, userId, type);
+      await createInitialConfigurations(newOrganization.id, type);
     } catch (error) {
       console.error('Error creating initial configurations for organization:', newOrganization.id, error);
       // No falla la creación: el usuario puede crearlas manualmente después.

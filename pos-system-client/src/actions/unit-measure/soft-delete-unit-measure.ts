@@ -1,45 +1,29 @@
 'use server';
 
+import { MembershipRole, UnitMeasure } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
-import { prisma, checkAdminRole, unauthorizedResponse } from '../utils';
-import { UnitMeasure } from '@/generated/prisma';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { prisma } from '../utils';
+import { idSchema, invalidInput } from '../common.schemas';
+import { unitMeasureNotFound } from './unit-measure.include';
 
-/**
- * Soft Delete Unit Measure Server Action
- *
- * Marks a unit measure as deleted without removing from database.
- * Requires ADMIN role.
- */
+/** Soft deletes an unused unit measure of the actor's organization. ADMIN only. */
 export const softDeleteUnitMeasure = async (
-  unitMeasureId: string,
-  userId: string
+  unitMeasureId: string
 ): Promise<ActionResponse<UnitMeasure | null>> => {
   try {
-    // Check admin role
-    const isAdmin = await checkAdminRole(userId);
-    if (!isAdmin) return unauthorizedResponse();
+    const actor = await requireActor({ roles: [MembershipRole.ADMIN] });
+    const id = idSchema.safeParse(unitMeasureId);
+    if (!id.success) return invalidInput('ID de la unidad de medida es requerido');
+    const organizationId = actor.organizationId;
 
-    // Verify unit measure exists
-    const existingUnitMeasure = await prisma.unitMeasure.findUnique({
-      where: { id: unitMeasureId },
-    });
+    const where = { id: id.data, organizationId, isDeleted: false };
+    const existing = await prisma.unitMeasure.findFirst({ where, select: { id: true } });
+    if (!existing) return unitMeasureNotFound();
 
-    if (!existingUnitMeasure) {
-      return {
-        status: 404,
-        message: 'Unidad de medida no encontrada',
-        data: null,
-      };
-    }
-
-    // Check if unit measure is being used by products
     const productsUsingUnitMeasure = await prisma.product.count({
-      where: {
-        unitMeasureId: unitMeasureId,
-        isDeleted: false,
-      },
+      where: { organizationId, unitMeasureId: id.data, isDeleted: false },
     });
-
     if (productsUsingUnitMeasure > 0) {
       return {
         status: 400,
@@ -48,26 +32,16 @@ export const softDeleteUnitMeasure = async (
       };
     }
 
-    // Soft delete unit measure
     const deletedUnitMeasure = await prisma.unitMeasure.update({
-      where: { id: unitMeasureId },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-      },
+      where,
+      data: { isDeleted: true, deletedAt: new Date() },
     });
 
-    return {
-      status: 200,
-      message: 'Unidad de medida eliminada exitosamente',
-      data: deletedUnitMeasure,
-    };
+    return { status: 200, message: 'Unidad de medida eliminada exitosamente', data: deletedUnitMeasure };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error deleting unit measure:', error);
-    return {
-      status: 500,
-      message: 'Error al eliminar la unidad de medida',
-      data: null,
-    };
+    return { status: 500, message: 'Error al eliminar la unidad de medida', data: null };
   }
 };

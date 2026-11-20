@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createProduct,
   updateProduct,
-  getProductsByOrgId,
+  getProducts,
   getProductById,
   getProductByBarcode,
   getProductBySku,
@@ -10,12 +10,13 @@ import {
   getLowStockProducts,
   softDeleteProduct,
   restoreProduct,
-  deleteProduct
+  deleteProduct,
+  deleteProductImage,
+  type CreateProductInput,
+  type StockUpdateType,
+  type UpdateProductInput,
 } from '@/actions/product';
 import { useStore } from '@/store';
-import { Product } from '@/generated/prisma';
-import { Serialized } from '@/interfaces';
-import { deleteProductImage } from '@/actions/product';
 
 // Tipos para los filtros de productos
 interface ProductFilters {
@@ -29,7 +30,7 @@ interface ProductFilters {
 interface StockUpdateParams {
   productId: string;
   stockChange: number;
-  type: 'SET' | 'INCREMENT' | 'DECREMENT';
+  type: StockUpdateType;
 }
 
 // Hook principal para obtener productos por organización
@@ -46,11 +47,7 @@ export const useProducts = (
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getProductsByOrgId(
-        user.organizationId,
-        filters,
-        includeDeleted
-      );
+      const response = await getProducts(filters, includeDeleted);
 
       // Manejar errores de la respuesta
       if (response.status !== 200) {
@@ -103,7 +100,7 @@ export const useProductByBarcode = (barcode: string) => {
         throw new Error('Código de barras requerido');
       }
 
-      const response = await getProductByBarcode(user.organizationId, barcode);
+      const response = await getProductByBarcode(barcode);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -132,7 +129,7 @@ export const useProductBySku = (sku: string) => {
         throw new Error('SKU requerido');
       }
 
-      const response = await getProductBySku(user.organizationId, sku);
+      const response = await getProductBySku(sku);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -157,7 +154,7 @@ export const useLowStockProducts = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getLowStockProducts(user.organizationId);
+      const response = await getLowStockProducts();
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -177,21 +174,12 @@ export const useCreateProduct = () => {
   const user = useStore((state) => state.user);
 
   return useMutation({
-    mutationFn: async (
-      productData: Omit<
-        Serialized<Product>,
-        'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-      >
-    ) => {
+    mutationFn: async (productData: CreateProductInput) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await createProduct(
-        user.organizationId,
-        user.id,
-        productData
-      );
+      const response = await createProduct(productData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -225,18 +213,13 @@ export const useUpdateProduct = () => {
       updateData,
     }: {
       productId: string;
-      updateData: Partial<
-        Omit<
-          Serialized<Product>,
-          'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'deletedAt'
-        >
-      >;
+      updateData: UpdateProductInput;
     }) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await updateProduct(productId, user.id, updateData);
+      const response = await updateProduct(productId, updateData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -287,7 +270,7 @@ export const useUpdateStock = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await updateStock(productId, user.id, stockChange, type);
+      const response = await updateStock(productId, stockChange, type);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -336,7 +319,7 @@ export const useSoftDeleteProduct = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await softDeleteProduct(productId, user.id);
+      const response = await softDeleteProduct(productId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -373,7 +356,7 @@ export const useRestoreProduct = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await restoreProduct(productId, user.id);
+      const response = await restoreProduct(productId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -422,7 +405,7 @@ export const useDeleteProduct = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await deleteProduct(productId, user.id);
+      const response = await deleteProduct(productId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -507,7 +490,7 @@ export const useActiveLowStockProducts = () => {
       }
 
       // Primero obtenemos productos con stock bajo
-      const response = await getLowStockProducts(user.organizationId);
+      const response = await getLowStockProducts();
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -579,7 +562,7 @@ export const useDeleteProductImage = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await deleteProductImage(productId, user.id);
+      const response = await deleteProductImage(productId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
