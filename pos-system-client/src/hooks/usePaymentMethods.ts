@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createPaymentMethod, updatePaymentMethod, getPaymentMethodsByOrgId, softDeletePaymentMethod } from '@/actions/payment-methods'
+import { createPaymentMethod, updatePaymentMethod, getPaymentMethods, softDeletePaymentMethod } from '@/actions/payment-methods'
 import { useStore } from '@/store'
 import { PaymentMethod } from '@/generated/prisma';
 
@@ -13,7 +13,7 @@ export const usePaymentMethods = (isActive?: boolean) => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await getPaymentMethodsByOrgId(user.organizationId, isActive)
+      const response = await getPaymentMethods(isActive)
 
       // Manejar errores de la respuesta
       if (response.status !== 200) {
@@ -39,7 +39,7 @@ export const useCreatePaymentMethod = () => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await createPaymentMethod(user.organizationId, user.id, createData)
+      const response = await createPaymentMethod(createData)
 
       if (response.status !== 201) {
         throw new Error(response.message)
@@ -79,7 +79,7 @@ export const useSoftDeletePaymentMethod = () => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await softDeletePaymentMethod(paymentMethodId, user.id);
+      const response = await softDeletePaymentMethod(paymentMethodId);
 
       if (response.status !== 200) {
         throw new Error(response.message)
@@ -110,7 +110,7 @@ export const useUpdatePaymentMethod = () => {
         throw new Error('Usuario no tiene organización asignada')
       }
 
-      const response = await updatePaymentMethod(paymentMethodId, user.id, updateData)
+      const response = await updatePaymentMethod(paymentMethodId, updateData)
 
       if (response.status !== 200) {
         throw new Error(response.message)

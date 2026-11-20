@@ -1,14 +1,5 @@
 import { z } from 'zod';
-import { idSchema, longText, money, name, shortText, stockQuantity } from '../common.schemas';
-
-/**
- * Barcode and SKU are unique per organization. The form sends `''` when the
- * field is left blank, so an empty or whitespace-only value is stored as
- * `null`; otherwise two products without a code would collide.
- */
-const optionalCode = shortText
-  .nullish()
-  .transform((value) => (value === '' ? null : value));
+import { idSchema, longText, money, name, optionalText, shortText, stockQuantity } from '../common.schemas';
 
 /**
  * Whitelisted product fields. Organization, audit and soft-delete fields come
@@ -19,8 +10,8 @@ const editableFields = {
   name,
   description: longText.nullish(),
   image: z.string().trim().max(2048).nullish(),
-  barcode: optionalCode,
-  sku: optionalCode,
+  barcode: optionalText,
+  sku: optionalText,
   categoryId: idSchema.nullish(),
   brandId: idSchema.nullish(),
   unitMeasureId: idSchema.nullish(),

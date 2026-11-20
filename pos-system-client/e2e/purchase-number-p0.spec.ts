@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { PrismaClient } from '../src/generated/prisma';
+import { businessDayCompact } from '../src/lib/time';
 import { ADMIN, loginUI } from './fixtures/auth';
 
 // PostgreSQL real + Next server action real; no number is inserted by this test.
@@ -35,13 +36,15 @@ test('P0 consecutivo: dos tenants y dos creaciones concurrentes reales, soft-del
     await Promise.all([loginUI(a1, ADMIN), loginUI(b1, { email: 'admin.isolation@pos.test', password: ADMIN.password })]);
     await Promise.all([prepare(a1), prepare(b1)]);
     await Promise.all([save(a1), save(b1)]);
-    const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    // Same business day (America/Bogota) the server uses for the number;
+    // the UTC day differs from 19:00 to 24:00 in Bogota.
+    const day = businessDayCompact(new Date());
     const prefix = `COMP-${day}-`;
     const firstA = await db.purchase.findFirstOrThrow({ where: { organizationId: orgA.id, purchaseNumber: `${prefix}0001` }, include: { purchaseItems: true } });
     const firstB = await db.purchase.findFirstOrThrow({ where: { organizationId: orgB.id, purchaseNumber: `${prefix}0001` }, include: { purchaseItems: true } });
     expect(firstA.purchaseItems).toHaveLength(1);
     expect(firstB.purchaseItems).toHaveLength(1);
-    expect(firstA.createdAt.toISOString().slice(0, 10).replace(/-/g, '')).toBe(day);
+    expect(businessDayCompact(firstA.createdAt)).toBe(day);
     await db.purchase.update({ where: { id: firstA.id }, data: { isDeleted: true, deletedAt: new Date() } });
     const a2 = await contextA.newPage();
     const a3 = await contextA.newPage();
@@ -56,7 +59,7 @@ test('P0 consecutivo: dos tenants y dos creaciones concurrentes reales, soft-del
     expect(numbers.map(p => p.purchaseNumber)).toEqual([`${prefix}0001`, `${prefix}0002`, `${prefix}0003`]);
     expect(numbers.map(p => p.purchaseItems.length)).toEqual([1, 1, 1]);
     expect(numbers.map(p => p.purchaseItems[0].quantity)).toEqual([2, 2, 2]);
-    expect(numbers.every(p => p.createdAt.toISOString().slice(0, 10).replace(/-/g, '') === day)).toBe(true);
+    expect(numbers.every(p => businessDayCompact(p.createdAt) === day)).toBe(true);
   } finally {
     await Promise.all([contextA.close(), contextB.close()]);
   }
