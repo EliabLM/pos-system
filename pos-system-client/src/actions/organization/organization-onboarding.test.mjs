@@ -20,6 +20,7 @@ const prisma = {
   brand: { createMany: async ({ data }) => { state.catalog.push({ model: 'brand', data }); return { count: data.length }; } },
   paymentMethod: { createMany: async ({ data }) => { state.catalog.push({ model: 'paymentMethod', data }); return { count: data.length }; } },
   unitMeasure: { createMany: async ({ data }) => { state.catalog.push({ model: 'unitMeasure', data }); return { count: data.length }; } },
+  systemConfig: { create: async ({ data }) => { state.writes.push({ model: 'systemConfig', data }); return { id: 'cfg-new', ...data }; } },
   $queryRaw: async () => [],
   $transaction: async (fn) => fn(prisma),
 };
@@ -40,7 +41,6 @@ const { createOrganization } = await loadWithMocks('src/actions/organization/org
     };
     export const actorErrorResponse = (error) => error instanceof ActorError ? { status: error.status, message: error.message, data: null } : null;`,
   '../utils': 'export const prisma = globalThis.__orgPrisma;',
-  '../system-config': 'export const setBusinessType = async () => ({ status: 201 });',
 });
 
 function reset(session) {
@@ -68,6 +68,12 @@ test('onboarding: el usuario sin membresía crea su organización y queda como A
   );
   // Catálogo inicial (categorías, métodos de pago, marcas, unidades) en la organización nueva.
   assert.deepEqual(state.catalog.map((c) => c.model), ['category', 'paymentMethod', 'brand', 'unitMeasure']);
+  // Tipo de negocio (#14): se guarda junto con la organización, no con una acción pública.
+  const businessType = state.writes.find((w) => w.model === 'systemConfig');
+  assert.deepEqual(
+    { organizationId: businessType?.data.organizationId, key: businessType?.data.key, value: businessType?.data.value },
+    { organizationId: 'org-new', key: 'business_type', value: 'shoe_store' },
+  );
   for (const { data } of state.catalog) assert.ok(data.length > 0 && data.every((row) => row.organizationId === 'org-new'));
 });
 
