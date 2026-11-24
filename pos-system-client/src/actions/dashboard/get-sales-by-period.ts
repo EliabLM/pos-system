@@ -1,7 +1,10 @@
 'use server';
 
 import { SalesByPeriod, ActionResponse } from '@/interfaces';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { invalidInput, scopedStoreId } from '../common.schemas';
+import { salesByPeriodInputSchema } from './dashboard.schemas';
 import { Prisma } from '@/generated/prisma';
 import {
   addBusinessDays,
@@ -44,34 +47,30 @@ function getKeyForPeriod(date: Date, period: 'day' | 'week' | 'month' | 'year'):
  * - 'month': Last 30 days grouped by day
  * - 'year': Last 12 months grouped by month
  *
- * @param organizationId - Organization ID to filter sales (required)
+ * Any member can read it; the organization comes from the session and a
+ * SELLER bound to a store only sees that store.
+ *
  * @param period - Time period for grouping ('day' | 'week' | 'month' | 'year')
  * @param storeId - Optional store ID to filter sales by specific store
  * @param referenceDate - ISO date string for the reference point (defaults to today)
  * @returns ActionResponse with SalesByPeriod[] data
  */
 export const getSalesByPeriod = async (
-  organizationId: string,
   period: 'day' | 'week' | 'month' | 'year',
   storeId?: string | null,
   referenceDate?: string
 ): Promise<ActionResponse<SalesByPeriod[]>> => {
   try {
-    // Validate organization ID
-    if (checkOrgId(organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
+    const parsed = salesByPeriodInputSchema.safeParse({ period, storeId, referenceDate });
+    if (!parsed.success) {
+      return invalidInput('Periodo, tienda o fecha inválidos. Use day, week, month o year y fechas ISO (YYYY-MM-DD)');
+    }
+    const input = parsed.data;
+    const scopedStore = scopedStoreId(actor, input.storeId);
 
     // Parse reference date or use current date
-    let refDate: Date;
-    try {
-      refDate = referenceDate ? new Date(referenceDate) : new Date();
-      if (Number.isNaN(refDate.getTime())) throw new Error('Invalid date');
-    } catch {
-      return {
-        status: 400,
-        message: 'Formato de fecha inválido. Use formato ISO (YYYY-MM-DD)',
-        data: null,
-      };
-    }
+    const refDate = input.referenceDate ? new Date(input.referenceDate) : new Date();
 
     // Calculate date range and intervals based on period
     let startDate: Date;
@@ -125,7 +124,7 @@ export const getSalesByPeriod = async (
 
     // Build base where clause
     const whereClause: Prisma.SaleWhereInput = {
-      organizationId,
+      organizationId: actor.organizationId,
       isDeleted: false,
       status: 'PAID', // Only count paid sales
       saleDate: {
@@ -134,9 +133,8 @@ export const getSalesByPeriod = async (
       },
     };
 
-    // Add store filter if provided
-    if (storeId) {
-      whereClause.storeId = storeId;
+    if (scopedStore) {
+      whereClause.storeId = scopedStore;
     }
 
     // Fetch all sales within the date range
@@ -187,6 +185,8 @@ export const getSalesByPeriod = async (
       data: result,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching sales by period:', error);
     return {
       status: 500,

@@ -2,7 +2,10 @@
 
 import { addBusinessDays, startOfBusinessDay } from '@/lib/time';
 import { StockAlert, ActionResponse } from '@/interfaces';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { invalidInput, scopedStoreId } from '../common.schemas';
+import { dashboardStoreSchema } from './dashboard.schemas';
 
 /**
  * Retrieves products with low stock and calculates urgency metrics.
@@ -13,22 +16,25 @@ import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
  * - Estimated days until stockout (undefined if no sales history)
  * - Severity level (critical, warning, info)
  *
- * @param organizationId - Organization ID to filter products (required)
+ * Any member can read it; the organization comes from the session and a
+ * SELLER bound to a store only sees that store.
+ *
  * @param storeId - Optional store ID to filter sales data (for predictions)
  * @returns ActionResponse with StockAlert[] data sorted by severity and stock level
  */
 export const getStockAlerts = async (
-  organizationId: string,
   storeId?: string | null
 ): Promise<ActionResponse<StockAlert[]>> => {
   try {
-    // Validate organization ID
-    if (checkOrgId(organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
+    const store = dashboardStoreSchema.safeParse(storeId);
+    if (!store.success) return invalidInput('Tienda inválida');
+    const scopedStore = scopedStoreId(actor, store.data);
 
     // Query low stock products (currentStock <= minStock)
     const lowStockProducts = await prisma.product.findMany({
       where: {
-        organizationId,
+        organizationId: actor.organizationId,
         isDeleted: false,
         isActive: true,
         currentStock: {
@@ -72,8 +78,8 @@ export const getStockAlerts = async (
         productId: { in: productIds },
         isDeleted: false,
         sale: {
-          organizationId,
-          ...(storeId && { storeId }), // Filter by store if provided
+          organizationId: actor.organizationId,
+          ...(scopedStore && { storeId: scopedStore }),
           isDeleted: false,
           status: 'PAID',
           saleDate: {
@@ -167,6 +173,8 @@ export const getStockAlerts = async (
       data: stockAlerts,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching stock alerts:', error);
     return {
       status: 500,

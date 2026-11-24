@@ -2,6 +2,12 @@
 
 Server actions for calculating and retrieving dashboard metrics and analytics.
 
+**Session and tenancy (#15):** every action calls `requireActor()` and takes the
+organization from the session, never from its parameters. Any member (ADMIN or
+SELLER) can read the dashboard; a SELLER bound to a store (`membership.defaultStoreId`)
+only sees that store, whatever `storeId` it sends. Inputs are validated with Zod
+(`dashboard.schemas.ts`): an invalid store ID, period, date or limit returns 400.
+
 ## Available Actions
 
 ### `getDashboardKPIs`
@@ -11,13 +17,11 @@ Calculates the main KPIs for the dashboard by comparing today's sales with yeste
 **Function Signature:**
 ```typescript
 getDashboardKPIs(
-  organizationId: string,
   storeId?: string | null
 ): Promise<ActionResponse<DashboardKPIs>>
 ```
 
 **Parameters:**
-- `organizationId` (required): The organization ID to filter sales
 - `storeId` (optional): Optional store ID to filter sales by specific store. If not provided, aggregates all stores.
 
 **Returns:**
@@ -49,7 +53,7 @@ getDashboardKPIs(
 import { getDashboardKPIs } from '@/actions/dashboard';
 
 // Get KPIs for entire organization
-const response = await getDashboardKPIs('org-123');
+const response = await getDashboardKPIs();
 
 if (response.status === 200) {
   console.log('Total Sales Today:', response.data.totalSales);
@@ -57,7 +61,7 @@ if (response.status === 200) {
 }
 
 // Get KPIs for specific store
-const storeResponse = await getDashboardKPIs('org-123', 'store-456');
+const storeResponse = await getDashboardKPIs('store-456');
 ```
 
 **Error Handling:**
@@ -79,7 +83,6 @@ Retrieves sales data grouped by different time periods for chart visualization.
 **Function Signature:**
 ```typescript
 getSalesByPeriod(
-  organizationId: string,
   period: 'day' | 'week' | 'month' | 'year',
   storeId?: string | null,
   referenceDate?: string
@@ -87,7 +90,6 @@ getSalesByPeriod(
 ```
 
 **Parameters:**
-- `organizationId` (required): The organization ID to filter sales
 - `period` (required): Time period for grouping data:
   - `'day'`: Last 24 hours grouped by hour (0-23)
   - `'week'`: Last 7 days grouped by day
@@ -145,7 +147,7 @@ getSalesByPeriod(
 import { getSalesByPeriod } from '@/actions/dashboard';
 
 // Get sales for last 7 days (entire organization)
-const weekResponse = await getSalesByPeriod('org-123', 'week');
+const weekResponse = await getSalesByPeriod('week');
 
 if (weekResponse.status === 200) {
   weekResponse.data.forEach(period => {
@@ -154,18 +156,17 @@ if (weekResponse.status === 200) {
 }
 
 // Get sales for last 24 hours for specific store
-const dayResponse = await getSalesByPeriod('org-123', 'day', 'store-456');
+const dayResponse = await getSalesByPeriod('day', 'store-456');
 
 // Get sales for last 30 days from a specific date
 const monthResponse = await getSalesByPeriod(
-  'org-123',
   'month',
   null,
   '2025-09-15'
 );
 
 // Get yearly sales (last 12 months)
-const yearResponse = await getSalesByPeriod('org-123', 'year');
+const yearResponse = await getSalesByPeriod('year');
 ```
 
 **Data Grouping Implementation:**
@@ -199,7 +200,6 @@ Retrieves the best-selling products with detailed metrics for a given period.
 **Function Signature:**
 ```typescript
 getTopProducts(
-  organizationId: string,
   period: 'today' | 'week' | 'month' | 'year',
   storeId?: string | null,
   limit: number = 10
@@ -207,7 +207,6 @@ getTopProducts(
 ```
 
 **Parameters:**
-- `organizationId` (required): The organization ID to filter sales
 - `period` (required): Time period for analysis:
   - `'today'`: From start of today to end of today
   - `'week'`: Last 7 days from today
@@ -277,7 +276,7 @@ getTopProducts(
 import { getTopProducts } from '@/actions/dashboard';
 
 // Get top 10 products for today (entire organization)
-const todayResponse = await getTopProducts('org-123', 'today');
+const todayResponse = await getTopProducts('today');
 
 if (todayResponse.status === 200) {
   todayResponse.data.forEach((product, index) => {
@@ -289,18 +288,18 @@ if (todayResponse.status === 200) {
 }
 
 // Get top 5 products for last week in specific store
-const weekResponse = await getTopProducts('org-123', 'week', 'store-456', 5);
+const weekResponse = await getTopProducts('week', 'store-456', 5);
 
 // Get top 20 products for last month (all stores)
-const monthResponse = await getTopProducts('org-123', 'month', null, 20);
+const monthResponse = await getTopProducts('month', null, 20);
 
 // Get top products for last year
-const yearResponse = await getTopProducts('org-123', 'year');
+const yearResponse = await getTopProducts('year');
 ```
 
 **Implementation Details:**
 
-1. **Validation**: Validates organizationId and sanitizes limit to positive integer
+1. **Validation**: Zod validates period, store and limit (1-100, default 10); the organization comes from the session
 2. **Date Range**: Calculates startDate and endDate based on period parameter
 3. **Query**: Fetches all matching SaleItems with related Sale and Product data
 4. **Grouping**: Uses Map to group by productId and accumulate metrics in-memory
@@ -340,7 +339,7 @@ const yearResponse = await getTopProducts('org-123', 'year');
 - All fields match TopProduct interface from @/interfaces/dashboard
 
 **Multi-tenancy:**
-- Scoped to organizationId (required filter)
+- Scoped to the session's organization
 - Optional storeId filter for single-store analysis
 - Ensures data isolation between organizations
 
@@ -353,14 +352,12 @@ Calculates cash register status by payment method for a specific date. Groups al
 **Function Signature:**
 ```typescript
 getCashStatus(
-  organizationId: string,
   storeId?: string | null,
   date?: string
 ): Promise<ActionResponse<CashStatus[]>>
 ```
 
 **Parameters:**
-- `organizationId` (required): The organization ID to filter sales
 - `storeId` (optional): Optional store ID to filter sales by specific store
 - `date` (optional): ISO date string (YYYY-MM-DD) to analyze. Defaults to today if not provided.
 
@@ -426,7 +423,7 @@ getCashStatus(
 import { getCashStatus } from '@/actions/dashboard';
 
 // Get cash status for today (entire organization)
-const todayResponse = await getCashStatus('org-123');
+const todayResponse = await getCashStatus();
 
 if (todayResponse.status === 200) {
   todayResponse.data.forEach((method) => {
@@ -439,13 +436,13 @@ if (todayResponse.status === 200) {
 }
 
 // Get cash status for specific store today
-const storeResponse = await getCashStatus('org-123', 'store-456');
+const storeResponse = await getCashStatus('store-456');
 
 // Get cash status for specific date (all stores)
-const dateResponse = await getCashStatus('org-123', null, '2025-10-08');
+const dateResponse = await getCashStatus(null, '2025-10-08');
 
 // Get cash status for specific store and date
-const fullResponse = await getCashStatus('org-123', 'store-456', '2025-10-08');
+const fullResponse = await getCashStatus('store-456', '2025-10-08');
 ```
 
 **Split Payment Example:**
@@ -487,8 +484,8 @@ Result for this sale:
 
 **Implementation Details:**
 
-1. **Validation**: Validates organizationId with `checkOrgId()` utility
-2. **Date Parsing**: Safely parses date string with try-catch for invalid formats
+1. **Validation**: Zod validates store and date; the organization comes from the session
+2. **Date Parsing**: A `YYYY-MM-DD` date is that America/Bogota business day
 3. **Date Range**: Calculates full day range (00:00:00 to 23:59:59) for specified date
 4. **Query**: Fetches all matching SalePayments with payment method and sale details
 5. **Grouping**: Uses Map to group by paymentMethodId and accumulate metrics
@@ -512,7 +509,7 @@ Result for this sale:
 - **Decimal conversion**: All Prisma Decimal values properly converted to Number
 
 **Error Handling:**
-- Returns 400 if organization ID is empty (uses `checkOrgId()` utility)
+- Returns 401 without a session, 403 without an active membership and 400 for an invalid store or date
 - Returns 400 if date string has invalid ISO format
 - Returns 500 on internal server errors (database errors, etc.)
 - Logs all errors to console for debugging
@@ -533,7 +530,7 @@ Result for this sale:
 - TypeScript strict mode compliance
 
 **Multi-tenancy:**
-- Scoped to organizationId (required filter)
+- Scoped to the session's organization
 - Optional storeId filter for single-store analysis
 - Ensures data isolation between organizations
 - All queries filtered by organization to prevent data leaks
@@ -551,7 +548,7 @@ This action is designed for end-of-day cash register reconciliation:
 **Security Considerations:**
 - Only PAID sales are included (prevents counting pending/cancelled sales)
 - Soft-deleted payments excluded (maintains data integrity)
-- Requires valid organizationId (enforces multi-tenancy)
+- Organization taken from the session (enforces multi-tenancy)
 - Date filtering prevents unauthorized historical data access beyond scope
 
 ---
@@ -563,13 +560,11 @@ Retrieves products with low stock and calculates urgency metrics including predi
 **Function Signature:**
 ```typescript
 getStockAlerts(
-  organizationId: string,
   storeId?: string | null
 ): Promise<ActionResponse<StockAlert[]>>
 ```
 
 **Parameters:**
-- `organizationId` (required): The organization ID to filter products
 - `storeId` (optional): Optional store ID to filter sales data for prediction calculations. Note: Products are organization-wide, but sales predictions can be scoped to a specific store.
 
 **Returns:**
@@ -597,7 +592,7 @@ getStockAlerts(
 
 **Low Stock Detection:**
 - Products where `currentStock <= minStock`
-- Filters by `organizationId` (required)
+- Filters by the session's organization
 - Only active products (`isActive = true`)
 - Excludes soft-deleted products (`isDeleted = false`)
 - Limited to 50 products (ordered by lowest stock first)
@@ -646,7 +641,7 @@ The severity is calculated based on stock percentage relative to minimum:
 import { getStockAlerts } from '@/actions/dashboard';
 
 // Get stock alerts for entire organization
-const response = await getStockAlerts('org-123');
+const response = await getStockAlerts();
 
 if (response.status === 200) {
   response.data.forEach((alert) => {
@@ -661,7 +656,7 @@ if (response.status === 200) {
 }
 
 // Get stock alerts with store-specific sales predictions
-const storeResponse = await getStockAlerts('org-123', 'store-456');
+const storeResponse = await getStockAlerts('store-456');
 ```
 
 **Implementation Details:**
@@ -676,7 +671,7 @@ const storeResponse = await getStockAlerts('org-123', 'store-456');
    - Uses Prisma `groupBy` for efficient aggregation
    - Groups by `productId`
    - Sums quantity sold in last 30 days
-   - Filters by organizationId and optional storeId
+   - Filters by the session's organization and optional storeId
    - Only counts PAID sales
 
 3. **Prediction Calculation**:
@@ -726,7 +721,7 @@ const storeResponse = await getStockAlerts('org-123', 'store-456');
 - TypeScript strict mode compliance
 
 **Multi-tenancy:**
-- Products scoped to organizationId
+- Products scoped to the session's organization
 - Sales optionally scoped to storeId
 - Ensures data isolation between organizations
 - No cross-organization data leakage

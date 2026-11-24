@@ -2,7 +2,10 @@
 
 import { businessDayRange } from '@/lib/time';
 import { CashStatus, ActionResponse } from '@/interfaces';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { invalidInput, scopedStoreId } from '../common.schemas';
+import { cashStatusInputSchema } from './dashboard.schemas';
 
 /**
  * Calculates cash register status by payment method for a specific date.
@@ -13,34 +16,26 @@ import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
  * - Percentage of total cash per method
  * - Average transaction amount per method
  *
- * @param organizationId - Organization ID to filter sales (required)
+ * Any member can read it; the organization comes from the session and a
+ * SELLER bound to a store only sees that store.
+ *
  * @param storeId - Optional store ID to filter sales by specific store
  * @param date - ISO date string (YYYY-MM-DD), defaults to today
  * @returns ActionResponse with CashStatus[] sorted by totalAmount DESC
  */
 export const getCashStatus = async (
-  organizationId: string,
   storeId?: string | null,
   date?: string
 ): Promise<ActionResponse<CashStatus[]>> => {
   try {
-    // Validate organization ID
-    if (checkOrgId(organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
+    const parsed = cashStatusInputSchema.safeParse({ storeId, date });
+    if (!parsed.success) return invalidInput('Tienda o fecha inválidas. Use formato ISO (YYYY-MM-DD)');
+    const input = parsed.data;
+    const scopedStore = scopedStoreId(actor, input.storeId);
 
-    // Calculate date range
     // A YYYY-MM-DD date is taken as that America/Bogota business day.
-    let startDate: Date;
-    let endDate: Date;
-    try {
-      ({ gte: startDate, lte: endDate } = businessDayRange(date ?? new Date()));
-    } catch (error) {
-      console.error('Error parsing date:', error);
-      return {
-        status: 400,
-        message: 'Formato de fecha inválido. Use formato ISO (YYYY-MM-DD)',
-        data: null,
-      };
-    }
+    const { gte: startDate, lte: endDate } = businessDayRange(input.date ?? new Date());
 
     // Query all sale payments with filters
     const salePayments = await prisma.salePayment.findMany({
@@ -50,8 +45,8 @@ export const getCashStatus = async (
           isDeleted: false,
         },
         sale: {
-          organizationId,
-          ...(storeId && { storeId }),
+          organizationId: actor.organizationId,
+          ...(scopedStore && { storeId: scopedStore }),
           isDeleted: false,
           status: 'PAID',
           saleDate: {
@@ -150,6 +145,8 @@ export const getCashStatus = async (
       data: cashStatus,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching cash status:', error);
     return {
       status: 500,

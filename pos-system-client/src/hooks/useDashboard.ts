@@ -10,7 +10,7 @@ import {
 /**
  * Hook para obtener los KPIs del dashboard (métricas principales)
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Query con datos de KPIs del dashboard
  */
@@ -21,7 +21,7 @@ export function useKPIs(organizationId?: string, storeId?: string | null) {
       if (!organizationId) {
         throw new Error('Organization ID is required');
       }
-      const response = await getDashboardKPIs(organizationId, storeId);
+      const response = await getDashboardKPIs(storeId);
       if (response.status !== 200) {
         throw new Error(response.message);
       }
@@ -36,7 +36,7 @@ export function useKPIs(organizationId?: string, storeId?: string | null) {
 /**
  * Hook para obtener las ventas agrupadas por periodo
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param period - Periodo de agrupación ('day' | 'week' | 'month' | 'year')
  * @param storeId - ID de la tienda (opcional)
  * @param referenceDate - Fecha de referencia en formato ISO (opcional)
@@ -54,7 +54,7 @@ export function useSalesByPeriod(
       if (!organizationId) {
         throw new Error('Organization ID is required');
       }
-      const response = await getSalesByPeriod(organizationId, period, storeId, referenceDate);
+      const response = await getSalesByPeriod(period, storeId, referenceDate);
       if (response.status !== 200) {
         throw new Error(response.message);
       }
@@ -69,7 +69,7 @@ export function useSalesByPeriod(
 /**
  * Hook para obtener los productos más vendidos
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param period - Periodo de análisis ('today' | 'week' | 'month' | 'year')
  * @param storeId - ID de la tienda (opcional)
  * @param limit - Número máximo de productos a retornar (default: 10)
@@ -87,7 +87,7 @@ export function useTopProducts(
       if (!organizationId) {
         throw new Error('Organization ID is required');
       }
-      const response = await getTopProducts(organizationId, period, storeId, limit);
+      const response = await getTopProducts(period, storeId, limit);
       if (response.status !== 200) {
         throw new Error(response.message);
       }
@@ -102,7 +102,7 @@ export function useTopProducts(
 /**
  * Hook para obtener alertas de stock bajo
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Query con array de alertas de productos con stock bajo
  */
@@ -113,7 +113,7 @@ export function useStockAlerts(organizationId?: string, storeId?: string | null)
       if (!organizationId) {
         throw new Error('Organization ID is required');
       }
-      const response = await getStockAlerts(organizationId, storeId);
+      const response = await getStockAlerts(storeId);
       if (response.status !== 200) {
         throw new Error(response.message);
       }
@@ -128,7 +128,7 @@ export function useStockAlerts(organizationId?: string, storeId?: string | null)
 /**
  * Hook para obtener el estado de caja (ingresos por método de pago)
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @param date - Fecha en formato ISO (opcional, default: hoy)
  * @returns Query con array de estado de caja por método de pago
@@ -144,7 +144,7 @@ export function useCashStatus(
       if (!organizationId) {
         throw new Error('Organization ID is required');
       }
-      const response = await getCashStatus(organizationId, storeId, date);
+      const response = await getCashStatus(storeId, date);
       if (response.status !== 200) {
         throw new Error(response.message);
       }
@@ -173,7 +173,7 @@ export function useInvalidateDashboard() {
 /**
  * Hook para obtener KPIs del día actual
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Query con KPIs de hoy comparados con ayer
  */
@@ -184,7 +184,7 @@ export function useTodayKPIs(organizationId?: string, storeId?: string | null) {
 /**
  * Hook para obtener ventas de la semana actual
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Query con ventas agrupadas por día de la semana
  */
@@ -195,7 +195,7 @@ export function useWeeklySales(organizationId?: string, storeId?: string | null)
 /**
  * Hook para obtener ventas del mes actual
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Query con ventas agrupadas por día del mes
  */
@@ -206,7 +206,7 @@ export function useMonthlySales(organizationId?: string, storeId?: string | null
 /**
  * Hook para obtener ventas del año actual
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Query con ventas agrupadas por mes del año
  */
@@ -217,7 +217,7 @@ export function useYearlySales(organizationId?: string, storeId?: string | null)
 /**
  * Hook para obtener productos más vendidos del día
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @param limit - Número máximo de productos (default: 10)
  * @returns Query con top productos de hoy
@@ -233,7 +233,7 @@ export function useTodayTopProducts(
 /**
  * Hook para obtener productos más vendidos de la semana
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @param limit - Número máximo de productos (default: 10)
  * @returns Query con top productos de la semana
@@ -249,7 +249,7 @@ export function useWeeklyTopProducts(
 /**
  * Hook para obtener productos más vendidos del mes
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @param limit - Número máximo de productos (default: 10)
  * @returns Query con top productos del mes
@@ -265,7 +265,7 @@ export function useMonthlyTopProducts(
 /**
  * Hook para obtener estado de caja del día actual
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Query con estado de caja de hoy
  */
@@ -294,7 +294,7 @@ export interface DashboardDataResult {
  * Hook combinado que obtiene todos los datos del dashboard en una sola llamada
  * Útil para cargar el dashboard completo de una vez
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @param period - Periodo para ventas y top productos (default: 'week')
  * @returns Objeto con todas las queries del dashboard y estados combinados
@@ -345,7 +345,7 @@ export function useDashboardData(
 /**
  * Hook para obtener vista completa del dashboard del día actual
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Datos completos del dashboard para el día actual
  */
@@ -356,7 +356,7 @@ export function useTodayDashboard(organizationId?: string, storeId?: string | nu
 /**
  * Hook para obtener vista completa del dashboard semanal
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Datos completos del dashboard para la semana actual
  */
@@ -367,7 +367,7 @@ export function useWeeklyDashboard(organizationId?: string, storeId?: string | n
 /**
  * Hook para obtener vista completa del dashboard mensual
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Datos completos del dashboard para el mes actual
  */
@@ -378,7 +378,7 @@ export function useMonthlyDashboard(organizationId?: string, storeId?: string | 
 /**
  * Hook para obtener vista completa del dashboard anual
  *
- * @param organizationId - ID de la organización
+ * @param organizationId - Organización del usuario: solo clave de caché y habilita la consulta (el servidor usa la de la sesión)
  * @param storeId - ID de la tienda (opcional)
  * @returns Datos completos del dashboard para el año actual
  */
