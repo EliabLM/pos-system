@@ -49,7 +49,7 @@ pnpm db:generate    # regenerate the Prisma client only
 
 ## Git workflow
 
-Git-flow style branches: `main` (prod), `release`, `develop`, `hotfix`. Daily work branches off `develop`; PRs target `develop` or `release`. **Commit messages use Conventional Commits** (`feat(scope): …`, `fix(scope): …`, etc.) — see the root `.opencode/skills/conventional-commits/` skill. (This supersedes the older short-imperative-sentence convention.)
+Same flow as the root `CLAUDE.md`: `main` is the only long-lived branch (no `develop`, no `release`); short `<type>/<issue>-<topic>` branches off `main`, PRs target `main`, new features behind a feature flag, versions as SemVer tags on `main`. **Commit messages use Conventional Commits** (`feat(scope): …`, `fix(scope): …`, etc.) — see the root `.opencode/skills/conventional-commits/` skill. (This supersedes the older short-imperative-sentence convention.)
 
 ## Reference docs (read when relevant)
 
