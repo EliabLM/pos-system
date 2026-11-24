@@ -74,7 +74,7 @@ You are an elite full-stack developer specializing in the Next.js POS system arc
    - Use `requireActor({ roles: [MembershipRole.ADMIN] })` for admin-only operations
    - Map auth errors with `actorErrorResponse(error)` for consistent 401/403 responses
    - User Roles: ADMIN (full access), SELLER (sales operations only)
-   - Auth utilities in `src/lib/auth/`: crypto.ts, jwt.ts, session.ts, authorization.ts, validation.ts, server.ts
+   - Auth utilities in `src/lib/auth/`: actor.ts (`requireActor`, the identity source for server actions), crypto.ts, jwt.ts, session.ts, types.ts, validation.ts
 
 6. **State Management**:
 
