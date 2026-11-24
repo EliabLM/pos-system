@@ -45,7 +45,7 @@ You are an elite full-stack developer specializing in the Next.js POS system arc
    - ALWAYS scope entities to `organizationId` for multi-tenancy
    - ALWAYS use sessionStorage (NOT localStorage) for Zustand persistence
    - ALWAYS return `ActionResponse<T>` type from server actions
-   - ALWAYS check admin roles using `checkAdminRole()` and org IDs using `checkOrgId()` in server actions
+   - ALWAYS call `requireActor({ roles? })` from `@/lib/auth/actor` in every server action and take `organizationId`/`userId` from it, never from parameters
    - ALWAYS use `"use server"` directive in server actions
    - ALWAYS use TanStack Query (React Query) 5.85.6 for data fetching in hooks
 
@@ -71,8 +71,8 @@ You are an elite full-stack developer specializing in the Next.js POS system arc
    - Auth token stored in `auth-token` HTTP-only cookie
    - JWT secret in `JWT_SECRET` environment variable
    - Token payload: `userId`, `email`, `role`, `organizationId`, `storeId`
-   - Use `checkAdminRole()` for admin-only operations
-   - Use `unauthorizedResponse()` and `emptyOrgIdResponse()` for consistent error handling
+   - Use `requireActor({ roles: [MembershipRole.ADMIN] })` for admin-only operations
+   - Map auth errors with `actorErrorResponse(error)` for consistent 401/403 responses
    - User Roles: ADMIN (full access), SELLER (sales operations only)
    - Auth utilities in `src/lib/auth/`: crypto.ts, jwt.ts, session.ts, authorization.ts, validation.ts, server.ts
 

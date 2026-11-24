@@ -317,17 +317,15 @@ Defined in Prisma schema (`UserRole` enum):
 
 ### Role Checking Pattern
 
-Server actions use helper utilities from `src/actions/utils.ts`:
+Every exported server action gets identity, organization and role from the session with `requireActor()` (`src/lib/auth/actor.ts`). Never take `organizationId`/`userId` from parameters; `test/actions-guard.test.mjs` enforces it.
 
 ```typescript
-import { checkAdminRole, unauthorizedResponse, emptyOrgIdResponse, checkOrgId } from '@/actions/utils'
+import { MembershipRole } from '@/generated/prisma'
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor'
 
-// Check admin role
-const isAdmin = await checkAdminRole(userId)
-if (!isAdmin) return unauthorizedResponse()
-
-// Check organization ID
-if (checkOrgId(orgId)) return emptyOrgIdResponse()
+const actor = await requireActor({ roles: [MembershipRole.ADMIN] }) // throws 401/403
+// filter every query and every update/delete by actor.organizationId
+// in catch: const denied = actorErrorResponse(error); if (denied) return denied
 ```
 
 ## Server Actions Pattern
@@ -375,11 +373,8 @@ Do NOT create new `PrismaClient` instances in actions.
 
 ### Helper Utilities
 
-Available in `src/actions/utils.ts`:
-- `checkAdminRole(userId)` - Verify if user has ADMIN role
-- `unauthorizedResponse()` - Return 403 response
-- `checkOrgId(orgId)` - Validate organization ID is not empty
-- `emptyOrgIdResponse()` - Return 400 response for missing org ID
+- `src/actions/common.schemas.ts` - shared Zod pieces (`idSchema`, `name`, `optionalText`...) and `invalidInput()`/`internalError()` responses
+- `src/actions/utils.ts` - `prisma`, `serializeDecimals()`; `checkOrgId()`/`emptyOrgIdResponse()` only remain for `dashboard`/`reports` until #15
 
 ## State Management
 
@@ -805,12 +800,16 @@ Example:
 "use server"
 
 import { ActionResponse } from "@/interfaces"
-import { prisma, checkAdminRole, unauthorizedResponse } from "@/actions/utils"
+import { MembershipRole } from "@/generated/prisma"
+import { actorErrorResponse, requireActor } from "@/lib/auth/actor"
+import { prisma } from "@/actions/utils"
 
-export async function createEntity(data: EntityData): Promise<ActionResponse<Entity>> {
+export async function createEntity(input: EntityInput): Promise<ActionResponse<Entity>> {
   try {
-    const isAdmin = await checkAdminRole(userId)
-    if (!isAdmin) return unauthorizedResponse()
+    const actor = await requireActor({ roles: [MembershipRole.ADMIN] })
+    const parsed = entityInputSchema.safeParse(input) // Zod whitelist
+    if (!parsed.success) return invalidInput()
+    const data = { ...parsed.data, organizationId: actor.organizationId }
 
     const entity = await prisma.entity.create({ data })
 
@@ -820,6 +819,8 @@ export async function createEntity(data: EntityData): Promise<ActionResponse<Ent
       data: entity
     }
   } catch (error) {
+    const denied = actorErrorResponse(error)
+    if (denied) return denied
     return {
       status: 500,
       message: "Failed to create entity",
