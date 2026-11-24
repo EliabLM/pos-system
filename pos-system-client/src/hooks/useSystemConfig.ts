@@ -4,7 +4,6 @@ import {
   getAllSystemConfigs,
   updateSystemConfig,
   getBusinessType,
-  setBusinessType,
 } from '@/actions/system-config';
 import { useStore } from '@/store';
 import { toast } from 'sonner';
@@ -17,7 +16,7 @@ export function useSystemConfig(key: string) {
   return useQuery({
     queryKey: ['system-config', organizationId, key],
     queryFn: async () => {
-      const response = await getSystemConfig(organizationId, key);
+      const response = await getSystemConfig(key);
       return response.data;
     },
     enabled: !!organizationId && !!key,
@@ -32,7 +31,7 @@ export function useAllSystemConfigs() {
   return useQuery({
     queryKey: ['system-configs', organizationId],
     queryFn: async () => {
-      const response = await getAllSystemConfigs(organizationId);
+      const response = await getAllSystemConfigs();
       return response.data;
     },
     enabled: !!organizationId,
@@ -44,7 +43,6 @@ export function useUpdateSystemConfig() {
   const queryClient = useQueryClient();
   const user = useStore((state) => state.user);
   const organizationId = user?.organizationId ?? '';
-  const userId = user?.id ?? '';
 
   return useMutation({
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
@@ -55,12 +53,7 @@ export function useUpdateSystemConfig() {
         );
       }
 
-      const response = await updateSystemConfig(
-        organizationId,
-        userId,
-        key,
-        value
-      );
+      const response = await updateSystemConfig(key, value);
       if (response.status !== 200) {
         throw new Error(response.message);
       }
@@ -86,45 +79,11 @@ export function useBusinessType() {
   return useQuery({
     queryKey: ['business-type', organizationId],
     queryFn: async () => {
-      return await getBusinessType(organizationId);
+      const response = await getBusinessType();
+      if (response.status !== 200) throw new Error(response.message);
+      return response.data;
     },
     enabled: !!organizationId,
     staleTime: 1000 * 60 * 5, // Cache por 5 minutos
-  });
-}
-
-// Hook para establecer tipo de negocio
-// ⚠️ IMPORTANTE: Solo debe usarse durante el onboarding
-// Una vez establecido, NO puede cambiarse
-export function useSetBusinessType() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      organizationId,
-      businessType,
-    }: {
-      organizationId: string;
-      businessType: 'liquor_store' | 'shoe_store';
-    }) => {
-      // Verificar que no exista ya un business_type
-      const existing = await getBusinessType(organizationId);
-      if (existing) {
-        throw new Error(
-          'El tipo de negocio ya fue configurado y no puede ser modificado'
-        );
-      }
-
-      const response = await setBusinessType(organizationId, businessType);
-      if (response.status !== 201) {
-        throw new Error(response.message);
-      }
-      return response.data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ['business-type', variables.organizationId],
-      });
-    },
   });
 }

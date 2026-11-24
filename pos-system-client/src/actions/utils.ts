@@ -1,16 +1,7 @@
-import {
-  Membership,
-  MembershipRole,
-  Prisma,
-} from '@/generated/prisma';
+import { Membership, Prisma } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
 import { prisma } from '@/lib/db';
-import {
-  ACTIVE_MEMBERSHIP_ORDER,
-  ACTIVE_MEMBERSHIP_WHERE,
-  ActorError,
-  requireActor,
-} from '@/lib/auth/actor';
+import { ACTIVE_MEMBERSHIP_ORDER, ACTIVE_MEMBERSHIP_WHERE } from '@/lib/auth/actor';
 
 // Instancia única de Prisma Client (singleton en globalThis, ver lib/db.ts)
 export { prisma };
@@ -55,54 +46,7 @@ export const serializeDecimals = <T>(value: T): Serialized<T> => {
   return result as unknown as Serialized<T>;
 };
 
-/**
- * Comprobación legada para los módulos aún no migrados a `requireActor()`
- * (#12–#15). Ya NO confía en el `userId` recibido: el rol sale de la sesión
- * (`getActor()`), el `userId` del llamador debe coincidir con el de la sesión
- * y, si se pasa `organizationId`, debe ser la organización del actor.
- * Un usuario sin membresía nunca pasa (no tiene rol).
- */
-const sessionActorHasRole = async (
-  userId: string,
-  roles: readonly MembershipRole[],
-  organizationId?: string
-): Promise<boolean> => {
-  try {
-    const actor = await requireActor({ roles });
-    if (!userId || actor.userId !== userId) return false;
-    if (organizationId !== undefined && actor.organizationId !== organizationId) return false;
-    return true;
-  } catch (error) {
-    if (!(error instanceof ActorError)) console.error('Error checking role:', error);
-    return false;
-  }
-};
-
-/** ADMIN de la sesión (y de `organizationId`, si se indica). */
-export const checkAdminRole = async (
-  userId: string,
-  organizationId?: string
-): Promise<boolean> => sessionActorHasRole(userId, [MembershipRole.ADMIN], organizationId);
-
-/** ADMIN o SELLER de la sesión (y de `organizationId`, si se indica). */
-export const checkAdminOrSellerRole = async (
-  userId: string,
-  organizationId?: string
-): Promise<boolean> =>
-  sessionActorHasRole(userId, [MembershipRole.ADMIN, MembershipRole.SELLER], organizationId);
-
-/**
- * Crea una respuesta de error estandarizada para accesos no autorizados.
- * @returns {ActionResponse} - Un objeto de respuesta con estado 403.
- */
-export const unauthorizedResponse = <T = null>(): ActionResponse<T> => {
-  return {
-    status: 403,
-    message: 'Acción no autorizada. Se requiere rol de Administrador.',
-    data: null,
-  };
-};
-
+/** Legacy check still used by `dashboard` and `reports` until #15 migrates them. */
 export const checkOrgId = (orgId: string): boolean => {
   return (!orgId || orgId.trim() === '')
 }

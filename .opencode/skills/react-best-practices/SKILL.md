@@ -37,7 +37,7 @@ Reference these guidelines when:
 
 This is a Next.js 15 App Router app with server actions, TanStack Query, Zustand, and a strict-TS policy. Map the generic rules onto the project's conventions:
 
-- **`async-api-routes` → server actions.** This project exposes mutations/reads via server actions in `src/actions/`, not API routes. The rule still applies: start promises early, await late, authenticate every server action (`checkOrgId` / `checkAdminRole` from `@/actions/utils`).
+- **`async-api-routes` → server actions.** This project exposes mutations/reads via server actions in `src/actions/`, not API routes. The rule still applies: start promises early, await late, authenticate every server action (`requireActor()` from `@/lib/auth/actor`).
 - **`server-cache-react` → `React.cache()`** for per-request dedup of Prisma reads inside server components/actions. Do not duplicate fetches across a render.
 - **`client-swr-dedup` → TanStack Query.** The project uses `@tanstack/react-query`, not SWR. The dedup principle holds: rely on React Query's cache + `queryKey: ['<entity>']` invalidation instead of hand-rolling fetch state. Do not add SWR.
 - **`client-localstorage-schema` → sessionStorage.** Zustand stores in this project persist to **sessionStorage**, not localStorage (see `pos-system-client/AGENTS.md`). Version and minimize what's stored.

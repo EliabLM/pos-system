@@ -11,7 +11,7 @@ import { MembershipRole, MembershipStatus, Organization, PaymentMethod, Prisma }
 import { ActionResponse } from '@/interfaces';
 import { actorErrorResponse, requireOnboardingUser } from '@/lib/auth/actor';
 import { prisma } from '../utils';
-import { setBusinessType } from '../system-config';
+import { BUSINESS_TYPE_KEY } from '../system-config/system-config.schemas';
 
 
 // Definir constantes para configuraciones por defecto
@@ -263,6 +263,7 @@ export const createOrganization = async (
       };
     }
     const data = parsed.data;
+    const type = parsedType.data ?? null;
 
     if (data.nit) {
       const existingOrgByNit = await prisma.organization.findFirst({
@@ -295,6 +296,17 @@ export const createOrganization = async (
           acceptedAt: new Date(),
         },
       });
+      if (type) {
+        await tx.systemConfig.create({
+          data: {
+            organizationId: organization.id,
+            key: BUSINESS_TYPE_KEY,
+            value: type,
+            type: 'STRING',
+            description: 'Tipo de negocio de la organización',
+          },
+        });
+      }
       return organization;
     });
 
@@ -302,14 +314,6 @@ export const createOrganization = async (
       return { status: 409, message: 'El usuario ya pertenece a una organización', data: null };
     }
 
-    const type = parsedType.data ?? null;
-    if (type) {
-      try {
-        await setBusinessType(newOrganization.id, type);
-      } catch (error) {
-        console.error('Error setting business type for organization:', newOrganization.id, error);
-      }
-    }
 
     // Configuraciones iniciales (categorías, marcas, métodos de pago...). Ya
     // existe la membresía ADMIN, así que pasan las comprobaciones de sesión.

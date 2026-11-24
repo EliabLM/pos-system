@@ -3,7 +3,8 @@ import { loadWithMocks } from './load-with-mocks.mjs';
 
 /**
  * Doble de BD y de sesión para las pruebas de contrato de catálogo e
- * inventario (#12) y de clientes, proveedores, compras y medios de pago (#13). La BD solo tiene registros de la organización B: un actor
+ * inventario (#12), de clientes, proveedores, compras y medios de pago (#13) y
+ * de tiendas y configuración (#14). La BD solo tiene registros de la organización B: un actor
  * de A que los pida por id debe recibir 404 (o lista vacía) sin escrituras.
  */
 export const ID = {
@@ -18,6 +19,7 @@ export const ID = {
   paymentMethod: '00000000-0000-4000-8000-0000000000b9',
   purchase: '00000000-0000-4000-8000-0000000000ba',
   purchaseItem: '00000000-0000-4000-8000-0000000000bb',
+  systemConfig: '00000000-0000-4000-8000-0000000000bc',
   categoryA: '00000000-0000-4000-8000-0000000000a1',
   storeA: '00000000-0000-4000-8000-0000000000a2',
 };
@@ -43,7 +45,11 @@ const records = {
   stockMovement: () => ({
     id: ID.stockMovement, organizationId: 'org-b', productId: ID.product, type: 'IN', quantity: 1, previousStock: 4, newStock: 5,
   }),
-  store: () => ({ id: ID.storeB, organizationId: 'org-b' }),
+  store: () => ({
+    id: ID.storeB, organizationId: 'org-b', name: 'Tienda B', address: 'Calle B', saleNumberPrefix: 'tienda-b',
+    lastSaleNumber: 7, isActive: true, isDeleted: false,
+  }),
+  systemConfig: () => ({ id: ID.systemConfig, organizationId: 'org-b', key: 'business_type', value: 'shoe_store', isDeleted: false }),
   customer: () => ({
     id: ID.customer, organizationId: 'org-b', firstName: 'Cliente', lastName: 'B', email: 'b@example.com',
     document: '123', isActive: true, isDeleted: false, _count: { sales: 0 },
