@@ -2,18 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createStore,
   updateStore,
-  getStoresByOrgId,
+  getStores,
   getStoreById,
   getStoreWithSalesInfo,
   softDeleteStore,
   restoreStore,
   deleteStore,
-  incrementSaleNumber,
   getNextSaleNumber,
-  getStoresByUserId,
 } from '@/actions/store';
+import type { CreateStoreInput, UpdateStoreInput } from '@/actions/store/store.schemas';
 import { useStore } from '@/store';
-import { Store } from '@/generated/prisma';
 
 // Hook principal para obtener tiendas por organización
 export const useStores = (
@@ -29,11 +27,7 @@ export const useStores = (
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await getStoresByOrgId(
-        user.organizationId,
-        isActive,
-        includeDeleted
-      );
+      const response = await getStores(isActive, includeDeleted);
 
       // Manejar errores de la respuesta
       if (response.status !== 200) {
@@ -94,32 +88,6 @@ export const useStoreWithSalesInfo = (storeId: string) => {
   });
 };
 
-// Hook para obtener tiendas asignadas a un usuario específico
-export const useStoresByUser = (userId?: string) => {
-  const currentUser = useStore((state) => state.user);
-  const targetUserId = userId || currentUser?.id;
-
-  return useQuery({
-    queryKey: ['stores', 'user', targetUserId],
-    queryFn: async () => {
-      if (!targetUserId) {
-        throw new Error('ID de usuario requerido');
-      }
-
-      const response = await getStoresByUserId(targetUserId);
-
-      if (response.status !== 200) {
-        throw new Error(response.message);
-      }
-
-      return response.data;
-    },
-    enabled: !!targetUserId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-};
-
 // Hook para obtener el próximo número de venta
 export const useNextSaleNumber = (storeId: string) => {
   return useQuery({
@@ -149,27 +117,12 @@ export const useCreateStore = () => {
   const user = useStore((state) => state.user);
 
   return useMutation({
-    mutationFn: async (
-      storeData: Omit<
-        Store,
-        | 'id'
-        | 'organizationId'
-        | 'createdAt'
-        | 'updatedAt'
-        | 'isDeleted'
-        | 'deletedAt'
-        | 'lastSaleNumber'
-      >
-    ) => {
+    mutationFn: async (storeData: CreateStoreInput) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await createStore(
-        user.organizationId,
-        user.id,
-        storeData
-      );
+      const response = await createStore(storeData);
 
       if (response.status !== 201) {
         throw new Error(response.message);
@@ -181,9 +134,6 @@ export const useCreateStore = () => {
       // Invalidar múltiples queries relacionadas
       queryClient.invalidateQueries({
         queryKey: ['stores', user?.organizationId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['stores', 'user'],
       });
     },
     onError: (error) => {
@@ -203,24 +153,13 @@ export const useUpdateStore = () => {
       storeData,
     }: {
       storeId: string;
-      storeData: Partial<
-        Omit<
-          Store,
-          | 'id'
-          | 'organizationId'
-          | 'createdAt'
-          | 'updatedAt'
-          | 'isDeleted'
-          | 'deletedAt'
-          | 'lastSaleNumber'
-        >
-      >;
+      storeData: UpdateStoreInput;
     }) => {
       if (!user?.organizationId) {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await updateStore(storeId, user.id, storeData);
+      const response = await updateStore(storeId, storeData);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -235,9 +174,6 @@ export const useUpdateStore = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ['store', variables.storeId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['stores', 'user'],
       });
     },
     onError: (error) => {
@@ -257,7 +193,7 @@ export const useSoftDeleteStore = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await softDeleteStore(storeId, user.id);
+      const response = await softDeleteStore(storeId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -271,9 +207,6 @@ export const useSoftDeleteStore = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ['store', variables.storeId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['stores', 'user'],
       });
     },
     onError: (error) => {
@@ -293,7 +226,7 @@ export const useRestoreStore = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await restoreStore(storeId, user.id);
+      const response = await restoreStore(storeId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -307,9 +240,6 @@ export const useRestoreStore = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ['store', variables.storeId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['stores', 'user'],
       });
     },
     onError: (error) => {
@@ -329,7 +259,7 @@ export const useDeleteStore = () => {
         throw new Error('Usuario no tiene organización asignada');
       }
 
-      const response = await deleteStore(storeId, user.id);
+      const response = await deleteStore(storeId);
 
       if (response.status !== 200) {
         throw new Error(response.message);
@@ -345,42 +275,9 @@ export const useDeleteStore = () => {
       queryClient.removeQueries({
         queryKey: ['store', variables.storeId],
       });
-      queryClient.invalidateQueries({
-        queryKey: ['stores', 'user'],
-      });
     },
     onError: (error) => {
       console.error('Error eliminando permanentemente la tienda:', error);
-    },
-  });
-};
-
-// Hook para incrementar número de venta (para cuando se crea una venta)
-export const useIncrementSaleNumber = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ storeId }: { storeId: string }) => {
-      const response = await incrementSaleNumber(storeId);
-
-      if (response.status !== 200) {
-        throw new Error(response.message);
-      }
-
-      return response.data;
-    },
-    onSuccess: (_, variables) => {
-      // Invalidar el próximo número de venta
-      queryClient.invalidateQueries({
-        queryKey: ['store', variables.storeId, 'nextSaleNumber'],
-      });
-      // También invalidar la tienda para actualizar lastSaleNumber
-      queryClient.invalidateQueries({
-        queryKey: ['store', variables.storeId],
-      });
-    },
-    onError: (error) => {
-      console.error('Error incrementando número de venta:', error);
     },
   });
 };
@@ -400,9 +297,4 @@ export const useInactiveStores = () => {
 
 export const useDeletedStores = () => {
   return useStores(undefined, true);
-};
-
-// Hook para obtener tiendas del usuario actual
-export const useMyStores = () => {
-  return useStoresByUser();
 };
