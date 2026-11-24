@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useStore } from '@/store';
 import {
   getProfitLossReport,
   getProfitabilityReport,
@@ -29,8 +30,10 @@ export function useProfitLossReport(
   filters: FinancialReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'financial', 'profit-loss', filters],
+    queryKey: ['reports', 'financial', 'profit-loss', organizationId, filters],
     queryFn: async () => {
       const response = await getProfitLossReport(filters);
 
@@ -42,7 +45,7 @@ export function useProfitLossReport(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.startDate &&
       filters.endDate
     ),
@@ -66,8 +69,10 @@ export function useProfitabilityReport(
   filters: FinancialReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'financial', 'profitability', filters],
+    queryKey: ['reports', 'financial', 'profitability', organizationId, filters],
     queryFn: async () => {
       const response = await getProfitabilityReport(filters);
 
@@ -79,7 +84,7 @@ export function useProfitabilityReport(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.startDate &&
       filters.endDate
     ),
@@ -103,8 +108,10 @@ export function useCashFlowReport(
   filters: FinancialReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'financial', 'cash-flow', filters],
+    queryKey: ['reports', 'financial', 'cash-flow', organizationId, filters],
     queryFn: async () => {
       const response = await getCashFlowReport(filters);
 
@@ -116,7 +123,7 @@ export function useCashFlowReport(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.startDate &&
       filters.endDate
     ),

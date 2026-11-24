@@ -122,12 +122,12 @@ src/
 ├── interfaces/       # TypeScript interfaces
 ├── lib/              # Utility functions
 │   ├── auth/         # Authentication utilities
+│   │   ├── actor.ts        # getActor/requireActor: session identity for server code
 │   │   ├── crypto.ts       # Encryption/hashing
 │   │   ├── jwt.ts          # JWT generation/verification
 │   │   ├── session.ts      # Session management
-│   │   ├── authorization.ts # RBAC helpers
-│   │   ├── validation.ts   # Input validation
-│   │   └── server.ts       # Server-side auth utilities
+│   │   ├── types.ts        # Auth types and AuthError
+│   │   └── validation.ts   # Input validation
 │   ├── rbac.ts       # Role-based access control
 │   ├── date-utils.ts # Date formatting utilities
 │   └── utils.ts      # General utilities (cn, etc.)
@@ -373,8 +373,8 @@ Do NOT create new `PrismaClient` instances in actions.
 
 ### Helper Utilities
 
-- `src/actions/common.schemas.ts` - shared Zod pieces (`idSchema`, `name`, `optionalText`...) and `invalidInput()`/`internalError()` responses
-- `src/actions/utils.ts` - `prisma`, `serializeDecimals()`; `checkOrgId()`/`emptyOrgIdResponse()` only remain for `dashboard`/`reports` until #15
+- `src/actions/common.schemas.ts` - shared Zod pieces (`idSchema`, `name`, `optionalText`, `businessDateInput`...), `scopedStoreId()` (a SELLER bound to a store only reads that store) and `invalidInput()`/`internalError()` responses
+- `src/actions/utils.ts` - `prisma`, `serializeDecimals()`, `getActiveMembership()`
 
 ## State Management
 
@@ -637,12 +637,12 @@ Helper functions for date formatting and manipulation using date-fns.
 ### Authentication Library (`src/lib/auth/`)
 
 Comprehensive authentication utilities:
+- `actor.ts` - `getActor()`/`requireActor({ roles })`: user, organization, role and store from the session (the only identity source for server actions), `actorErrorResponse()`, `requireOnboardingUser()`
 - `crypto.ts` - Password hashing with bcrypt, token generation
 - `jwt.ts` - JWT token generation and verification (using jose for Edge Runtime)
 - `session.ts` - Session management (create, validate, revoke)
-- `authorization.ts` - RBAC helpers and permission checks
+- `types.ts` - Auth types and `AuthError`
 - `validation.ts` - Input validation for auth forms
-- `server.ts` - Server-side auth utilities (get user from request, etc.)
 
 ### RBAC (`src/lib/rbac.ts`)
 

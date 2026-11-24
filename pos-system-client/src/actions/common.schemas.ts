@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Actor } from '@/lib/auth/actor';
 
 /**
  * Shared input building blocks for server actions. Zod objects strip unknown
@@ -26,6 +27,26 @@ export const topLimitSchema = z.number().int().positive().max(100);
 
 /** Date or ISO string from the client. */
 export const dateInput = z.coerce.date();
+
+/**
+ * Business-day boundary for reports and the dashboard: a `Date` or a string.
+ * The value is kept as sent because a date-only string (`YYYY-MM-DD`) means
+ * that business day literally (see `toBusinessDayKey` in `@/lib/time`), while
+ * coercing it to a `Date` would read it as UTC midnight (the previous day in
+ * Bogota).
+ */
+export const businessDateInput = z.union([
+  z.date().refine((date) => !Number.isNaN(date.getTime()), 'Fecha inválida'),
+  z.string().trim().max(40).refine((value) => !Number.isNaN(Date.parse(value)), 'Fecha inválida'),
+]);
+
+/**
+ * Store a sales read is limited to: a SELLER bound to a store only sees that
+ * store, whatever the client asks; anyone else gets the store they asked for
+ * (always inside their own organization, which the query filters separately).
+ */
+export const scopedStoreId = (actor: Actor, requested?: string | null): string | undefined =>
+  actor.role === 'SELLER' && actor.storeId ? actor.storeId : requested ?? undefined;
 
 export const paginationSchema = z
   .object({

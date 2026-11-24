@@ -40,16 +40,12 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useStockStatusReport } from '@/hooks/useInventoryReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 /**
  * Stock Status Report Page Component
  */
 export default function StockStatusReportPage(): React.ReactElement {
-  // Get user from store
-  const user = useStore((state) => state.user);
-
   // Date range state (not used for stock status but required for filters)
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subDays(new Date(), 30),
@@ -58,7 +54,6 @@ export default function StockStatusReportPage(): React.ReactElement {
 
   // Fetch stock status report data
   const { data: reportData, isLoading, error } = useStockStatusReport({
-    organizationId: user?.organizationId || '',
     dateRange,
   });
 

@@ -11,7 +11,7 @@ import { MembershipRole, MembershipStatus, Organization, PaymentMethod, Prisma }
 import { ActionResponse } from '@/interfaces';
 import { actorErrorResponse, requireOnboardingUser } from '@/lib/auth/actor';
 import { prisma } from '../utils';
-import { BUSINESS_TYPE_KEY } from '../system-config/system-config.schemas';
+import { BUSINESS_TYPE_KEY, BusinessType, businessTypeSchema } from '../system-config/system-config.schemas';
 
 
 // Definir constantes para configuraciones por defecto
@@ -149,7 +149,7 @@ const FOOTWEAR_UNIT_MEASURES = [
 
 const createInitialConfigurations = async (
   organizationId: string,
-  businessType?: 'liquor_store' | 'shoe_store' | null
+  businessType?: BusinessType | null
 ): Promise<void> => {
   try {
     // Determinar qué categorías y marcas crear según el tipo de negocio
@@ -243,18 +243,16 @@ const createOrganizationSchema = z.object({
 
 export type CreateOrganizationInput = z.input<typeof createOrganizationSchema>;
 
-const businessTypeSchema = z.enum(['liquor_store', 'shoe_store']).nullish();
-
 export const createOrganization = async (
   organizationData: CreateOrganizationInput,
-  businessType?: 'liquor_store' | 'shoe_store' | null
+  businessType?: BusinessType | null
 ): Promise<ActionResponse<Organization | null>> => {
   try {
     // Solo un usuario con sesión y SIN membresía activa crea su organización.
     const { userId } = await requireOnboardingUser();
 
     const parsed = createOrganizationSchema.safeParse(organizationData);
-    const parsedType = businessTypeSchema.safeParse(businessType || null);
+    const parsedType = businessTypeSchema.nullable().safeParse(businessType || null);
     if (!parsed.success || !parsedType.success) {
       return {
         status: 400,

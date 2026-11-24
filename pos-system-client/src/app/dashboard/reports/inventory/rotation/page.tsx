@@ -45,7 +45,6 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useInventoryRotationReport } from '@/hooks/useInventoryReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 /**
@@ -61,9 +60,6 @@ const ABC_COLORS = {
  * Inventory Rotation Report Page Component
  */
 export default function InventoryRotationReportPage(): React.ReactElement {
-  // Get user from store
-  const user = useStore((state) => state.user);
-
   // Date range state
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subDays(new Date(), 90), // 90 days for rotation analysis
@@ -72,7 +68,6 @@ export default function InventoryRotationReportPage(): React.ReactElement {
 
   // Fetch inventory rotation report data
   const { data: reportData, isLoading, error } = useInventoryRotationReport({
-    organizationId: user?.organizationId || '',
     dateRange,
   });
 

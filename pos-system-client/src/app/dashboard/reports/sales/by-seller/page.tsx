@@ -40,7 +40,6 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useSalesBySeller } from '@/hooks/useSalesReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 // Colores para el gráfico de barras - Solo HSL hardcodeados
@@ -58,8 +57,6 @@ const CHART_COLORS = [
 ];
 
 export default function SalesBySellerReportPage(): React.ReactElement {
-  const user = useStore((state) => state.user);
-
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subDays(new Date(), 30),
     endDate: new Date(),
@@ -68,7 +65,6 @@ export default function SalesBySellerReportPage(): React.ReactElement {
   const [storeId, setStoreId] = useState<string | undefined>(undefined);
 
   const { data: sellers, isLoading, error } = useSalesBySeller({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
   });

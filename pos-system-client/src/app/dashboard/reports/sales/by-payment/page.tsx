@@ -35,7 +35,6 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useSalesByPayment } from '@/hooks/useSalesReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 const COLORS = [
@@ -48,8 +47,6 @@ const COLORS = [
 ];
 
 export default function SalesByPaymentReportPage(): React.ReactElement {
-  const user = useStore((state) => state.user);
-
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subDays(new Date(), 30),
     endDate: new Date(),
@@ -58,7 +55,6 @@ export default function SalesByPaymentReportPage(): React.ReactElement {
   const [storeId, setStoreId] = useState<string | undefined>(undefined);
 
   const { data: paymentMethods, isLoading, error } = useSalesByPayment({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
   });

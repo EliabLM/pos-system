@@ -4,7 +4,7 @@ import { loadWithMocks } from './load-with-mocks.mjs';
 /**
  * Doble de BD y de sesión para las pruebas de contrato de catálogo e
  * inventario (#12), de clientes, proveedores, compras y medios de pago (#13) y
- * de tiendas y configuración (#14). La BD solo tiene registros de la organización B: un actor
+ * de tiendas y configuración (#14) y de dashboard y reportes (#15). La BD solo tiene registros de la organización B: un actor
  * de A que los pida por id debe recibir 404 (o lista vacía) sin escrituras.
  */
 export const ID = {
@@ -31,7 +31,8 @@ export const ADMIN_B = { userId: 'admin-b', organizationId: 'org-b', role: 'ADMI
 /** Payload hostil: tenancy e identidad ajenas mezcladas en la entrada. */
 export const foreign = { organizationId: 'org-b', userId: 'admin-b', orgId: 'org-b', id: 'x', isDeleted: false };
 
-const dec = (n) => ({ toNumber: () => n });
+// Como Prisma.Decimal: toNumber() y Number(decimal).
+const dec = (n) => ({ toNumber: () => n, valueOf: () => n });
 
 const records = {
   product: () => ({
@@ -69,11 +70,20 @@ const records = {
     id: ID.purchaseItem, purchaseId: ID.purchase, productId: ID.product, quantity: 2,
     unitPrice: dec(4), subtotal: dec(8), isDeleted: false, purchase: { status: 'PENDING' },
   }),
-  sale: () => ({ id: 'sale-b', organizationId: 'org-b', customerId: ID.customer, total: dec(10) }),
+  sale: () => ({
+    id: 'sale-b', organizationId: 'org-b', customerId: ID.customer, total: dec(10), saleDate: new Date('2026-11-10T15:00:00Z'),
+    userId: 'seller-b', user: { id: 'seller-b', name: 'Vendedor B', email: 'vendedor@b.example' }, saleItems: [], salePayments: [],
+  }),
+  // Sin organizationId propio: pertenecen a la organización de su venta.
+  saleItem: () => ({ id: 'sale-item-b', saleId: 'sale-b', productId: ID.product, quantity: 1, subtotal: dec(10), isDeleted: false }),
+  salePayment: () => ({ id: 'sale-payment-b', saleId: 'sale-b', paymentMethodId: ID.paymentMethod, amount: dec(10), isDeleted: false }),
 };
 
+/** Modelos sin organizationId propio → relación que lleva la organización. */
+const PARENT = { purchaseItem: 'purchase', saleItem: 'sale', salePayment: 'sale' };
+
 /** Organización por la que filtra una consulta: la propia o, para los ítems, la de su compra. */
-const scopeOf = (model, where = {}) => (model === 'purchaseItem' ? where.purchase?.organizationId : where.organizationId);
+const scopeOf = (model, where = {}) => (PARENT[model] ? where[PARENT[model]]?.organizationId : where.organizationId);
 
 /** Modelos de una organización: toda consulta sobre ellos debe filtrar por la organización del actor. */
 export const SCOPED_MODELS = new Set(Object.keys(records));
@@ -116,13 +126,14 @@ function modelFake(model) {
 
 export const prisma = {
   ...Object.fromEntries(Object.keys(records).map((m) => [m, modelFake(m)])),
-  saleItem: { count: read('saleItem', 'count', () => 0), groupBy: read('saleItem', 'groupBy', () => []) },
   $transaction: async (fn) => fn(prisma),
 };
 prisma.product.fields = { minStock: 'minStock' };
 // Uso de un producto en compras (catálogo): sin ítems. Los conteos de una compra sí ven el ítem de B.
 const purchaseItemCount = prisma.purchaseItem.count;
 prisma.purchaseItem.count = (args = {}) => (args.where?.productId ? read('purchaseItem', 'count', () => 0)(args) : purchaseItemCount(args));
+// Uso de un producto en ventas (catálogo, el producto ya se validó en la organización): sin ítems.
+prisma.saleItem.count = read('saleItemUsage', 'count', () => 0);
 globalThis.__catalogPrisma = prisma;
 
 export const mocks = {

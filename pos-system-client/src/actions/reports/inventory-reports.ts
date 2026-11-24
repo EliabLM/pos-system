@@ -11,7 +11,17 @@ import {
   StockSummary,
   StockMovementData,
 } from '@/interfaces/reports';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { invalidInput } from '../common.schemas';
+import {
+  REPORT_INPUT_ERROR,
+  REPORT_ROLES,
+  ScopedReportFilters,
+  InventoryReportInput,
+  scopeReportFilters,
+  inventoryReportFiltersSchema,
+} from './reports.schemas';
 import { Prisma } from '@/generated/prisma';
 
 /**
@@ -122,7 +132,7 @@ function parseDate(dateString: string): Date {
 /**
  * Build base where clause for product queries
  */
-function buildProductWhereClause(filters: InventoryReportFilters): Prisma.ProductWhereInput {
+function buildProductWhereClause(filters: ScopedReportFilters<InventoryReportInput>): Prisma.ProductWhereInput {
   const whereClause: Prisma.ProductWhereInput = {
     organizationId: filters.organizationId,
     isDeleted: false,
@@ -179,15 +189,16 @@ function getABCClassification(rotationRate: number): 'A' | 'B' | 'C' {
  * @returns ActionResponse with stock status data
  */
 export async function getStockStatusReport(
-  filters: InventoryReportFilters
+  rawFilters: InventoryReportFilters
 ): Promise<ActionResponse<{
   summary: StockSummary;
   data: StockStatusProduct[];
   alerts: StockStatusProduct[];
 }>> {
   try {
-    // Validate organization ID
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, inventoryReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildProductWhereClause(filters);
 
@@ -285,6 +296,8 @@ export async function getStockStatusReport(
       data: { summary, data, alerts },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating stock status report:', error);
     return {
       status: 500,
@@ -301,13 +314,15 @@ export async function getStockStatusReport(
  * @returns ActionResponse with stock movement data
  */
 export async function getStockMovementsReport(
-  filters: InventoryReportFilters
+  rawFilters: InventoryReportFilters
 ): Promise<ActionResponse<{
   summary: MovementSummary;
   data: StockMovementData[];
 }>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, inventoryReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     // Build where clause for stock movements
     const whereClause: Prisma.StockMovementWhereInput = {
@@ -388,6 +403,8 @@ export async function getStockMovementsReport(
       data: { summary, data },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating stock movements report:', error);
     return {
       status: 500,
@@ -404,13 +421,15 @@ export async function getStockMovementsReport(
  * @returns ActionResponse with inventory valuation data
  */
 export async function getInventoryValuationReport(
-  filters: InventoryReportFilters
+  rawFilters: InventoryReportFilters
 ): Promise<ActionResponse<{
   summary: ValuationSummary;
   data: InventoryValuationData[];
 }>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, inventoryReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildProductWhereClause(filters);
 
@@ -480,6 +499,8 @@ export async function getInventoryValuationReport(
       data: { summary, data },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating inventory valuation report:', error);
     return {
       status: 500,
@@ -496,13 +517,15 @@ export async function getInventoryValuationReport(
  * @returns ActionResponse with inventory rotation data
  */
 export async function getInventoryRotationReport(
-  filters: InventoryReportFilters
+  rawFilters: InventoryReportFilters
 ): Promise<ActionResponse<{
   summary: RotationSummary;
   data: InventoryRotationData[];
 }>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, inventoryReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildProductWhereClause(filters);
 
@@ -604,6 +627,8 @@ export async function getInventoryRotationReport(
       data: { summary, data },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating inventory rotation report:', error);
     return {
       status: 500,

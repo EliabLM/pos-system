@@ -2,28 +2,29 @@
 
 import { addBusinessDays, businessDayRange } from '@/lib/time';
 import { DashboardKPIs, ActionResponse } from '@/interfaces';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { invalidInput, scopedStoreId } from '../common.schemas';
+import { dashboardStoreSchema } from './dashboard.schemas';
 import { Prisma } from '@/generated/prisma';
 
 /**
  * Calculates dashboard KPIs comparing today's sales with yesterday's.
  *
- * RBAC Implementation:
- * - Frontend enforces role-based filtering: SELLER users MUST pass their assigned storeId
- * - ADMIN users can pass undefined/null to see all stores in the organization
- * - Backend validates organizationId and applies storeId filter when provided
+ * Any member can read it. The organization comes from the session; a SELLER
+ * bound to a store only sees that store, whatever `storeId` says.
  *
- * @param organizationId - Organization ID to filter sales (required)
- * @param storeId - Optional store ID to filter sales by specific store (SELLER users must provide their storeId)
+ * @param storeId - Optional store filter (ignored for a SELLER bound to a store)
  * @returns ActionResponse with DashboardKPIs data
  */
 export const getDashboardKPIs = async (
-  organizationId: string,
   storeId?: string | null
 ): Promise<ActionResponse<DashboardKPIs>> => {
   try {
-    // Validate organization ID
-    if (checkOrgId(organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor();
+    const store = dashboardStoreSchema.safeParse(storeId);
+    if (!store.success) return invalidInput('Tienda inválida');
+    const scopedStore = scopedStoreId(actor, store.data);
 
     // Today and yesterday as America/Bogota business days
     const now = new Date();
@@ -34,14 +35,13 @@ export const getDashboardKPIs = async (
 
     // Base where clause for queries
     const baseWhereClause: Prisma.SaleWhereInput = {
-      organizationId,
+      organizationId: actor.organizationId,
       isDeleted: false,
       status: 'PAID', // Only count paid sales
     };
 
-    // Add store filter if provided
-    if (storeId) {
-      baseWhereClause.storeId = storeId;
+    if (scopedStore) {
+      baseWhereClause.storeId = scopedStore;
     }
 
     // Create where clauses for today and yesterday
@@ -117,6 +117,8 @@ export const getDashboardKPIs = async (
       data: kpiData,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching dashboard KPIs:', error);
     return {
       status: 500,

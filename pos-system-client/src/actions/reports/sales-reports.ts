@@ -8,7 +8,17 @@ import {
   TopProductData,
 } from '@/interfaces/reports';
 import { businessDayRange, businessPeriodKey, startOfBusinessDay } from '@/lib/time';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { invalidInput } from '../common.schemas';
+import {
+  REPORT_INPUT_ERROR,
+  REPORT_ROLES,
+  ScopedReportFilters,
+  SalesReportInput,
+  scopeReportFilters,
+  salesReportFiltersSchema,
+} from './reports.schemas';
 import { Prisma } from '@/generated/prisma';
 
 /**
@@ -33,7 +43,7 @@ function getPeriodKey(date: Date, period: 'day' | 'week' | 'month' | 'year'): st
 /**
  * Build base where clause for sales queries
  */
-function buildSalesWhereClause(filters: SalesReportFilters): Prisma.SaleWhereInput {
+function buildSalesWhereClause(filters: ScopedReportFilters<SalesReportInput>): Prisma.SaleWhereInput {
   const whereClause: Prisma.SaleWhereInput = {
     organizationId: filters.organizationId,
     isDeleted: false,
@@ -68,11 +78,12 @@ function buildSalesWhereClause(filters: SalesReportFilters): Prisma.SaleWhereInp
  * @returns ActionResponse with sales data and summary
  */
 export async function getSalesReport(
-  filters: SalesReportFilters
+  rawFilters: SalesReportFilters
 ): Promise<ActionResponse<{ summary: SalesSummary; data: SalesPeriodData[] }>> {
   try {
-    // Validate organization ID
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, salesReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildSalesWhereClause(filters);
 
@@ -184,6 +195,8 @@ export async function getSalesReport(
       data: { summary, data },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating sales report:', error);
     return {
       status: 500,
@@ -200,10 +213,12 @@ export async function getSalesReport(
  * @returns ActionResponse with product sales data
  */
 export async function getSalesByProduct(
-  filters: SalesReportFilters
+  rawFilters: SalesReportFilters
 ): Promise<ActionResponse<TopProductData[]>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, salesReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildSalesWhereClause(filters);
 
@@ -311,6 +326,8 @@ export async function getSalesByProduct(
       data,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting sales by product:', error);
     return {
       status: 500,
@@ -327,7 +344,7 @@ export async function getSalesByProduct(
  * @returns ActionResponse with category sales data
  */
 export async function getSalesByCategory(
-  filters: SalesReportFilters
+  rawFilters: SalesReportFilters
 ): Promise<ActionResponse<Array<{
   categoryId: string;
   categoryName: string;
@@ -339,7 +356,9 @@ export async function getSalesByCategory(
   percentage: number;
 }>>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, salesReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildSalesWhereClause(filters);
 
@@ -426,6 +445,8 @@ export async function getSalesByCategory(
       data,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting sales by category:', error);
     return {
       status: 500,
@@ -442,7 +463,7 @@ export async function getSalesByCategory(
  * @returns ActionResponse with payment method sales data
  */
 export async function getSalesByPayment(
-  filters: SalesReportFilters
+  rawFilters: SalesReportFilters
 ): Promise<ActionResponse<Array<{
   paymentMethodId: string;
   paymentMethodName: string;
@@ -453,7 +474,9 @@ export async function getSalesByPayment(
   percentage: number;
 }>>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, salesReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildSalesWhereClause(filters);
 
@@ -537,6 +560,8 @@ export async function getSalesByPayment(
       data,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting sales by payment:', error);
     return {
       status: 500,
@@ -553,7 +578,7 @@ export async function getSalesByPayment(
  * @returns ActionResponse with seller performance data
  */
 export async function getSalesBySeller(
-  filters: SalesReportFilters
+  rawFilters: SalesReportFilters
 ): Promise<ActionResponse<Array<{
   sellerId: string;
   sellerName: string;
@@ -564,7 +589,9 @@ export async function getSalesBySeller(
   totalItems: number;
 }>>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, salesReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildSalesWhereClause(filters);
 
@@ -642,6 +669,8 @@ export async function getSalesBySeller(
       data,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting sales by seller:', error);
     return {
       status: 500,

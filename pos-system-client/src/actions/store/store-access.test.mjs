@@ -32,6 +32,13 @@ test('store.getStoreById: el vendedor solo ve tiendas activas', async () => {
   assert.deepEqual(call.where, { id: ID.storeB, organizationId: 'org-a', isDeleted: false, isActive: true });
 });
 
+test('store.getNextSaleNumber: el vendedor solo obtiene el consecutivo de tiendas activas', async () => {
+  reset(SELLER_A);
+  await store.getNextSaleNumber(ID.storeB);
+  const call = state.calls.find((c) => c.model === 'store' && c.method === 'findFirst');
+  assert.deepEqual(call.where, { id: ID.storeB, organizationId: 'org-a', isDeleted: false, isActive: true });
+});
+
 test('store.getNextSaleNumber: control positivo, el admin de B obtiene el consecutivo de su tienda', async () => {
   reset(ADMIN_B);
   const result = await store.getNextSaleNumber(ID.storeB);

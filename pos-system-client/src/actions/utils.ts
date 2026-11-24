@@ -1,5 +1,5 @@
 import { Membership, Prisma } from '@/generated/prisma';
-import { ActionResponse, Serialized } from '@/interfaces';
+import { Serialized } from '@/interfaces';
 import { prisma } from '@/lib/db';
 import { ACTIVE_MEMBERSHIP_ORDER, ACTIVE_MEMBERSHIP_WHERE } from '@/lib/auth/actor';
 
@@ -45,17 +45,3 @@ export const serializeDecimals = <T>(value: T): Serialized<T> => {
   }
   return result as unknown as Serialized<T>;
 };
-
-/** Legacy check still used by `dashboard` and `reports` until #15 migrates them. */
-export const checkOrgId = (orgId: string): boolean => {
-  return (!orgId || orgId.trim() === '')
-}
-
-export const emptyOrgIdResponse = <T = null>(): ActionResponse<T> => {
-  return {
-    status: 400,
-    message: 'El ID de la organización es requerido',
-    data: null
-  }
-}
-

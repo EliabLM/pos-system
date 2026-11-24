@@ -2,36 +2,40 @@
 
 import { addBusinessDays, endOfBusinessDay, startOfBusinessDay } from '@/lib/time';
 import { TopProduct, ActionResponse } from '@/interfaces';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { invalidInput, scopedStoreId } from '../common.schemas';
+import { topProductsInputSchema } from './dashboard.schemas';
 
 /**
  * Retrieves the best-selling products with detailed metrics for a given period.
  *
- * @param organizationId - Organization ID to filter sales (required)
+ * Any member can read it; the organization comes from the session and a
+ * SELLER bound to a store only sees that store.
+ *
  * @param period - Time period for analysis ('today', 'week', 'month', 'year')
  * @param storeId - Optional store ID to filter sales by specific store
- * @param limit - Maximum number of top products to return (default: 10)
+ * @param limit - Maximum number of top products to return (1-100, default: 10)
  * @returns ActionResponse with TopProduct[] data sorted by revenue
  */
 export const getTopProducts = async (
-  organizationId: string,
   period: 'today' | 'week' | 'month' | 'year',
   storeId?: string | null,
   limit: number = 10
 ): Promise<ActionResponse<TopProduct[]>> => {
   try {
-    // Validate organization ID
-    if (checkOrgId(organizationId)) return emptyOrgIdResponse();
-
-    // Validate limit is a positive number
-    const sanitizedLimit = Math.max(1, Math.floor(limit));
+    const actor = await requireActor();
+    const parsed = topProductsInputSchema.safeParse({ period, storeId, limit });
+    if (!parsed.success) return invalidInput('Periodo, tienda o límite inválidos');
+    const input = parsed.data;
+    const scopedStore = scopedStoreId(actor, input.storeId);
 
     // Calculate date range based on period
     const today = new Date();
     let startDate: Date;
     const endDate: Date = endOfBusinessDay(today);
 
-    switch (period) {
+    switch (input.period) {
       case 'today':
         startDate = startOfBusinessDay(today);
         break;
@@ -53,8 +57,8 @@ export const getTopProducts = async (
       where: {
         isDeleted: false,
         sale: {
-          organizationId,
-          ...(storeId && { storeId }),
+          organizationId: actor.organizationId,
+          ...(scopedStore && { storeId: scopedStore }),
           isDeleted: false,
           status: 'PAID',
           saleDate: {
@@ -162,7 +166,7 @@ export const getTopProducts = async (
 
     // Sort by totalRevenue DESC and limit
     topProducts.sort((a, b) => b.totalRevenue - a.totalRevenue);
-    const limitedProducts = topProducts.slice(0, sanitizedLimit);
+    const limitedProducts = topProducts.slice(0, input.limit);
 
     return {
       status: 200,
@@ -170,6 +174,8 @@ export const getTopProducts = async (
       data: limitedProducts,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error fetching top products:', error);
     return {
       status: 500,

@@ -1,9 +1,18 @@
 'use server';
 
-import { parseISO } from 'date-fns';
 import { businessDayRange, businessPeriodKey } from '@/lib/time';
 import { ActionResponse } from '@/interfaces';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { invalidInput } from '../common.schemas';
+import {
+  REPORT_INPUT_ERROR,
+  REPORT_ROLES,
+  ScopedReportFilters,
+  FinancialReportInput,
+  scopeReportFilters,
+  financialReportFiltersSchema,
+} from './reports.schemas';
 import { Prisma } from '@/generated/prisma';
 
 /**
@@ -21,7 +30,6 @@ import { Prisma } from '@/generated/prisma';
  * Financial report filters
  */
 export interface FinancialReportFilters {
-  organizationId: string;
   storeId?: string;
   startDate: string;
   endDate: string;
@@ -161,17 +169,6 @@ function getPeriodKey(date: Date, period: 'day' | 'week' | 'month' | 'year'): st
 }
 
 /**
- * Parse date string to Date object
- */
-function parseDate(dateString: string): Date {
-  try {
-    return parseISO(dateString);
-  } catch {
-    return new Date(dateString);
-  }
-}
-
-/**
  * Determine period type based on date range
  */
 function determinePeriod(startDate: Date, endDate: Date): 'day' | 'week' | 'month' | 'year' {
@@ -186,7 +183,7 @@ function determinePeriod(startDate: Date, endDate: Date): 'day' | 'week' | 'mont
 /**
  * Build base where clause for sales queries
  */
-function buildSalesWhereClause(filters: FinancialReportFilters): Prisma.SaleWhereInput {
+function buildSalesWhereClause(filters: ScopedReportFilters<FinancialReportInput>): Prisma.SaleWhereInput {
   const whereClause: Prisma.SaleWhereInput = {
     organizationId: filters.organizationId,
     isDeleted: false,
@@ -213,14 +210,14 @@ function buildSalesWhereClause(filters: FinancialReportFilters): Prisma.SaleWher
  * @returns ActionResponse with P&L data
  */
 export async function getProfitLossReport(
-  filters: FinancialReportFilters
+  rawFilters: FinancialReportFilters
 ): Promise<ActionResponse<ProfitLossData>> {
   try {
-    // Validate organization ID
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, financialReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
-    const startDate = parseDate(filters.startDate);
-    const endDate = parseDate(filters.endDate);
+    const { startDate, endDate } = filters;
     const period = determinePeriod(startDate, endDate);
 
     const whereClause = buildSalesWhereClause(filters);
@@ -321,6 +318,8 @@ export async function getProfitLossReport(
       data: { summary, data, comparison },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating P&L report:', error);
     return {
       status: 500,
@@ -337,10 +336,12 @@ export async function getProfitLossReport(
  * @returns ActionResponse with profitability data
  */
 export async function getProfitabilityReport(
-  filters: FinancialReportFilters
+  rawFilters: FinancialReportFilters
 ): Promise<ActionResponse<ProfitabilityData>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, financialReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildSalesWhereClause(filters);
 
@@ -473,6 +474,8 @@ export async function getProfitabilityReport(
       data: { byProduct, byCategory, summary },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating profitability report:', error);
     return {
       status: 500,
@@ -489,13 +492,14 @@ export async function getProfitabilityReport(
  * @returns ActionResponse with cash flow data
  */
 export async function getCashFlowReport(
-  filters: FinancialReportFilters
+  rawFilters: FinancialReportFilters
 ): Promise<ActionResponse<CashFlowData>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, financialReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
-    const startDate = parseDate(filters.startDate);
-    const endDate = parseDate(filters.endDate);
+    const { startDate, endDate } = filters;
     const period = determinePeriod(startDate, endDate);
 
     const whereClause = buildSalesWhereClause(filters);
@@ -595,6 +599,8 @@ export async function getCashFlowReport(
       data: { summary, data },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating cash flow report:', error);
     return {
       status: 500,

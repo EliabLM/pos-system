@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useStore } from '@/store';
 import {
   getCustomerSummary,
   getTopCustomers,
@@ -35,8 +36,10 @@ export function useCustomerSummary(
   filters: CustomerReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'customers', 'summary', filters],
+    queryKey: ['reports', 'customers', 'summary', organizationId, filters],
     queryFn: async () => {
       const response = await getCustomerSummary(filters);
 
@@ -48,7 +51,7 @@ export function useCustomerSummary(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -72,8 +75,10 @@ export function useTopCustomers(
   filters: CustomerReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'customers', 'top', filters],
+    queryKey: ['reports', 'customers', 'top', organizationId, filters],
     queryFn: async () => {
       const response = await getTopCustomers(filters);
 
@@ -85,7 +90,7 @@ export function useTopCustomers(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -111,8 +116,10 @@ export function useCustomerPurchaseHistory(
   filters: CustomerReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'customers', 'purchase-history', customerId, filters],
+    queryKey: ['reports', 'customers', 'purchase-history', customerId, organizationId, filters],
     queryFn: async () => {
       const response = await getCustomerPurchaseHistory(customerId, filters);
 
@@ -125,7 +132,7 @@ export function useCustomerPurchaseHistory(
     },
     enabled: enabled && Boolean(
       customerId &&
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -149,8 +156,10 @@ export function useCustomerSegments(
   filters: CustomerReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'customers', 'segments', filters],
+    queryKey: ['reports', 'customers', 'segments', organizationId, filters],
     queryFn: async () => {
       const response = await getCustomerSegments(filters);
 
@@ -162,7 +171,7 @@ export function useCustomerSegments(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -186,8 +195,10 @@ export function useCustomerRetention(
   filters: CustomerReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'customers', 'retention', filters],
+    queryKey: ['reports', 'customers', 'retention', organizationId, filters],
     queryFn: async () => {
       const response = await getCustomerRetention(filters);
 
@@ -199,7 +210,7 @@ export function useCustomerRetention(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -223,8 +234,10 @@ export function useCohortAnalysis(
   filters: CustomerReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'customers', 'cohort', filters],
+    queryKey: ['reports', 'customers', 'cohort', organizationId, filters],
     queryFn: async () => {
       const response = await getCohortAnalysis(filters);
 
@@ -236,7 +249,7 @@ export function useCohortAnalysis(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -260,8 +273,10 @@ export function useCustomerActivitySegments(
   filters: CustomerReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'customers', 'activity-segments', filters],
+    queryKey: ['reports', 'customers', 'activity-segments', organizationId, filters],
     queryFn: async () => {
       const response = await getCustomerActivitySegments(filters);
 
@@ -273,7 +288,7 @@ export function useCustomerActivitySegments(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),

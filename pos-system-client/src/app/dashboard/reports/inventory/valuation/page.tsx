@@ -43,7 +43,6 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useInventoryValuationReport } from '@/hooks/useInventoryReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 /**
@@ -66,9 +65,6 @@ const CHART_COLORS = [
  * Inventory Valuation Report Page Component
  */
 export default function InventoryValuationReportPage(): React.ReactElement {
-  // Get user from store
-  const user = useStore((state) => state.user);
-
   // Date range state (not used for valuation but required for filters)
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subDays(new Date(), 30),
@@ -77,7 +73,6 @@ export default function InventoryValuationReportPage(): React.ReactElement {
 
   // Fetch inventory valuation report data
   const { data: reportData, isLoading, error } = useInventoryValuationReport({
-    organizationId: user?.organizationId || '',
     dateRange,
   });
 

@@ -42,7 +42,6 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useSalesByCategory } from '@/hooks/useSalesReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 const COLORS = [
@@ -57,8 +56,6 @@ const COLORS = [
 ];
 
 export default function SalesByCategoryReportPage(): React.ReactElement {
-  const user = useStore((state) => state.user);
-
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subDays(new Date(), 30),
     endDate: new Date(),
@@ -67,7 +64,6 @@ export default function SalesByCategoryReportPage(): React.ReactElement {
   const [storeId, setStoreId] = useState<string | undefined>(undefined);
 
   const { data: categories, isLoading, error } = useSalesByCategory({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
   });
