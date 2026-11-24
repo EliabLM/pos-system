@@ -195,7 +195,13 @@ export const getNextSaleNumber = async (
     if (!id.success) return invalidStoreId();
 
     const store = await prisma.store.findFirst({
-      where: { id: id.data, organizationId: actor.organizationId, isDeleted: false },
+      where: {
+        id: id.data,
+        organizationId: actor.organizationId,
+        isDeleted: false,
+        // Same rule as getStores/getStoreById: a SELLER only sells in active stores.
+        ...(actor.role === MembershipRole.ADMIN ? {} : { isActive: true }),
+      },
       select: { lastSaleNumber: true, saleNumberPrefix: true },
     });
     if (!store) return storeNotFound();
