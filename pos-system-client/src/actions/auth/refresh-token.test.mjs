@@ -7,8 +7,10 @@ import { loadWithMocks } from '../../../test/load-with-mocks.mjs';
 const state = {};
 globalThis.__refreshTest = state;
 
-function reset({ session = 'user-a' } = {}) {
-  Object.assign(state, { session, cookie: 'old-token', set: [], created: [], invalidated: [], userQuery: null });
+const ADMIN_MEMBERSHIP = { role: 'ADMIN', organizationId: 'org-a', defaultStoreId: null, organization: { id: 'org-a' }, defaultStore: null };
+
+function reset({ session = 'user-a', memberships = [ADMIN_MEMBERSHIP] } = {}) {
+  Object.assign(state, { session, memberships, cookie: 'old-token', set: [], created: [], invalidated: [], userQuery: null });
 }
 
 const { refreshToken } = await loadWithMocks('src/actions/auth/refreshToken.ts', {
@@ -22,7 +24,7 @@ const { refreshToken } = await loadWithMocks('src/actions/auth/refreshToken.ts',
   '@/actions/utils': `export const prisma = { user: { findFirst: async (q) => {
     globalThis.__refreshTest.userQuery = q;
     return { id: 'user-a', name: 'A', email: 'a@x.co', isActive: true, emailVerified: false, createdAt: new Date(0),
-      memberships: [{ role: 'ADMIN', organizationId: 'org-a', defaultStoreId: null, organization: { id: 'org-a' }, defaultStore: null }] };
+      memberships: globalThis.__refreshTest.memberships };
   } } };`,
   '@/lib/auth': `
     export const createSession = async ({ userId }) => { globalThis.__refreshTest.created.push(userId); return { id: 'session-new', token: 'new-token' }; };
@@ -60,4 +62,12 @@ test('refreshToken: sin sesión → 401, sin crear ni invalidar sesiones', async
   assert.equal(result.status, 401);
   assert.deepEqual(state.created, []);
   assert.deepEqual(state.invalidated, []);
+});
+
+test('refreshToken: un usuario sin membresía no recibe ningún rol (#11)', async () => {
+  reset({ memberships: [] });
+  const result = await refreshToken();
+  assert.equal(result.status, 200);
+  assert.equal(result.data.user.role, null);
+  assert.equal(result.data.user.organizationId, null);
 });

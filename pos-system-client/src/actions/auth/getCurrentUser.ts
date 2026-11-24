@@ -160,7 +160,7 @@ export async function getCurrentUser(): Promise<ActionResponse<GetCurrentUserRes
           name: userRow.name,
           email: userRow.email,
           image: userRow.image,
-          role: membership?.role ?? 'ADMIN',
+          role: membership?.role ?? null,
           organizationId: membership?.organizationId ?? null,
           storeId: membership?.defaultStoreId ?? null,
           isActive: userRow.isActive,

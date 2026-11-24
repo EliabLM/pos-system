@@ -8,7 +8,6 @@
  */
 
 import crypto from 'crypto';
-import { MembershipRole } from '@/generated/prisma';
 import { getActiveMembership, prisma } from '@/actions/utils';
 import {
   AuthError,
@@ -104,12 +103,12 @@ export async function createSession(
     }
 
     // Generar JWT token — la tenancy viene del membership ACTIVO (D3.3).
-    // Sin membership = usuario en onboarding: ADMIN sin org/store todavía.
+    // Sin membership = usuario en onboarding: sin rol ni org/store todavía.
     const membership = await getActiveMembership(user.id);
     const token = await generateToken({
       userId: user.id,
       email: user.email,
-      role: membership?.role ?? MembershipRole.ADMIN,
+      role: membership?.role ?? null,
       organizationId: membership?.organizationId ?? null,
       storeId: membership?.defaultStoreId ?? null,
     });

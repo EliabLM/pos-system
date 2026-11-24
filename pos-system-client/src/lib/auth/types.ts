@@ -14,11 +14,11 @@ import { MembershipRole } from '@/generated/prisma';
 
 // role/organizationId/storeId provienen del membership ACTIVO del usuario
 // (D3.3 — la tenancy vive en memberships). Un usuario sin membership está en
-// onboarding: role ADMIN (dueño creando su org), org/store null.
+// onboarding: sin rol (null) y org/store null. Pasa a ADMIN al crear su org.
 export interface JWTPayload {
   userId: string;
   email: string;
-  role: MembershipRole;
+  role: MembershipRole | null;
   organizationId: string | null;
   storeId?: string | null;
   iat?: number; // Issued at (timestamp)

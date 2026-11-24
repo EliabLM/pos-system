@@ -50,7 +50,7 @@ interface UserData {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: string | null;
   organizationId: string | null;
   storeId: string | null;
   isActive: boolean;
@@ -311,7 +311,7 @@ export async function loginUser(
       id: user.id,
       name: user.name,
       email: user.email,
-      role: membership?.role ?? 'ADMIN',
+      role: membership?.role ?? null,
       organizationId: membership?.organizationId ?? null,
       storeId: membership?.defaultStoreId ?? null,
       isActive: user.isActive,

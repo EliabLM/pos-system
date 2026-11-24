@@ -35,7 +35,7 @@ export interface User {
   email: string;
   name: string;
   image?: string | null;
-  role: string;
+  role: string | null;
   emailVerified: boolean;
   isActive: boolean;
   createdAt: Date;
