@@ -80,7 +80,7 @@ export async function refreshToken(): Promise<ActionResponse<RefreshTokenRespons
           id: userRow.id,
           name: userRow.name,
           email: userRow.email,
-          role: membership?.role ?? 'ADMIN',
+          role: membership?.role ?? null,
           organizationId: membership?.organizationId ?? null,
           storeId: membership?.defaultStoreId ?? null,
           isActive: userRow.isActive,
