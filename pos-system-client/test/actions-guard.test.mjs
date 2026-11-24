@@ -146,3 +146,12 @@ test('guardián: requireOnboardingUser solo en las acciones de onboarding', () =
   const onlyOnboarding = `'use server';\nexport const createOrganization = async () => { await requireActor(); };`;
   assert.deepEqual(findUnguardedActions(onlyOnboarding, 'x.ts', ['createOrganization']), ['createOrganization']);
 });
+
+test('guardián: no quedan comprobaciones de rol legadas que reciben el userId del cliente', () => {
+  const SRC = join(ROOT, 'src');
+  const offenders = walk(SRC)
+    .filter((file) => !file.includes(`${sep}generated${sep}`))
+    .filter((file) => /\b(checkAdminRole|checkAdminOrSellerRole)\b/.test(readFileSync(file, 'utf8')))
+    .map((file) => relative(SRC, file));
+  assert.deepEqual(offenders, [], 'usa requireActor({ roles }) de @/lib/auth/actor');
+});
