@@ -105,3 +105,15 @@ test('onboarding: datos inválidos → 400', async () => {
   assert.equal((await createOrganization(orgInput(), 'casino')).status, 400);
   assert.deepEqual(state.writes, []);
 });
+
+test('onboarding: un tipo de negocio desconocido responde 400 sin crear nada; sin tipo, no guarda configuración', async () => {
+  reset({ userId: 'user-new' });
+  const invalid = await createOrganization(orgInput(), 'pharmacy');
+  assert.equal(invalid.status, 400);
+  assert.deepEqual(state.writes, []);
+
+  reset({ userId: 'user-new' });
+  const none = await createOrganization(orgInput(), null);
+  assert.equal(none.status, 201);
+  assert.equal(state.writes.some((w) => w.model === 'systemConfig'), false);
+});
