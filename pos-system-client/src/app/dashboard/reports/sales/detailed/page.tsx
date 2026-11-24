@@ -40,16 +40,12 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useSalesReport } from '@/hooks/useSalesReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 /**
  * Detailed Sales Report Page Component
  */
 export default function DetailedSalesReportPage(): React.ReactElement {
-  // Get user from store
-  const user = useStore((state) => state.user);
-
   // Date range state
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subDays(new Date(), 30),
@@ -61,7 +57,6 @@ export default function DetailedSalesReportPage(): React.ReactElement {
 
   // Fetch sales report data
   const { data: reportData, isLoading, error } = useSalesReport({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
     period: 'day',

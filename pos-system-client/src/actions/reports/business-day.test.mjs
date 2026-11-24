@@ -47,7 +47,7 @@ globalThis.__businessDayTest = { prisma };
 
 // El actor es el ADMIN de org-a: la organización sale de la sesión, no de los parámetros.
 const MOCKS = {
-  '../utils': 'export const prisma = globalThis.__businessDayTest.prisma; export const checkOrgId = id => !id; export const emptyOrgIdResponse = () => ({ status: 400, data: null });',
+  '../utils': 'export const prisma = globalThis.__businessDayTest.prisma;',
   '@/generated/prisma': 'export const Prisma = {};',
   '@/lib/auth/actor': `
     export const requireActor = async () => ({ userId: 'admin-a', organizationId: 'org-a', role: 'ADMIN', storeId: null });
@@ -91,14 +91,14 @@ test('P0 zona horaria: caja del día YYYY-MM-DD usa el día de Bogotá', async (
 
 test('P0 zona horaria: reporte de ventas "hoy" (instante actual) agrupa 23:30 en el día de Bogotá', async () => {
   const now = new Date();
-  const res = await getSalesReport({ organizationId: 'org-a', dateRange: { startDate: now, endDate: now }, period: 'day' });
+  const res = await getSalesReport({ dateRange: { startDate: now, endDate: now }, period: 'day' });
   assert.equal(res.status, 200);
   assert.equal(res.data.summary.totalSales, 3);
   assert.deepEqual(res.data.data.map(d => d.period), ['2026-11-15']);
   assert.equal(res.data.data[0].date.toISOString(), '2026-11-15T05:00:00.000Z');
   // Al día siguiente, la venta de las 00:30 cae en el 16.
   state.now = '2026-11-16T12:00:00.000Z';
-  const next = await getSalesReport({ organizationId: 'org-a', dateRange: { startDate: new Date(), endDate: new Date() }, period: 'day' });
+  const next = await getSalesReport({ dateRange: { startDate: new Date(), endDate: new Date() }, period: 'day' });
   assert.deepEqual(next.data.data.map(d => [d.period, d.salesCount]), [['2026-11-16', 1]]);
   state.now = '2026-11-16T04:45:00.000Z';
 });

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useStore } from '@/store';
 import {
   getStockStatusReport,
   getStockMovementsReport,
@@ -30,8 +31,10 @@ export function useStockStatusReport(
   filters: InventoryReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'inventory', 'stock-status', filters],
+    queryKey: ['reports', 'inventory', 'stock-status', organizationId, filters],
     queryFn: async () => {
       const response = await getStockStatusReport(filters);
 
@@ -43,7 +46,7 @@ export function useStockStatusReport(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -67,8 +70,10 @@ export function useStockMovementsReport(
   filters: InventoryReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'inventory', 'movements', filters],
+    queryKey: ['reports', 'inventory', 'movements', organizationId, filters],
     queryFn: async () => {
       const response = await getStockMovementsReport(filters);
 
@@ -80,7 +85,7 @@ export function useStockMovementsReport(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -104,8 +109,10 @@ export function useInventoryValuationReport(
   filters: InventoryReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'inventory', 'valuation', filters],
+    queryKey: ['reports', 'inventory', 'valuation', organizationId, filters],
     queryFn: async () => {
       const response = await getInventoryValuationReport(filters);
 
@@ -117,7 +124,7 @@ export function useInventoryValuationReport(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -141,8 +148,10 @@ export function useInventoryRotationReport(
   filters: InventoryReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'inventory', 'rotation', filters],
+    queryKey: ['reports', 'inventory', 'rotation', organizationId, filters],
     queryFn: async () => {
       const response = await getInventoryRotationReport(filters);
 
@@ -154,7 +163,7 @@ export function useInventoryRotationReport(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),

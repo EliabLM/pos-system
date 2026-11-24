@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useStore } from '@/store';
 import {
   getSalesReport,
   getSalesByProduct,
@@ -33,8 +34,10 @@ export function useSalesReport(
   filters: SalesReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'sales', 'detailed', filters],
+    queryKey: ['reports', 'sales', 'detailed', organizationId, filters],
     queryFn: async () => {
       const response = await getSalesReport(filters);
 
@@ -46,7 +49,7 @@ export function useSalesReport(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -70,8 +73,10 @@ export function useSalesByProduct(
   filters: SalesReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'sales', 'by-product', filters],
+    queryKey: ['reports', 'sales', 'by-product', organizationId, filters],
     queryFn: async () => {
       const response = await getSalesByProduct(filters);
 
@@ -83,7 +88,7 @@ export function useSalesByProduct(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -107,8 +112,10 @@ export function useSalesByCategory(
   filters: SalesReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'sales', 'by-category', filters],
+    queryKey: ['reports', 'sales', 'by-category', organizationId, filters],
     queryFn: async () => {
       const response = await getSalesByCategory(filters);
 
@@ -120,7 +127,7 @@ export function useSalesByCategory(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -144,8 +151,10 @@ export function useSalesByPayment(
   filters: SalesReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'sales', 'by-payment', filters],
+    queryKey: ['reports', 'sales', 'by-payment', organizationId, filters],
     queryFn: async () => {
       const response = await getSalesByPayment(filters);
 
@@ -157,7 +166,7 @@ export function useSalesByPayment(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),
@@ -181,8 +190,10 @@ export function useSalesBySeller(
   filters: SalesReportFilters,
   enabled = true
 ) {
+  const organizationId = useStore((state) => state.user?.organizationId);
+
   return useQuery({
-    queryKey: ['reports', 'sales', 'by-seller', filters],
+    queryKey: ['reports', 'sales', 'by-seller', organizationId, filters],
     queryFn: async () => {
       const response = await getSalesBySeller(filters);
 
@@ -194,7 +205,7 @@ export function useSalesBySeller(
       return response.data;
     },
     enabled: enabled && Boolean(
-      filters.organizationId &&
+      organizationId &&
       filters.dateRange.startDate &&
       filters.dateRange.endDate
     ),

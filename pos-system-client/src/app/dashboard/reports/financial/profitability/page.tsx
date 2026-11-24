@@ -40,16 +40,12 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useProfitabilityReport } from '@/hooks/useFinancialReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 
 
 /**
  * Profitability Analysis Report Page Component
  */
 export default function ProfitabilityReportPage(): React.ReactElement {
-  // Get user from store
-  const user = useStore((state) => state.user);
-
   // Date range state (default: last 30 days)
   const [dateRange, setDateRange] = useState({
     startDate: subDays(new Date(), 30),
@@ -61,7 +57,6 @@ export default function ProfitabilityReportPage(): React.ReactElement {
 
   // Fetch profitability report data
   const { data: reportData, isLoading, error } = useProfitabilityReport({
-    organizationId: user?.organizationId || '',
     storeId,
     startDate: dateRange.startDate.toISOString(),
     endDate: dateRange.endDate.toISOString(),

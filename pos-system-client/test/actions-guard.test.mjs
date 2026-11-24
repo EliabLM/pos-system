@@ -2,8 +2,9 @@
  * Prueba guardián: toda función exportada de un archivo 'use server' en
  * src/actions/** debe llamar a getActor() o requireActor() (src/lib/auth/actor.ts).
  *
- * - PENDING: módulos aún no migrados. Se vacía en #15; si un módulo
- *   pendiente ya cumple, la prueba falla para que se saque de la lista.
+ * - PENDING: módulos aún no migrados. Vacía desde #15: todo módulo nuevo nace
+ *   migrado. Si un módulo pendiente ya cumple, la prueba falla para que se
+ *   saque de la lista.
  * - PUBLIC: acciones que por diseño corren sin sesión (login, registro...).
  * - ONBOARDING: acciones del usuario con sesión pero SIN membresía; solo ahí
  *   vale requireOnboardingUser() como guard (y en ningún otro archivo).
@@ -19,9 +20,7 @@ const ACTIONS_DIR = join(ROOT, 'src', 'actions');
 const GUARDS = new Set(['getActor', 'requireActor']);
 
 /** Módulos pendientes de migrar (ruta relativa a src/actions → issue). */
-const PENDING = {
-  reports: '#15',
-};
+const PENDING = {};
 
 /** Acciones públicas: gestionan la sesión ellas mismas (archivo → motivo). */
 const PUBLIC = {
@@ -131,7 +130,7 @@ test('guardián: listas de pendientes y públicas al día', () => {
   }
   for (const rel of Object.keys(ONBOARDING)) assert.ok(existsSync(join(ACTIONS_DIR, rel)), `ONBOARDING obsoleto: ${rel}`);
   const MIGRATED = ['sale', 'sale-item', 'sale-payment', 'user', 'organization', 'product', 'category', 'brand', 'unit-measure', 'stock-movement',
-    'customer', 'supplier', 'purchase', 'purchase-item', 'payment-methods', 'store', 'system-config', 'dashboard'];
+    'customer', 'supplier', 'purchase', 'purchase-item', 'payment-methods', 'store', 'system-config', 'dashboard', 'reports'];
   for (const mod of MIGRATED) {
     assert.ok(!PENDING[mod], `${mod} no puede volver a PENDING`);
     assert.ok(results.some((r) => r.module === mod), `${mod} debe tener actions 'use server'`);
@@ -147,11 +146,11 @@ test('guardián: requireOnboardingUser solo en las acciones de onboarding', () =
   assert.deepEqual(findUnguardedActions(onlyOnboarding, 'x.ts', ['createOrganization']), ['createOrganization']);
 });
 
-test('guardián: no quedan comprobaciones de rol legadas que reciben el userId del cliente', () => {
+test('guardián: no quedan comprobaciones legadas que reciben la organización o el userId del cliente', () => {
   const SRC = join(ROOT, 'src');
   const offenders = walk(SRC)
     .filter((file) => !file.includes(`${sep}generated${sep}`))
-    .filter((file) => /\b(checkAdminRole|checkAdminOrSellerRole)\b/.test(readFileSync(file, 'utf8')))
+    .filter((file) => /\b(checkAdminRole|checkAdminOrSellerRole|checkOrgId|emptyOrgIdResponse)\b/.test(readFileSync(file, 'utf8')))
     .map((file) => relative(SRC, file));
   assert.deepEqual(offenders, [], 'usa requireActor({ roles }) de @/lib/auth/actor');
 });

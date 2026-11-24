@@ -41,7 +41,6 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useCustomerSegments, useCustomerSummary } from '@/hooks/useCustomerReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 const COLORS = [
@@ -52,8 +51,6 @@ const COLORS = [
 ];
 
 export default function CustomerSegmentsReportPage(): React.ReactElement {
-  const user = useStore((state) => state.user);
-
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subDays(new Date(), 30),
     endDate: new Date(),
@@ -62,13 +59,11 @@ export default function CustomerSegmentsReportPage(): React.ReactElement {
   const [storeId, setStoreId] = useState<string | undefined>(undefined);
 
   const { data: segments, isLoading: isLoadingSegments, error } = useCustomerSegments({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
   });
 
   const { data: summary, isLoading: isLoadingSummary } = useCustomerSummary({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
   });

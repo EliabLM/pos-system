@@ -12,7 +12,17 @@ import {
   CohortData,
   CustomerActivitySegment,
 } from '@/interfaces/reports';
-import { prisma, checkOrgId, emptyOrgIdResponse } from '../utils';
+import { prisma } from '../utils';
+import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
+import { idSchema, invalidInput } from '../common.schemas';
+import {
+  REPORT_INPUT_ERROR,
+  REPORT_ROLES,
+  ScopedReportFilters,
+  CustomerReportInput,
+  scopeReportFilters,
+  customerReportFiltersSchema,
+} from './reports.schemas';
 import { Prisma } from '@/generated/prisma';
 
 /**
@@ -29,7 +39,7 @@ import { Prisma } from '@/generated/prisma';
 /**
  * Build base where clause for customer queries
  */
-function buildCustomerWhereClause(filters: CustomerReportFilters): Prisma.CustomerWhereInput {
+function buildCustomerWhereClause(filters: ScopedReportFilters<CustomerReportInput>): Prisma.CustomerWhereInput {
   const whereClause: Prisma.CustomerWhereInput = {
     organizationId: filters.organizationId,
     isDeleted: false,
@@ -67,10 +77,12 @@ function buildCustomerWhereClause(filters: CustomerReportFilters): Prisma.Custom
  * @returns ActionResponse with customer summary data
  */
 export async function getCustomerSummary(
-  filters: CustomerReportFilters
+  rawFilters: CustomerReportFilters
 ): Promise<ActionResponse<CustomerSummary>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, customerReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildCustomerWhereClause(filters);
 
@@ -140,6 +152,8 @@ export async function getCustomerSummary(
       data: summary,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error generating customer summary:', error);
     return {
       status: 500,
@@ -156,10 +170,12 @@ export async function getCustomerSummary(
  * @returns ActionResponse with top customers data
  */
 export async function getTopCustomers(
-  filters: CustomerReportFilters
+  rawFilters: CustomerReportFilters
 ): Promise<ActionResponse<TopCustomerData[]>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, customerReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     // Get all sales in the period with customer info
     const sales = await prisma.sale.findMany({
@@ -256,6 +272,8 @@ export async function getTopCustomers(
       data: filteredData,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting top customers:', error);
     return {
       status: 500,
@@ -274,7 +292,7 @@ export async function getTopCustomers(
  */
 export async function getCustomerPurchaseHistory(
   customerId: string,
-  filters: CustomerReportFilters
+  rawFilters: CustomerReportFilters
 ): Promise<ActionResponse<{
   customer: {
     id: string;
@@ -302,12 +320,16 @@ export async function getCustomerPurchaseHistory(
   };
 }>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, customerReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
+    const customerIdParsed = idSchema.safeParse(customerId);
+    if (!customerIdParsed.success) return invalidInput('Cliente inválido');
 
     // Get customer info
     const customer = await prisma.customer.findFirst({
       where: {
-        id: customerId,
+        id: customerIdParsed.data,
         organizationId: filters.organizationId,
         isDeleted: false,
       },
@@ -324,7 +346,7 @@ export async function getCustomerPurchaseHistory(
     // Get customer sales
     const sales = await prisma.sale.findMany({
       where: {
-        customerId,
+        customerId: customer.id,
         organizationId: filters.organizationId,
         isDeleted: false,
         saleDate: {
@@ -398,6 +420,8 @@ export async function getCustomerPurchaseHistory(
       },
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting customer purchase history:', error);
     return {
       status: 500,
@@ -414,7 +438,7 @@ export async function getCustomerPurchaseHistory(
  * @returns ActionResponse with customer segments data
  */
 export async function getCustomerSegments(
-  filters: CustomerReportFilters
+  rawFilters: CustomerReportFilters
 ): Promise<ActionResponse<Array<{
   segment: string;
   customerCount: number;
@@ -423,7 +447,9 @@ export async function getCustomerSegments(
   percentage: number;
 }>>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, customerReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     // Get all customers with their total spending
     const topCustomersResponse = await getTopCustomers(filters);
@@ -509,6 +535,8 @@ export async function getCustomerSegments(
       data: segments,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting customer segments:', error);
     return {
       status: 500,
@@ -525,10 +553,12 @@ export async function getCustomerSegments(
  * @returns ActionResponse with customer retention data
  */
 export async function getCustomerRetention(
-  filters: CustomerReportFilters
+  rawFilters: CustomerReportFilters
 ): Promise<ActionResponse<CustomerRetentionData>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, customerReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     const whereClause = buildCustomerWhereClause(filters);
 
@@ -623,6 +653,8 @@ export async function getCustomerRetention(
       data: retentionData,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting customer retention:', error);
     return {
       status: 500,
@@ -639,10 +671,12 @@ export async function getCustomerRetention(
  * @returns ActionResponse with cohort analysis data
  */
 export async function getCohortAnalysis(
-  filters: CustomerReportFilters
+  rawFilters: CustomerReportFilters
 ): Promise<ActionResponse<CohortData[]>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, customerReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     // Get all customers with their first purchase date
     const customers = await prisma.customer.findMany({
@@ -741,6 +775,8 @@ export async function getCohortAnalysis(
       data: limitedCohortData,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting cohort analysis:', error);
     return {
       status: 500,
@@ -757,10 +793,12 @@ export async function getCohortAnalysis(
  * @returns ActionResponse with customer activity segments
  */
 export async function getCustomerActivitySegments(
-  filters: CustomerReportFilters
+  rawFilters: CustomerReportFilters
 ): Promise<ActionResponse<CustomerActivitySegment[]>> {
   try {
-    if (checkOrgId(filters.organizationId)) return emptyOrgIdResponse();
+    const actor = await requireActor({ roles: REPORT_ROLES });
+    const filters = scopeReportFilters(actor, customerReportFiltersSchema, rawFilters);
+    if (!filters) return invalidInput(REPORT_INPUT_ERROR);
 
     // Get all customers with their sales
     const customers = await prisma.customer.findMany({
@@ -868,6 +906,8 @@ export async function getCustomerActivitySegments(
       data: segmentData,
     };
   } catch (error) {
+    const denied = actorErrorResponse(error);
+    if (denied) return denied;
     console.error('Error getting customer activity segments:', error);
     return {
       status: 500,

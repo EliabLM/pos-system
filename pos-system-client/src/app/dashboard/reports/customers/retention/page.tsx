@@ -50,7 +50,6 @@ import {
   useCustomerActivitySegments,
 } from '@/hooks/useCustomerReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 import type { DateRangeFilter } from '@/interfaces/reports';
 
 const SEGMENT_COLORS = [
@@ -62,8 +61,6 @@ const SEGMENT_COLORS = [
 ];
 
 export default function CustomerRetentionReportPage(): React.ReactElement {
-  const user = useStore((state) => state.user);
-
   const [dateRange, setDateRange] = useState<DateRangeFilter>({
     startDate: subMonths(new Date(), 12),
     endDate: new Date(),
@@ -72,19 +69,16 @@ export default function CustomerRetentionReportPage(): React.ReactElement {
   const [storeId, setStoreId] = useState<string | undefined>(undefined);
 
   const { data: retention, isLoading: isLoadingRetention, error: retentionError } = useCustomerRetention({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
   });
 
   const { data: cohorts, isLoading: isLoadingCohorts } = useCohortAnalysis({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
   });
 
   const { data: activitySegments, isLoading: isLoadingSegments } = useCustomerActivitySegments({
-    organizationId: user?.organizationId || '',
     storeId,
     dateRange,
   });

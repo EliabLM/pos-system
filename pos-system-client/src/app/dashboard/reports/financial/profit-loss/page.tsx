@@ -40,15 +40,11 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useProfitLossReport } from '@/hooks/useFinancialReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 
 /**
  * Profit & Loss Report Page Component
  */
 export default function ProfitLossReportPage(): React.ReactElement {
-  // Get user from store
-  const user = useStore((state) => state.user);
-
   // Date range state (default: last 30 days)
   const [dateRange, setDateRange] = useState({
     startDate: subDays(new Date(), 30),
@@ -60,7 +56,6 @@ export default function ProfitLossReportPage(): React.ReactElement {
 
   // Fetch P&L report data
   const { data: reportData, isLoading, error } = useProfitLossReport({
-    organizationId: user?.organizationId || '',
     storeId,
     startDate: dateRange.startDate.toISOString(),
     endDate: dateRange.endDate.toISOString(),

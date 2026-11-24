@@ -43,15 +43,11 @@ import { ReportHeader } from '@/app/dashboard/reports/components/report-header';
 import { ReportFilters } from '@/app/dashboard/reports/components/report-filters';
 import { useCashFlowReport } from '@/hooks/useFinancialReports';
 import { useExport } from '@/hooks/useExport';
-import { useStore } from '@/store';
 
 /**
  * Cash Flow Report Page Component
  */
 export default function CashFlowReportPage(): React.ReactElement {
-  // Get user from store
-  const user = useStore((state) => state.user);
-
   // Date range state (default: last 30 days)
   const [dateRange, setDateRange] = useState({
     startDate: subDays(new Date(), 30),
@@ -63,7 +59,6 @@ export default function CashFlowReportPage(): React.ReactElement {
 
   // Fetch cash flow report data
   const { data: reportData, isLoading, error } = useCashFlowReport({
-    organizationId: user?.organizationId || '',
     storeId,
     startDate: dateRange.startDate.toISOString(),
     endDate: dateRange.endDate.toISOString(),

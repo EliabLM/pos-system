@@ -33,10 +33,10 @@ export interface DateRangeFilter {
 }
 
 /**
- * Base report filters interface
+ * Base report filters interface. The organization is not a filter: the
+ * server takes it from the session.
  */
 export interface ReportFilters {
-  organizationId: string;
   storeId?: string;
   dateRange: DateRangeFilter;
   period?: ReportPeriod;
