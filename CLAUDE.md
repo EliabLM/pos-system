@@ -88,3 +88,13 @@ pnpm lint           # expo lint
 - Playwright test tooling: the `playwright-test` MCP server is configured in `.mcp.json`, and three subagents in `.claude/agents/` use it — `playwright-test-planner` (explore the app, save a plan to `specs/`), `playwright-test-generator` (generate a spec from a plan by executing steps live), `playwright-test-healer` (run/debug/fix failing tests). Prefer these subagents over calling the `mcp__playwright-test__*` tools directly. The docker stack must be up first.
 - **Commits use Conventional Commits** (`feat(scope): …`) with scopes per project — see `.opencode/skills/conventional-commits/`. Git-flow style branches: `main` (prod), `release`, `develop`, `hotfix`; daily work branches off `develop`.
 - Keep `AGENTS.md` (root and per-project) current when structure or conventions change.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues de EliabLM/pos-system (con `gh`), siguiendo las etiquetas del equipo. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` en la raíz + `docs/adr/`. See `docs/agents/domain.md`.

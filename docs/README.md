@@ -11,7 +11,8 @@ docs/
 ├── features/        # Una carpeta por feature (specs y planes de implementación)
 ├── auth/            # Autenticación y autorización
 ├── deployment/      # Deploy, SSL, infraestructura y fixes de producción
-└── maintenance/     # Guías operativas recurrentes
+├── maintenance/     # Guías operativas recurrentes
+└── agents/          # Configuración de las skills de ingeniería para agentes
 ```
 
 ## Índice
@@ -67,6 +68,13 @@ Scripts relacionados: `pos-system-client/scripts/` (`deploy-fix-ssl.sh`, `quick-
 | Documento | Descripción |
 |-----------|-------------|
 | [DEPENDENCIES_UPDATE.md](./maintenance/DEPENDENCIES_UPDATE.md) | Guía de actualización de dependencias |
+
+### Agentes
+
+| Documento | Descripción |
+|-----------|-------------|
+| [issue-tracker.md](./agents/issue-tracker.md) | Cómo las skills de agentes usan GitHub Issues (`gh`) y las convenciones del equipo (etiquetas, títulos, ramas, PR) |
+| [domain.md](./agents/domain.md) | Dónde leen las skills el contexto del dominio: `STATUS.md`, `GLOSSARY.md` y `docs/adr/` |
 
 ## Convenciones
 
