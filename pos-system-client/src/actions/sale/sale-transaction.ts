@@ -193,7 +193,7 @@ export const cancelSaleForActor = async (
 
     const existingSale = await db.sale.findFirst({
       where: { id: id.data, organizationId: actor.organizationId, isDeleted: false },
-      include: { saleItems: { where: { isDeleted: false } } },
+      select: { id: true, status: true, storeId: true, saleNumber: true },
     });
     if (!existingSale) return saleNotFound();
     if (existingSale.status === 'CANCELLED') return invalidInput('La venta ya está cancelada');
@@ -201,16 +201,22 @@ export const cancelSaleForActor = async (
     const cancelledSale = await db.$transaction(
       async (tx) => {
         // La condición de estado hace fallar (P2025) una segunda anulación simultánea.
-        await tx.sale.update({
+        // El UPDATE bloquea la venta: notas e ítems se leen ya bloqueados, así no
+        // se pisa una edición hecha entre la validación y la transacción.
+        const locked = await tx.sale.update({
           where: { id: existingSale.id, status: { not: 'CANCELLED' } },
-          data: {
-            status: 'CANCELLED',
-            notes: reason ? `${existingSale.notes || ''}\nCANCELADO: ${reason}` : existingSale.notes,
-            updatedAt: new Date(),
-          },
+          data: { status: 'CANCELLED', updatedAt: new Date() },
+          select: { notes: true },
         });
+        if (reason) {
+          await tx.sale.update({
+            where: { id: existingSale.id },
+            data: { notes: `${locked.notes || ''}\nCANCELADO: ${reason}` },
+          });
+        }
 
-        const orderedItems = [...existingSale.saleItems].sort((a, b) => a.productId.localeCompare(b.productId));
+        const items = await tx.saleItem.findMany({ where: { saleId: existingSale.id, isDeleted: false } });
+        const orderedItems = items.sort((a, b) => a.productId.localeCompare(b.productId));
         for (const item of orderedItems) {
           await recordStockMovement(tx, actor.organizationId, actor.userId, {
             productId: item.productId,
