@@ -18,7 +18,7 @@ const ID = {
   productA: '00000000-0000-4000-8000-0000000000a2',
   methodA: '00000000-0000-4000-8000-0000000000a3',
 };
-const dec = (n) => ({ toNumber: () => n });
+const dec = (n) => new Decimal(n);
 const ADMIN_A = { userId: 'admin-a', organizationId: 'org-a', role: 'ADMIN', storeId: null };
 const SELLER_A = { userId: 'seller-a', organizationId: 'org-a', role: 'SELLER', storeId: ID.storeA };
 const ADMIN_B = { userId: 'admin-b', organizationId: 'org-b', role: 'ADMIN', storeId: null };
@@ -302,4 +302,15 @@ test('analíticas, pendientes y vencidas: solo la organización del actor', asyn
       assert.equal(call.where.organizationId, 'org-a');
     }
   }
+});
+
+test('updateSaleItem: el ADMIN cambia el precio y el subtotal y el total se guardan con 2 decimales', async () => {
+  reset(ADMIN_B);
+  const result = await saleItem.updateSaleItem(ID.itemB, { unitPrice: 33.333 });
+  assert.equal(result.status, 200, result.message);
+  const item = state.writes.find((w) => w.model === 'saleItem' && w.method === 'update').data;
+  assert.equal(String(item.unitPrice), '33.33');
+  assert.equal(String(item.subtotal), '33.33');
+  const totals = state.writes.find((w) => w.model === 'sale' && w.method === 'update').data;
+  assert.equal(String(totals.total), '10', 'el total sale de los ítems guardados');
 });
