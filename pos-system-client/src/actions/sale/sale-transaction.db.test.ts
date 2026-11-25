@@ -167,6 +167,7 @@ test('un vendedor que envía un precio distinto al del producto recibe error y n
   });
 
   assert.equal(result.status, 403, result.message);
+  assert.match(result.message, /^El precio de CI-17-\d+-\d+ cambió\. Recarga la venta$/);
   assert.equal(await db.sale.count({ where: { storeId } }), salesBefore);
   assert.equal(await stockOf(productId), 5);
 });
@@ -205,4 +206,36 @@ test('3 × 33,33 da un total de 99,99 igual a la suma de la base y exige pagar e
     FROM sales s JOIN sale_items i ON i.sale_id = s.id
     WHERE s.id = ${result.data!.id}::uuid GROUP BY s.total`;
   assert.deepEqual(row, { total: '99.99', items: '99.99' });
+});
+
+test('7 × 1,15 pagado con el monto que calcula el navegador (8.049999999999999) se guarda', async () => {
+  const productId = await newProduct(10, 1.15);
+
+  const result = await createSaleForActor(db, actor, {
+    saleData: { storeId, status: 'PAID' },
+    saleItems: [{ productId, quantity: 7 }],
+    salePayments: [{ paymentMethodId: cashId, amount: 7 * 1.15 }],
+  });
+
+  assert.equal(7 * 1.15, 8.049999999999999);
+  assert.equal(result.status, 201, result.message);
+  const saved = await db.sale.findUniqueOrThrow({ where: { id: result.data!.id }, include: { salePayments: true } });
+  assert.equal(saved.total.toString(), '8.05');
+  assert.equal(saved.salePayments[0].amount.toString(), '8.05');
+});
+
+test('un precio del ADMIN con más de 2 decimales se guarda redondeado y el total cuadra', async () => {
+  const productId = await newProduct(10);
+
+  const result = await createSaleForActor(db, actor, {
+    saleData: { storeId, status: 'PAID' },
+    saleItems: [{ productId, quantity: 3, unitPrice: 33.333 }],
+    salePayments: [{ paymentMethodId: cashId, amount: 99.99 }],
+  });
+
+  assert.equal(result.status, 201, result.message);
+  const saved = await db.sale.findUniqueOrThrow({ where: { id: result.data!.id }, include: { saleItems: true } });
+  assert.equal(saved.saleItems[0].unitPrice.toString(), '33.33');
+  assert.equal(saved.saleItems[0].subtotal.toString(), '99.99');
+  assert.equal(saved.total.toString(), '99.99');
 });

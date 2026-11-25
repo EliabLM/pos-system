@@ -2,7 +2,7 @@ import { Prisma, PrismaClient, Sale } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
 import type { Actor } from '@/lib/auth/actor';
 import { recordStockMovement, StockMovementError } from '../stock-movement/record-stock-movement';
-import { calculateSaleTotals, lineSubtotal, sumAmounts } from './sale-totals';
+import { calculateSaleTotals, lineSubtotal, sumAmounts, toMoney } from './sale-totals';
 import { saleInclude } from './sale.include';
 import { createSaleInputSchema, idSchema, type CreateSaleInput } from './sale.schemas';
 
@@ -69,16 +69,20 @@ export const createSaleForActor = async (
     }
 
     // El vendedor no cambia precios: solo vende al precio de lista del producto
-    const listPrice = new Map(products.map((p) => [p.id, p.salePrice]));
-    if (
-      actor.role === 'SELLER' &&
-      saleItems.some((item) => item.unitPrice !== undefined && !listPrice.get(item.productId)?.equals(item.unitPrice))
-    ) {
-      return { status: 403, message: 'No puedes cambiar el precio de los productos', data: null };
+    const productById = new Map(products.map((p) => [p.id, p]));
+    if (actor.role === 'SELLER') {
+      // A different price from a seller means the list price changed while the sale was open
+      const stale = saleItems.find(
+        (item) => item.unitPrice !== undefined && !productById.get(item.productId)!.salePrice.equals(toMoney(item.unitPrice))
+      );
+      if (stale) {
+        const name = productById.get(stale.productId)!.name;
+        return { status: 403, message: `El precio de ${name} cambió. Recarga la venta`, data: null };
+      }
     }
     const lines = saleItems.map((item) => ({
       ...item,
-      unitPrice: item.unitPrice ?? listPrice.get(item.productId)!,
+      unitPrice: toMoney(item.unitPrice ?? productById.get(item.productId)!.salePrice),
     }));
 
     // Calcular totales (siempre en el servidor)
@@ -160,7 +164,7 @@ export const createSaleForActor = async (
               data: {
                 saleId: sale.id,
                 paymentMethodId: paymentData.paymentMethodId,
-                amount: paymentData.amount,
+                amount: toMoney(paymentData.amount),
                 reference: paymentData.reference ?? null,
                 notes: paymentData.notes ?? null,
                 paymentDate: paymentData.paymentDate ?? new Date(),
