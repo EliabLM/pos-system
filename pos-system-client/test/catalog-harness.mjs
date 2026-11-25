@@ -120,6 +120,19 @@ function modelFake(model) {
     create: write(model, 'create'),
     createMany: write(model, 'createMany'),
     update: write(model, 'update'),
+    // Escritura condicional (p. ej. stock relativo): solo escribe si el registro cumple el
+    // filtro; si no, es una consulta sin filas afectadas (y su filtro de organización se audita).
+    updateMany: async (args = {}) => {
+      state.calls.push({ model, method: 'updateMany', where: args.where });
+      const { currentStock, ...where } = args.where ?? {};
+      const fits = matches(model, rec(), where) && (currentStock?.gte === undefined || rec().currentStock >= currentStock.gte);
+      if (fits) state.writes.push({ model, method: 'updateMany', data: args.data, where: args.where });
+      return { count: fits ? 1 : 0 };
+    },
+    findFirstOrThrow: read(model, 'findFirstOrThrow', ({ where }) => {
+      if (!matches(model, rec(), where)) throw new Error(`${model} not found`);
+      return rec();
+    }),
     delete: write(model, 'delete'),
   };
 }

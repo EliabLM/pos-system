@@ -72,7 +72,7 @@ const prisma = {
     findFirst: read('store', 'findFirst', ({ where }) => (where.id === ID.storeA && where.organizationId === 'org-a' ? { id: ID.storeA } : null)),
     findUnique: read('store', 'findUnique', () => ({ id: ID.storeA, lastSaleNumber: 0, saleNumberPrefix: 'A' })),
     findMany: read('store', 'findMany', () => []),
-    update: write('store', 'update'),
+    update: write('store', 'update', () => ({ saleNumberPrefix: 'A', lastSaleNumber: 1 })),
   },
   customer: { findFirst: read('customer', 'findFirst', () => null) },
   product: {
@@ -110,7 +110,9 @@ const mocks = {
     };
     export const actorErrorResponse = (error) => error instanceof ActorError ? { status: error.status, message: error.message, data: null } : null;`,
   '../utils': 'export const prisma = globalThis.__salePrisma; export const serializeDecimals = (value) => value;',
-  '../stock-movement/record-stock-movement': 'export const recordStockMovement = async (orgId, userId, data) => { globalThis.__saleTest.stock.push({ orgId, userId, data }); return { status: 201 }; };',
+  '../stock-movement/record-stock-movement': `
+    export class StockMovementError extends Error {}
+    export const recordStockMovement = async (tx, orgId, userId, data) => { globalThis.__saleTest.stock.push({ orgId, userId, data }); return {}; };`,
 };
 
 const sale = await loadWithMocks('src/actions/sale/sale.actions.ts', mocks);
@@ -208,7 +210,7 @@ test('createSale: ignora organizationId/userId/totales enviados por el cliente',
   assert.equal(created.userId, 'seller-a');
   assert.equal(created.total, 10);
   assert.equal(created.subtotal, 10);
-  assert.notEqual(created.saleNumber, 'X');
+  assert.equal(created.saleNumber, 'A-000001', 'consecutivo del contador de la tienda, no del cliente');
   const item = state.writes.find((w) => w.model === 'saleItem').data;
   assert.equal(item.saleId, 'new-sale');
   assert.equal(item.subtotal, 10);

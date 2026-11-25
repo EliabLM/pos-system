@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient, Sale } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
 import type { Actor } from '@/lib/auth/actor';
-import { recordStockMovement } from '../stock-movement/record-stock-movement';
+import { recordStockMovement, StockMovementError } from '../stock-movement/record-stock-movement';
 import { calculateSaleTotals } from './sale-totals';
 import { saleInclude } from './sale.include';
 import { createSaleInputSchema, idSchema, type CreateSaleInput } from './sale.schemas';
@@ -20,19 +20,7 @@ const internalError = () =>
 const saleNotFound = () =>
   ({ status: 404, message: 'Venta no encontrada', data: null }) as const;
 
-const generateSaleNumber = async (db: PrismaClient, storeId: string): Promise<string> => {
-  const store = await db.store.findUnique({
-    where: { id: storeId },
-  });
-
-  let nextNumber: number = 1;
-
-  if (store?.lastSaleNumber) {
-    nextNumber = store.lastSaleNumber + 1;
-  }
-
-  return `${store?.saleNumberPrefix}-${String(nextNumber).padStart(6, '0')}`;
-};
+const formatSaleNumber = (prefix: string, n: number) => `${prefix}-${String(n).padStart(6, '0')}`;
 
 export const createSaleForActor = async (
   db: PrismaClient,
@@ -71,23 +59,13 @@ export const createSaleForActor = async (
       if (!customer) return invalidInput('El cliente especificado no existe');
     }
 
-    // Verificar productos y stock disponible
+    // Verificar productos (el stock se descuenta y comprueba dentro de la transacción)
     const productIds = [...new Set(saleItems.map((item) => item.productId))];
     const products = await db.product.findMany({
       where: { id: { in: productIds }, organizationId: orgId, isDeleted: false, isActive: true },
     });
     if (products.length !== productIds.length) {
       return invalidInput('Uno o más productos no existen o están inactivos');
-    }
-
-    for (const item of saleItems) {
-      const product = products.find((p) => p.id === item.productId);
-      if (!product) return invalidInput('Uno o más productos no existen o están inactivos');
-      if (product.currentStock < item.quantity) {
-        return invalidInput(
-          `Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}, Requerido: ${item.quantity}`
-        );
-      }
     }
 
     // Calcular totales (siempre en el servidor)
@@ -109,10 +87,18 @@ export const createSaleForActor = async (
       }
     }
 
-    const saleNumber = await generateSaleNumber(db, saleData.storeId);
-
     const newSale = await db.$transaction(
       async (tx) => {
+        // Consecutivo con incremento atómico (UPDATE ... RETURNING). Bloquea la
+        // fila de la tienda hasta el commit: las ventas de una tienda se
+        // numeran en orden y un rollback no consume número.
+        const counter = await tx.store.update({
+          where: { id: saleData.storeId, organizationId: orgId, isDeleted: false },
+          data: { lastSaleNumber: { increment: 1 } },
+          select: { saleNumberPrefix: true, lastSaleNumber: true },
+        });
+        const saleNumber = formatSaleNumber(counter.saleNumberPrefix, counter.lastSaleNumber);
+
         // Lista blanca de campos; identidad y tenant del actor
         const sale = await tx.sale.create({
           data: {
@@ -131,7 +117,10 @@ export const createSaleForActor = async (
           },
         });
 
-        for (const itemData of saleItems) {
+        // Orden fijo por producto: dos ventas con los mismos productos bloquean
+        // las filas en el mismo orden y no se interbloquean.
+        const orderedItems = [...saleItems].sort((a, b) => a.productId.localeCompare(b.productId));
+        for (const itemData of orderedItems) {
           await tx.saleItem.create({
             data: {
               saleId: sale.id,
@@ -143,7 +132,7 @@ export const createSaleForActor = async (
             },
           });
 
-          await recordStockMovement(orgId, actor.userId, {
+          await recordStockMovement(tx, orgId, actor.userId, {
             productId: itemData.productId,
             storeId: saleData.storeId,
             type: 'OUT',
@@ -168,12 +157,6 @@ export const createSaleForActor = async (
           }
         }
 
-        const current = await db.store.findUnique({ where: { id: saleData.storeId } });
-        await tx.store.update({
-          where: { id: saleData.storeId },
-          data: { lastSaleNumber: (current?.lastSaleNumber ?? 0) + 1 },
-        });
-
         return tx.sale.findUnique({ where: { id: sale.id }, include: saleInclude });
       },
       { maxWait: 10000, timeout: 30000 }
@@ -181,6 +164,7 @@ export const createSaleForActor = async (
 
     return { status: 201, message: 'Venta creada exitosamente', data: newSale };
   } catch (error) {
+    if (error instanceof StockMovementError) return invalidInput(error.message);
     console.error('Error creating sale:', error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
@@ -216,8 +200,9 @@ export const cancelSaleForActor = async (
 
     const cancelledSale = await db.$transaction(
       async (tx) => {
+        // La condición de estado hace fallar (P2025) una segunda anulación simultánea.
         await tx.sale.update({
-          where: { id: existingSale.id },
+          where: { id: existingSale.id, status: { not: 'CANCELLED' } },
           data: {
             status: 'CANCELLED',
             notes: reason ? `${existingSale.notes || ''}\nCANCELADO: ${reason}` : existingSale.notes,
@@ -225,8 +210,9 @@ export const cancelSaleForActor = async (
           },
         });
 
-        for (const item of existingSale.saleItems) {
-          await recordStockMovement(actor.organizationId, actor.userId, {
+        const orderedItems = [...existingSale.saleItems].sort((a, b) => a.productId.localeCompare(b.productId));
+        for (const item of orderedItems) {
+          await recordStockMovement(tx, actor.organizationId, actor.userId, {
             productId: item.productId,
             storeId: existingSale.storeId,
             type: 'IN',
@@ -243,6 +229,10 @@ export const cancelSaleForActor = async (
 
     return { status: 200, message: 'Venta cancelada exitosamente', data: cancelledSale };
   } catch (error) {
+    if (error instanceof StockMovementError) return invalidInput(error.message);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return invalidInput('La venta ya está cancelada');
+    }
     console.error('Error cancelling sale:', error);
     return internalError();
   }
