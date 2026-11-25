@@ -101,6 +101,7 @@ test('con stock 3 y 8 ventas simultáneas de 1 unidad se confirman 3, el stock q
 test('si falla un paso de la venta no queda venta, movimiento de stock ni consecutivo consumido', async () => {
   const productId = await newProduct(5);
   const counterBefore = (await db.store.findUniqueOrThrow({ where: { id: storeId } })).lastSaleNumber;
+  const salesBefore = await db.sale.count({ where: { storeId } });
   await failOn('sale_payments', `NEW.notes = '${TAG}-falla'`);
   try {
     const result = await createSaleForActor(db, actor, {
@@ -116,6 +117,7 @@ test('si falla un paso de la venta no queda venta, movimiento de stock ni consec
   assert.equal(await stockOf(productId), 5);
   assert.equal(await db.stockMovement.count({ where: { productId } }), 0);
   assert.equal(await db.saleItem.count({ where: { productId } }), 0);
+  assert.equal(await db.sale.count({ where: { storeId } }), salesBefore, 'sin fila en sales');
   assert.equal((await db.store.findUniqueOrThrow({ where: { id: storeId } })).lastSaleNumber, counterBefore);
 });
 
@@ -143,6 +145,7 @@ test('anular una venta devuelve el stock en la misma transacción', async () => 
   const cancelled = await cancelSaleForActor(db, actor, saleId, 'prueba');
   assert.equal(cancelled.status, 200, cancelled.message);
   assert.equal(cancelled.data!.status, 'CANCELLED');
+  assert.equal(cancelled.data!.notes, '\nCANCELADO: prueba');
   assert.equal(await stockOf(productId), 4);
   const back = await db.stockMovement.findMany({ where: { productId, type: 'IN', reference: saleId } });
   assert.deepEqual(back.map((m) => [m.quantity, m.previousStock, m.newStock]), [[3, 1, 4]]);
