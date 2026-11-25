@@ -4,7 +4,7 @@ import { SaleItem, Prisma, MembershipRole } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
 import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
 import { prisma, serializeDecimals } from '../utils';
-import { calculateSaleTotals } from '../sale/sale-totals';
+import { calculateSaleTotals, lineSubtotal } from '../sale/sale-totals';
 import {
   idSchema,
   saleItemInputSchema,
@@ -99,6 +99,9 @@ export const addSaleItem = async (
       };
     }
 
+    // Sin precio enviado se usa el de lista del producto
+    const unitPrice = itemData.unitPrice ?? product.salePrice;
+
     // Agregar item en transacción
     const newItem = await prisma.$transaction(async (tx) => {
       // Crear el item
@@ -107,9 +110,9 @@ export const addSaleItem = async (
           productId: itemData.productId,
           unitMeasureId: itemData.unitMeasureId ?? null,
           quantity: itemData.quantity,
-          unitPrice: itemData.unitPrice,
+          unitPrice,
           saleId,
-          subtotal: itemData.quantity * itemData.unitPrice,
+          subtotal: lineSubtotal({ quantity: itemData.quantity, unitPrice }),
         },
         include: saleItemInclude,
       });
