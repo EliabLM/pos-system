@@ -98,6 +98,8 @@ export function QuickSaleDialog({
 }: QuickSaleDialogProps) {
   // Get user data from Zustand store
   const user = useStore((state) => state.user);
+  // Sellers sell at the list price; the server enforces it
+  const priceLocked = isSeller(user?.role ?? '');
 
   // Fetch data with hooks
   const { data: products } = useActiveProducts();
@@ -608,8 +610,8 @@ export function QuickSaleDialog({
                   fixedDecimalScale
                   allowNegative={false}
                   className="w-full"
-                  disabled={isSeller(user?.role ?? '')}
-                  title={isSeller(user?.role ?? '') ? 'Solo un administrador puede cambiar el precio' : undefined}
+                  disabled={priceLocked}
+                  title={priceLocked ? 'Solo un administrador puede cambiar el precio' : undefined}
                   aria-label="Precio unitario del producto"
                   aria-required="true"
                   aria-describedby={
