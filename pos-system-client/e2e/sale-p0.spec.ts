@@ -1,17 +1,19 @@
 import { test, expect, type Page } from '@playwright/test';
 import { PrismaClient } from '../src/generated/prisma';
-import { ADMIN, loginUI } from './fixtures/auth';
+import { ADMIN, SELLER, loginUI } from './fixtures/auth';
 
 // Consultas de verificación, nunca mutaciones directas: el actor de las escrituras es Next.
 const db = new PrismaClient();
 test.afterAll(async () => db.$disconnect());
 test.describe.configure({ mode: 'serial' });
 
-async function fillSaleOfProductA(page: Page, amount: string): Promise<void> {
+async function fillSaleOfProductA(page: Page, amount: string, pickStore = true): Promise<void> {
   await page.goto('/dashboard/sales/new');
   await expect(page.getByRole('heading', { name: 'Crear Nueva Factura' })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Seleccionar tienda' }).click();
-  await page.getByRole('option', { name: 'Store Central' }).click();
+  if (pickStore) {
+    await page.getByRole('combobox', { name: 'Seleccionar tienda' }).click();
+    await page.getByRole('option', { name: 'Store Central' }).click();
+  }
   await page.getByRole('textbox', { name: 'Buscar productos' }).fill('Producto A');
   await page.getByRole('listitem', { name: 'Agregar Producto A a la venta' }).click();
   await expect(page.getByRole('spinbutton', { name: 'Cantidad de Producto A' })).toBeVisible();
@@ -73,4 +75,24 @@ test('P0 venta: sesión A con tienda de B se rechaza y no escribe ventas ni stoc
   expect(await db.sale.count({ where: { organizationId: orgB.id } })).toBe(beforeB);
   expect(await db.stockMovement.count()).toBe(beforeMovements);
   expect((await db.product.findUniqueOrThrow({ where: { id: product.id } })).currentStock).toBe(product.currentStock);
+});
+
+test('P0 venta: SELLER vende al precio del producto sin poder editarlo', async ({ page }) => {
+  const org = await db.organization.findFirstOrThrow({ where: { name: 'Pos Demo Org', isDeleted: false } });
+  const seller = await db.user.findFirstOrThrow({ where: { email: SELLER.email, isDeleted: false } });
+  const product = await db.product.findFirstOrThrow({ where: { organizationId: org.id, sku: 'SKU001', isDeleted: false } });
+  const startedAt = new Date();
+
+  await loginUI(page, SELLER);
+  await fillSaleOfProductA(page, String(product.salePrice.toNumber()), false);
+  await expect(page.getByRole('textbox', { name: 'Precio unitario de Producto A' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Crear Factura' }).click();
+  await expect(page).toHaveURL(/\/dashboard\/sales(?:\?|$)/);
+
+  const sale = await db.sale.findFirstOrThrow({
+    where: { organizationId: org.id, userId: seller.id, createdAt: { gte: startedAt } },
+    include: { saleItems: true },
+  });
+  expect(sale.saleItems.map((i) => i.unitPrice.toString())).toEqual([product.salePrice.toString()]);
+  expect(sale.total.toString()).toBe(product.salePrice.toString());
 });

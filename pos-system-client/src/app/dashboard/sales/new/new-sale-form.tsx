@@ -898,6 +898,8 @@ export const NewSaleForm = () => {
                             thousandSeparator="."
                             decimalSeparator=","
                             className="w-28 h-9"
+                            disabled={isSeller(userRole)}
+                            title={isSeller(userRole) ? 'Solo un administrador puede cambiar el precio' : undefined}
                             aria-label={`Precio unitario de ${item.product.name}`}
                           />
                         </div>

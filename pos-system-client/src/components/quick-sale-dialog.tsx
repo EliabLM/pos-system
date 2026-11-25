@@ -42,6 +42,7 @@ import { Separator } from '@/components/ui/separator';
 import { ProductFilterCombobox } from '@/components/product-filter-combobox';
 
 import { useStore } from '@/store';
+import { isSeller } from '@/lib/rbac';
 import { useCreateSale } from '@/hooks/useSales';
 import { useActiveProducts } from '@/hooks/useProducts';
 import { useActiveStores } from '@/hooks/useStores';
@@ -607,6 +608,8 @@ export function QuickSaleDialog({
                   fixedDecimalScale
                   allowNegative={false}
                   className="w-full"
+                  disabled={isSeller(user?.role ?? '')}
+                  title={isSeller(user?.role ?? '') ? 'Solo un administrador puede cambiar el precio' : undefined}
                   aria-label="Precio unitario del producto"
                   aria-required="true"
                   aria-describedby={
