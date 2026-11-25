@@ -70,9 +70,10 @@ test('purchase.receivePurchase: el admin de B recibe con su identidad y su organ
   const movement = state.writes.find((w) => w.model === 'stockMovement' && w.method === 'create').data;
   assert.equal(movement.userId, 'admin-b');
   assert.equal(movement.organizationId, 'org-b');
-  assert.equal(movement.newStock, 7);
-  const stock = state.writes.find((w) => w.model === 'product' && w.method === 'update');
+  // Entrada relativa: suma la cantidad recibida (2) al stock en un solo UPDATE.
+  const stock = state.writes.find((w) => w.model === 'product' && w.method === 'updateMany');
   assert.equal(stock.where.organizationId, 'org-b');
+  assert.deepEqual(stock.data, { currentStock: { increment: 2 } });
 });
 
 test('purchase.updatePurchase: solo cambia las notas', async () => {

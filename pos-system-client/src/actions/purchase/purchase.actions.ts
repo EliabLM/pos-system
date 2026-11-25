@@ -5,6 +5,7 @@ import { ActionResponse, Serialized } from '@/interfaces';
 import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
 import { businessDayCompact } from '@/lib/time';
 import { prisma, serializeDecimals } from '../utils';
+import { recordStockMovement, StockMovementError } from '../stock-movement/record-stock-movement';
 import { firstIssue, idSchema, internalError, invalidInput, paginationSchema, type PaginationInput } from '../common.schemas';
 import {
   cancelReasonSchema,
@@ -75,13 +76,11 @@ const generatePurchaseNumber = async (
 const purchaseNotFound = () => ({ status: 404, message: 'Compra no encontrada', data: null }) as const;
 const invalidPurchaseId = () => invalidInput('ID de compra es requerido');
 
-/** Business rule violations inside a transaction, returned as 400. */
-class PurchaseRuleError extends Error {}
-
 const handleError = (error: unknown, context: string) => {
   const denied = actorErrorResponse(error);
   if (denied) return denied;
-  if (error instanceof PurchaseRuleError) return invalidInput(error.message);
+  // Stock rule violations inside a transaction (the whole receive rolls back), returned as 400.
+  if (error instanceof StockMovementError) return invalidInput(error.message);
   console.error(`Error ${context}:`, error);
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') return { status: 409, message: 'Ya existe una compra con ese número', data: null } as const;
@@ -355,32 +354,17 @@ export const receivePurchase = async (purchaseId: string): Promise<ActionRespons
           data: { status: 'RECEIVED', receivedDate: new Date(), updatedAt: new Date() },
         });
 
-        for (const item of existing.purchaseItems) {
-          const productWhere = { id: item.productId, organizationId, isDeleted: false };
-          const product = await tx.product.findUnique({ where: productWhere, select: { currentStock: true } });
-          if (!product) throw new PurchaseRuleError(`Producto ${item.productId} no encontrado`);
-
-          const previousStock = product.currentStock;
-          const newStock = previousStock + item.quantity;
-
-          await tx.stockMovement.create({
-            data: {
-              productId: item.productId,
-              userId: actor.userId,
-              storeId: null, // Las compras son a nivel de organización, no de tienda
-              type: 'IN',
-              quantity: item.quantity,
-              previousStock,
-              newStock,
-              reason: `Recepción de compra ${existing.purchaseNumber}`,
-              reference: existing.id,
-              organizationId,
-            },
-          });
-
-          await tx.product.update({
-            where: productWhere,
-            data: { currentStock: newStock, updatedAt: new Date() },
+        // Entrada relativa (current_stock + q) en la misma transacción: dos
+        // recepciones simultáneas del mismo producto suman las dos.
+        const orderedItems = [...existing.purchaseItems].sort((a, b) => a.productId.localeCompare(b.productId));
+        for (const item of orderedItems) {
+          await recordStockMovement(tx, organizationId, actor.userId, {
+            productId: item.productId,
+            storeId: null, // Las compras son a nivel de organización, no de tienda
+            type: 'IN',
+            quantity: item.quantity,
+            reason: `Recepción de compra ${existing.purchaseNumber}`,
+            reference: existing.id,
           });
         }
 
