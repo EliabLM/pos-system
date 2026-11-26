@@ -26,33 +26,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
-import { registerUser } from '@/actions/auth';
-import { ActionResponse } from '@/interfaces';
-
-// Tipo de respuesta del registro (debe coincidir con register.ts)
-interface RegisterResponseData {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: string | null;
-    organizationId: string | null;
-    storeId: string | null;
-    isActive: boolean;
-    emailVerified: boolean;
-    createdAt: Date;
-    organization: {
-      id: string;
-      name: string;
-    } | null;
-    store: {
-      id: string;
-      name: string;
-    } | null;
-  };
-  sessionId: string;
-  redirectTo: string;
-}
+import { authClient } from '@/lib/auth/auth-client';
+import { authErrorMessage, USER_EXISTS_MESSAGE } from '@/lib/auth/auth-messages';
 
 // Schema de validación con Yup (D3.4/D3.5: sin username, nombre en un campo)
 const signUpSchema = yup.object({
@@ -110,55 +85,33 @@ export const RegisterForm = ({
     try {
       setIsLoading(true);
 
-      // Crear FormData para enviar al server action
-      const formData = new FormData();
-      formData.append('name', data.name);
-      formData.append('email', data.email);
-      formData.append('password', data.password);
-      formData.append('confirmPassword', data.confirmPassword);
+      // Better Auth crea el usuario (sin organización ni membresía) y su
+      // sesión; el servidor vuelve a validar nombre, correo y contraseña.
+      const { error } = await authClient.signUp.email({
+        name: data.name.trim(),
+        email: data.email.trim().toLowerCase(),
+        password: data.password,
+      });
 
-      // Llamar al server action de registro
-      const result: ActionResponse<RegisterResponseData> =
-        await registerUser(formData);
-
-      if (result.status === 201) {
-        // Registro exitoso
-        const isOnboarding = result.data?.redirectTo === '/onboarding';
-
+      if (!error) {
         await Swal.fire({
           icon: 'success',
           title: '¡Cuenta creada!',
-          text: isOnboarding
-            ? 'Tu cuenta ha sido creada exitosamente. Ahora vamos a configurar tu organización.'
-            : 'Tu cuenta ha sido creada exitosamente. Bienvenido al sistema.',
+          text: 'Tu cuenta ha sido creada exitosamente. Ahora vamos a configurar tu organización.',
           confirmButtonText: 'Continuar',
         });
 
-        // Delay para que la cookie se propague correctamente
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Redirigir usando la URL devuelta por el server action
-        const redirectUrl = result.data?.redirectTo || '/onboarding';
-        window.location.href = redirectUrl;
-      } else if (result.status === 409) {
-        // Email o username ya existe
-        await Swal.fire({
-          icon: 'error',
-          title: 'Usuario existente',
-          text:
-            result.message ||
-            'El correo electrónico o el nombre de usuario ya existen.',
-        });
-      } else {
-        // Otro error
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error al registrar',
-          text:
-            result.message ||
-            'Ocurrió un error al crear tu cuenta. Por favor intenta nuevamente.',
-        });
+        // Todo usuario nuevo crea su negocio en el onboarding
+        window.location.href = '/onboarding';
+        return;
       }
+
+      const message = authErrorMessage(error);
+      await Swal.fire({
+        icon: 'error',
+        title: message === USER_EXISTS_MESSAGE ? 'Usuario existente' : 'Error al registrar',
+        text: message,
+      });
     } catch (error) {
       console.error('🚀 ~ onSubmit ~ error:', error);
 

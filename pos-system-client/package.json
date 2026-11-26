@@ -18,11 +18,11 @@
     "db:seed:verify": "tsx prisma/seed-verify.ts",
     "test:seed:guard": "tsx --test prisma/seed-guard.test.ts",
     "test:purchase:access": "node --test src/actions/purchase/*.test.mjs",
-    "test": "node --test test/*.test.mjs src/lib/auth/*.test.mjs src/actions/*/*.test.mjs",
+    "test": "node --test test/*.test.mjs src/lib/auth/*.test.mjs src/actions/*/*.test.mjs && tsx --test src/lib/auth/auth-flow.test.ts",
     "test:actions:guard": "node --test test/actions-guard.test.mjs",
     "test:sale:access": "node --test src/lib/auth/actor.test.mjs src/actions/sale/*.test.mjs",
     "test:images": "tsx --test src/lib/images/images.test.ts",
-    "test:db": "tsx --test --test-concurrency=1 src/actions/*/*.db.test.ts"
+    "test:db": "tsx --test --test-concurrency=1 src/actions/*/*.db.test.ts src/lib/auth/*.db.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -61,7 +61,6 @@
     "date-fns": "^4.4.0",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
-    "jose": "^6.2.17",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.539.0",
     "next": "15.5.29",

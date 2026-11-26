@@ -3,24 +3,9 @@
  * AUTH ACTIONS - CENTRAL EXPORT
  * ============================================
  *
- * Exportación centralizada de todas las server actions de autenticación
+ * Login y registro van directo a Better Auth desde el navegador
+ * (`authClient`, /api/auth/*): así aplica su límite de intentos.
  */
 
-// Register
-export { registerUser } from './register';
-
-// Login
-export { loginUser } from './login';
-
-// Logout
-export { logoutUser, logoutAllDevices } from './logout';
-
-// Current User
-export {
-  getCurrentUser,
-  isAuthenticated,
-  getCurrentUserId,
-} from './getCurrentUser';
-
-// Refresh Token
-export { refreshToken } from './refreshToken';
+export { logoutUser } from './logout';
+export { getCurrentUser } from './getCurrentUser';

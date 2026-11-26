@@ -32,6 +32,13 @@ async function main() {
         member.user.email === 'conflict@pos.test' ? 'Conflict123!' :
         member.user.email === 'lock@pos.test' ? 'Lock123!' : 'Seller123!';
       assert.equal(await bcrypt.compare(password, member.user.passwordHash), true);
+      // #19: Better Auth reads the password from the credential account
+      // (copied from users.password_hash by the users_sync_credential_account trigger).
+      const credential = await client.account.findUnique({
+        where: { providerId_accountId: { providerId: 'credential', accountId: member.user.id } },
+      });
+      assert.equal(credential?.userId, member.user.id);
+      assert.equal(credential?.password, member.user.passwordHash);
     }
   }
 

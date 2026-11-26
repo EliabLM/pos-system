@@ -131,7 +131,10 @@ model Session {
   userId String @map("user_id") @db.Uuid
 
   // Token y seguridad
-  tokenHash String   @unique @map("token_hash") // SHA-256 del JWT
+  // Token de sesión de Better Auth (#19); la cookie lleva este valor firmado.
+  token     String?  @unique
+  // Legado del JWT propio (antes de #19): ya no se escribe.
+  tokenHash String?  @unique @map("token_hash")
   // Refresh rotation (D3/R8) — el módulo auth de Fase 2 los llena
   refreshTokenHash String? @unique @map("refresh_token_hash")
   rotatedFrom      String? @map("rotated_from") @db.Uuid // reuse-detection chain
@@ -564,14 +567,18 @@ model Membership {
 model Verification {
   id         String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   identifier String // email (o userId para tipos futuros)
-  valueHash  String           @unique @map("value_hash") // hash del token (Fase 2; hoy se mueve tal cual)
-  type       VerificationType
+  // Better Auth (#19) guarda el valor tal cual en `value`; valueHash y type quedan
+  // del diseño D3.7 y son opcionales.
+  value      String?
+  valueHash  String?           @unique @map("value_hash")
+  type       VerificationType?
   expiresAt  DateTime         @map("expires_at") @db.Timestamptz
   used       Boolean          @default(false)
   usedAt     DateTime?        @map("used_at") @db.Timestamptz
   ipAddress  String?          @map("ip_address")
   userAgent  String?          @map("user_agent")
   createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   @@index([identifier, type, used])
   @@index([expiresAt])
@@ -588,6 +595,13 @@ model Account {
   refreshToken String?   @map("refresh_token")
   expiresAt    DateTime? @map("expires_at") @db.Timestamptz
   metadata     Json?
+  // Columnas que usa Better Auth (#19). Con providerId "credential",
+  // `password` guarda el hash bcrypt de la contraseña.
+  password              String?
+  idToken               String?   @map("id_token")
+  scope                 String?
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 

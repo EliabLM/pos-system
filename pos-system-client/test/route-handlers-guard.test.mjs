@@ -21,6 +21,10 @@ const GUARDS = new Set(['getActor', 'requireActor']);
 const HTTP_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
 
 const PUBLIC = {
+  'api/auth/[...all]/route.ts': {
+    GET: 'Better Auth (get-session y similares): cada endpoint valida la cookie',
+    POST: 'Better Auth (sign-in, sign-up, sign-out): credenciales, sesión y límite de intentos',
+  },
   'api/images/[...key]/route.ts': {
     GET: 'imágenes de producto con clave aleatoria; ver docs/deployment/imagenes-producto.md',
   },
@@ -90,6 +94,12 @@ export function findUnguardedHandlers(text, fileName = 'route.ts') {
         if (ts.isIdentifier(decl.name) && HTTP_METHODS.has(decl.name.text) && !guarded.has(decl.name.text)) {
           unguarded.push(decl.name.text);
         }
+        // export const { GET, POST } = handler(...): handlers built elsewhere.
+        if (ts.isObjectBindingPattern(decl.name)) {
+          for (const el of decl.name.elements) {
+            if (ts.isIdentifier(el.name) && HTTP_METHODS.has(el.name.text)) unguarded.push(el.name.text);
+          }
+        }
       }
     } else if (ts.isExportDeclaration(st) && !st.isTypeOnly) {
       unguarded.push('export {...}');
@@ -106,6 +116,7 @@ test('guardián de rutas: el detector marca un handler sin sesión', () => {
   const direct = `export const DELETE = async () => { await getActor(); return new Response(null); };`;
   assert.deepEqual(findUnguardedHandlers(direct), []);
   assert.deepEqual(findUnguardedHandlers(`export { GET } from './other';`), ['export {...}']);
+  assert.deepEqual(findUnguardedHandlers(`export const { GET, POST } = toNextJsHandler(auth);`), ['GET', 'POST']);
 });
 
 test('guardián de rutas: todo handler fuera de PUBLIC comprueba la sesión', () => {

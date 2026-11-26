@@ -48,7 +48,7 @@ import { useCreateOrganization } from '@/hooks/useOrganizations';
 
 import { GENERIC_ERROR_MESSAGE } from '@/constants';
 import { createSlug } from '@/utils/createSlug';
-import { getCurrentUser, logoutUser, refreshToken } from '@/actions/auth';
+import { getCurrentUser, logoutUser } from '@/actions/auth';
 import { User } from '@/generated/prisma';
 import { useStore } from '@/store';
 import { performLogoutCleanup } from '@/lib/logout-cleanup';
@@ -186,35 +186,15 @@ const RegisterOrganizationPage = () => {
         return;
       }
 
-      // Refrescar token JWT con organizationId actualizado
-      const refreshResult = await refreshToken();
-
-      if (refreshResult.status !== 200) {
-        console.error('[Onboarding] Error al refrescar token:', refreshResult);
-        toast.error(
-          refreshResult.message ||
-            'Error al actualizar la sesión. Por favor inicia sesión nuevamente.'
-        );
-
-        // Esperar un poco antes de redirigir para que el usuario pueda ver el error
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        window.location.href = '/auth/login';
-        return;
-      }
-
-      // Actualizar usuario en el store de Zustand
-      if (refreshResult.data?.user) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setUser(refreshResult.data.user as any);
+      // La sesión no guarda la organización: basta con releer el usuario.
+      const current = await getCurrentUser();
+      if (current.status === 200 && current.data?.user) {
+        setUser(current.data.user as unknown as Parameters<typeof setUser>[0]);
       }
 
       // Success! Redirect to dashboard
       toast.success('¡Organización creada exitosamente!');
 
-      // Pequeño delay para que el token actualizado se propague
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // Usar window.location.href para forzar recarga completa y evitar problemas de cache del middleware
       window.location.href = '/dashboard';
     } catch (error) {
       console.error('🚀 ~ onSubmit ~ error:', error);
