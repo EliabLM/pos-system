@@ -236,12 +236,12 @@ export default function UserFormSheet({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Email *</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <IconMail
-                            className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
-                            aria-hidden="true"
-                          />
+                      <div className="relative">
+                        <IconMail
+                          className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                        <FormControl>
                           <Input
                             type="email"
                             placeholder="usuario@ejemplo.com"
@@ -249,8 +249,8 @@ export default function UserFormSheet({
                             disabled={!!itemSelected}
                             className="pl-10"
                           />
-                        </div>
-                      </FormControl>
+                        </FormControl>
+                      </div>
                       {itemSelected && (
                         <p className="text-xs text-muted-foreground">
                           El email no se puede editar en usuarios existentes
@@ -268,20 +268,20 @@ export default function UserFormSheet({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Contraseña *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <IconLock
-                              className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
-                              aria-hidden="true"
-                            />
+                        <div className="relative">
+                          <IconLock
+                            className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <FormControl>
                             <Input
                               type="password"
                               placeholder="••••••••"
                               {...field}
                               className="pl-10"
                             />
-                          </div>
-                        </FormControl>
+                          </FormControl>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           Mínimo 8 caracteres, debe incluir mayúscula, minúscula,
                           número y carácter especial
@@ -305,17 +305,15 @@ export default function UserFormSheet({
               <CardContent className="space-y-4">
                 <FormItem>
                   <FormLabel>Rol del Usuario</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                      <IconUser className="size-5 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="font-medium">Vendedor</p>
-                        <p className="text-xs text-muted-foreground">
-                          Acceso limitado a operaciones de venta
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                    <IconUser className="size-5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="font-medium">Vendedor</p>
+                      <p className="text-xs text-muted-foreground">
+                        Acceso limitado a operaciones de venta
+                      </p>
                     </div>
-                  </FormControl>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Los nuevos usuarios siempre se crean como Vendedores
                   </p>

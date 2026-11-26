@@ -184,35 +184,35 @@ export const RegisterForm = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Contraseña</FormLabel>
-                        <FormControl>
-                          <div className="relative">
+                        <div className="relative">
+                          <FormControl>
                             <Input
                               type={showPassword ? 'text' : 'password'}
                               placeholder="••••••••"
                               {...field}
                               disabled={isLoading}
                             />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                              onClick={() => setShowPassword(!showPassword)}
-                              disabled={isLoading}
-                              aria-label={
-                                showPassword
-                                  ? 'Ocultar contraseña'
-                                  : 'Mostrar contraseña'
-                              }
-                            >
-                              {showPassword ? (
-                                <IconEyeOff className="h-4 w-4" />
-                              ) : (
-                                <IconEye className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </FormControl>
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                            disabled={isLoading}
+                            aria-label={
+                              showPassword
+                                ? 'Ocultar contraseña'
+                                : 'Mostrar contraseña'
+                            }
+                          >
+                            {showPassword ? (
+                              <IconEyeOff className="h-4 w-4" />
+                            ) : (
+                              <IconEye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -226,37 +226,37 @@ export const RegisterForm = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Confirmar contraseña</FormLabel>
-                        <FormControl>
-                          <div className="relative">
+                        <div className="relative">
+                          <FormControl>
                             <Input
                               type={showConfirmPassword ? 'text' : 'password'}
                               placeholder="••••••••"
                               {...field}
                               disabled={isLoading}
                             />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                              onClick={() =>
-                                setShowConfirmPassword(!showConfirmPassword)
-                              }
-                              disabled={isLoading}
-                              aria-label={
-                                showConfirmPassword
-                                  ? 'Ocultar contraseña'
-                                  : 'Mostrar contraseña'
-                              }
-                            >
-                              {showConfirmPassword ? (
-                                <IconEyeOff className="h-4 w-4" />
-                              ) : (
-                                <IconEye className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </FormControl>
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
+                            disabled={isLoading}
+                            aria-label={
+                              showConfirmPassword
+                                ? 'Ocultar contraseña'
+                                : 'Mostrar contraseña'
+                            }
+                          >
+                            {showConfirmPassword ? (
+                              <IconEyeOff className="h-4 w-4" />
+                            ) : (
+                              <IconEye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
