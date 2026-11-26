@@ -27,7 +27,8 @@ jobs:
       CI: 'true'
       DATABASE_URL: postgresql://pos_ci:pos_ci_only@127.0.0.1:5432/pos_test
       DIRECT_URL: postgresql://pos_ci:pos_ci_only@127.0.0.1:5432/pos_test
-      JWT_SECRET: synthetic-ci-jwt-secret-not-for-any-real-deployment-123456
+      BETTER_AUTH_SECRET: synthetic-ci-auth-secret-not-for-any-real-deployment-123456
+      BETTER_AUTH_URL: http://127.0.0.1:3000
       HTTPS_ENABLED: 'false'
       E2E_BASE_URL: http://127.0.0.1:3000
       NEXT_TELEMETRY_DISABLED: '1'
@@ -101,6 +102,9 @@ jobs:
         env:
           POS_SEED_ALLOW_RESET: '1'
           E2E_SKIP_SEED: '1'
+          # The P0 suite signs in many times from one IP; the 5-per-minute limit
+          # is tested in src/lib/auth/auth-flow.test.ts (#19).
+          AUTH_SIGN_IN_MAX_ATTEMPTS: '1000'
         run: |
           pnpm --ignore-workspace start > /dev/null 2>&1 &
           app_pid=$!
