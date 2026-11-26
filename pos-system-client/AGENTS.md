@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Multi-tenant POS system: Next.js 15 (App Router) + Prisma/PostgreSQL + custom JWT auth.
+Multi-tenant POS system: Next.js 15 (App Router) + Prisma/PostgreSQL + Better Auth (email and password).
 Detailed conventions live in `CLAUDE.md` and `.claude/agent-rules.md` — read those for patterns. This file is the short version of what agents get wrong.
 
 ## Commands
@@ -32,13 +32,13 @@ pnpm db:generate    # regenerate the Prisma client only
 - Use the **shared instance**: `import { prisma } from '@/actions/utils'`. Never `new PrismaClient()` in actions.
 - `next.config.ts` contains required Prisma plumbing (`serverExternalPackages`, `outputFileTracingIncludes`, webpack `PrismaPlugin`) — do not remove.
 - All entities are soft-deleted: always filter `isDeleted: false`, and delete via `update({ isDeleted: true, deletedAt: new Date() })`. Unique constraints include `deletedAt`.
-- Almost every entity is tenant-scoped: always filter by `organizationId` from the JWT/session.
+- Almost every entity is tenant-scoped: always filter by `organizationId` from the session (`requireActor()`).
 
 ## Architecture in 6 lines
 
 - Server actions per entity in `src/actions/<entity>/`, returning `ActionResponse<T>` (`{ status, message, data }` from `@/interfaces`). **Every exported action calls `requireActor({ roles? })` from `@/lib/auth/actor`** and takes `organizationId`/`userId`/role from it — never from parameters, headers or the Zustand store; map errors with `actorErrorResponse(error)`. Validate inputs with Zod (whitelist, no spreading client objects). `test/actions-guard.test.mjs` enforces this for every module (no pending modules since #15). A SELLER bound to a store only reads that store's sales (`scopedStoreId()` in `src/actions/common.schemas.ts`); reports are ADMIN only and require a date range. Route handlers (`src/app/**/route.ts`) must check the session themselves (the middleware skips paths with an image extension); `test/route-handlers-guard.test.mjs` enforces it.
 - Client data flow: TanStack Query hooks in `src/hooks/use<Entity>.ts` call the server actions and invalidate `queryKey: ['<entity>']`.
-- Auth is custom JWT (migrated off Clerk): middleware at `src/middleware.ts` verifies the `auth-token` cookie with `jose` only for UI redirects; it adds **no** `x-user-*` headers. Server code gets identity from `getActor()`/`requireActor()`.
+- Auth is **Better Auth** (#19; the custom JWT is gone): options in `src/lib/auth/auth-options.ts` (tested with the real handler over a memory adapter in `auth-flow.test.ts`), instance in `src/lib/auth/better-auth.ts`, endpoints `/api/auth/*`, browser client `src/lib/auth/auth-client.ts`. Login and register call Better Auth from the browser (that is where its per-IP attempt limit applies); UI messages come from `src/lib/auth/auth-messages.ts` (one message for unknown account and wrong password). `src/middleware.ts` only checks that the session cookie exists; the dashboard/onboarding layouts redirect by membership and role. Server code gets identity from `getActor()`/`requireActor()`. Passwords: Better Auth reads `accounts.password` (bcrypt); a DB trigger copies `users.password_hash` there, so the user module and the seed still write `passwordHash` (until #20).
 - **Tenancy lives in `memberships`, not in `users`** (Fase 1 paso 3): `User` is a global identity (`name`, `email`, `passwordHash`); role/org/store come from the ACTIVE membership. Auth actions compose the legacy-shaped view (`user.organizationId`, `user.role`) that the Zustand store and UI consume — a user with no membership has **no role**: `getActor()` returns FORBIDDEN and the only thing it can do is create its own organization in onboarding (`requireOnboardingUser()`, where it becomes ADMIN). Public registration creates only the user; sellers are created by the ADMIN from Users (invitations: #20).
 - Zustand store (`src/store/`) persists to **sessionStorage**, not localStorage.
 - UI copy and toast messages are in **Spanish**; code, identifiers, and comments in English.
@@ -46,7 +46,7 @@ pnpm db:generate    # regenerate the Prisma client only
 
 ## Environment
 
-`.env` requires: `DATABASE_URL` (pooled), `DIRECT_URL` (migrations), `JWT_SECRET`, `HTTPS_ENABLED`, `UPLOADS_DIR` (product images; persistent volume in production). (The `vercel-build` script was removed — the legacy Vercel deploy is frozen on the pre-monorepo repo; migrations are applied by `pos-system-server`.)
+`.env` requires: `DATABASE_URL` (pooled), `DIRECT_URL` (migrations), `BETTER_AUTH_SECRET` (≥ 32 chars), `BETTER_AUTH_URL` (public origin of the app), `HTTPS_ENABLED` (secure cookies), `UPLOADS_DIR` (product images; persistent volume in production). (The `vercel-build` script was removed — the legacy Vercel deploy is frozen on the pre-monorepo repo; migrations are applied by `pos-system-server`.)
 
 ## Git workflow
 
@@ -57,4 +57,4 @@ Same flow as the root `CLAUDE.md`: `main` is the only long-lived branch (no `dev
 - `CLAUDE.md` — full pattern catalog (actions, hooks, forms, sales flow)
 - `.claude/agent-rules.md` — the strict typing/schema rules with examples
 - `.claude/RECHARTS_CHARTS_TROUBLESHOOTING.md` — chart pitfalls (horizontal bars need `layout="vertical"`)
-- Project documentation lives in the **parent repo** at `../docs/` (start with `../docs/STATUS.md`): `../docs/auth/` (JWT auth, RBAC, middleware), `../docs/deployment/` (PM2/SSL/Cloudflare, DB remote access), `../docs/features/`, `../docs/planning/`, `../docs/maintenance/`
+- Project documentation lives in the **parent repo** at `../docs/` (start with `../docs/STATUS.md`): `../docs/auth/` (auth, RBAC, middleware; JWT docs there are history), `../docs/deployment/` (PM2/SSL/Cloudflare, DB remote access), `../docs/features/`, `../docs/planning/`, `../docs/maintenance/`

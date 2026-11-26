@@ -1,3 +1,5 @@
+> **Histórico.** Desde #19 (CC-POS-11) la autenticación es Better Auth y este documento describe el JWT propio que se eliminó. Estado actual: `pos-system-client/AGENTS.md` (Auth) y `docs/STATUS.md`.
+
 # 🛡️ MIDDLEWARE DE AUTENTICACIÓN
 
 **Versión:** 2.0 (Auth Manual)

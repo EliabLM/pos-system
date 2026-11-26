@@ -31,7 +31,7 @@ pnpm db:generate          # Generate Prisma client (outputs to src/generated/pri
 This is a **multi-tenant Point of Sale (POS) system** with the following stack:
 
 - **Framework**: Next.js 15.4.6 (App Router) with React 19.1.0
-- **Authentication**: JWT-based custom authentication (migrated from Clerk)
+- **Authentication**: Better Auth 1.7 (email and password, sessions in the DB; replaced the custom JWT in #19)
 - **Database**: PostgreSQL (via Supabase) with Prisma ORM 6.14.0
 - **UI Components**: shadcn/ui (New York style) + Radix UI primitives
 - **State Management**: Zustand 5.0.7 with sessionStorage persistence
@@ -50,8 +50,7 @@ This is a **multi-tenant Point of Sale (POS) system** with the following stack:
   - next-themes 0.4.6 (theme management)
   - vaul 1.1.2 (drawer component)
   - bcrypt 6.0.0 (password hashing)
-  - jose 6.1.0 (JWT handling for Edge Runtime)
-  - jsonwebtoken 9.0.2 (JWT token generation)
+  - better-auth 1.7.28 (authentication)
 
 ## Project Structure
 
@@ -123,10 +122,11 @@ src/
 ├── lib/              # Utility functions
 │   ├── auth/         # Authentication utilities
 │   │   ├── actor.ts        # getActor/requireActor: session identity for server code
-│   │   ├── crypto.ts       # Encryption/hashing
-│   │   ├── jwt.ts          # JWT generation/verification
-│   │   ├── session.ts      # Session management
-│   │   ├── types.ts        # Auth types and AuthError
+│   │   ├── auth-options.ts # Better Auth options (rules, attempt limit, hooks)
+│   │   ├── better-auth.ts  # Better Auth instance (Prisma adapter)
+│   │   ├── auth-client.ts  # Browser client (signIn, signUp)
+│   │   ├── auth-messages.ts # Spanish messages for auth errors
+│   │   ├── types.ts        # Validation types and AuthError
 │   │   └── validation.ts   # Input validation
 │   ├── rbac.ts       # Role-based access control
 │   ├── date-utils.ts # Date formatting utilities
@@ -245,7 +245,9 @@ Most entities are scoped to an `organizationId`:
 - Users belong to Organizations and optionally to Stores
 - Sales are scoped to both Organization and Store
 
-### Authentication Models (New JWT-based)
+### Authentication Models (Better Auth since #19)
+
+> Outdated detail below (pre-#19). Current tables: `users`, `sessions` (Better Auth token), `accounts` (`credential` holds the bcrypt password), `verifications` (Better Auth `value`). See `pos-system-server/prisma/schema.prisma`.
 
 The system includes comprehensive authentication tables:
 
@@ -279,26 +281,21 @@ The system includes comprehensive authentication tables:
 
 ## Authentication & Authorization
 
-### JWT-based Authentication
+### Better Auth (#19)
 
-**IMPORTANT**: The project has migrated from Clerk to custom JWT authentication.
+The custom JWT was replaced by Better Auth (email and password).
 
-- Middleware at `src/middleware.ts` protects all routes except `/auth/*`
-- Public routes: `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password`
-- Protected routes: `/dashboard/*`, `/onboarding/*`
-- Uses `jose` library for JWT verification (Edge Runtime compatible)
-- Auth token stored in `auth-token` HTTP-only cookie
-- JWT secret stored in `JWT_SECRET` environment variable
+- Endpoints `/api/auth/*` (`src/app/api/auth/[...all]/route.ts`); login and register call them from the browser with `authClient` so the per-IP attempt limit applies (5 per minute, `AUTH_SIGN_IN_MAX_ATTEMPTS`).
+- Sessions are rows in `sessions` (cookie `better-auth.session_token`, `__Secure-` prefix under HTTPS). Logout or deleting the row revokes the session at once (no cookie cache).
+- Passwords: bcrypt in `accounts.password` (provider `credential`). A DB trigger copies `users.password_hash` there, so the user module and the seed keep writing `passwordHash` until #20.
+- Env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `HTTPS_ENABLED`.
 
-### Middleware Flow
+### Middleware and redirects
 
-1. Public routes bypass authentication
-2. Protected routes verify JWT token from cookie
-3. Token payload includes: `userId`, `email`, `role`, `organizationId`, `storeId`
-4. No identity headers are added (`x-user-*` removed in #11); server code uses `getActor()` from `@/lib/auth/actor`
-5. Role-based redirects:
-   - Users without organization → redirect to `/onboarding`
-   - Users with organization trying to access onboarding → redirect to `/dashboard`
+1. `src/middleware.ts` only checks that the session cookie exists; without it, protected routes redirect to `/auth/login`.
+2. `src/app/dashboard/layout.tsx` (server) calls `getActor()`: no session → login, no membership → `/onboarding`. The client shell redirects by role (`lib/rbac.ts`) for UI only.
+3. `src/app/onboarding/layout.tsx` sends users who already have a membership to `/dashboard`.
+4. No identity headers are added (`x-user-*` removed in #11); server code uses `getActor()` from `@/lib/auth/actor`.
 
 ### User Roles
 
@@ -615,7 +612,7 @@ Dashboard actions available in `src/actions/dashboard/`:
 - **StockMovement** - Inventory audit trail (IN, OUT, ADJUSTMENT)
 
 ### Authentication & Security
-- **Session** - Active JWT sessions with metadata
+- **Session** - Better Auth sessions (token, expiry, IP, user agent)
 - **PasswordReset** - Password reset token management
 - **EmailVerification** - Email verification tokens
 - **AuditLog** - Comprehensive audit trail
@@ -638,10 +635,9 @@ Helper functions for date formatting and manipulation using date-fns.
 
 Comprehensive authentication utilities:
 - `actor.ts` - `getActor()`/`requireActor({ roles })`: user, organization, role and store from the session (the only identity source for server actions), `actorErrorResponse()`, `requireOnboardingUser()`
-- `crypto.ts` - Password hashing with bcrypt, token generation
-- `jwt.ts` - JWT token generation and verification (using jose for Edge Runtime)
-- `session.ts` - Session management (create, validate, revoke)
-- `types.ts` - Auth types and `AuthError`
+- `auth-options.ts` / `better-auth.ts` - Better Auth configuration and instance
+- `auth-client.ts` - Browser client; `auth-messages.ts` - Spanish error messages
+- `types.ts` - Validation types and `AuthError`
 - `validation.ts` - Input validation for auth forms
 
 ### RBAC (`src/lib/rbac.ts`)
@@ -762,7 +758,7 @@ This is a **ZERO TOLERANCE** policy. Type safety is critical for the reliability
 Required in `.env`:
 - `DATABASE_URL` - Postgres connection pooling URL (Supabase)
 - `DIRECT_URL` - Direct Postgres connection for migrations
-- `JWT_SECRET` - Secret key for JWT token signing
+- `BETTER_AUTH_SECRET` - Better Auth secret (≥ 32 chars); `BETTER_AUTH_URL` - public origin of the app
 - `UPLOADS_DIR` - Directory for product images (persistent volume; required in production)
 - `MAX_IMAGE_UPLOAD_MB` - Upload size limit in MB (default 5)
 

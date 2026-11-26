@@ -38,6 +38,19 @@ definido ya está alineado** con el de Better Auth (`User`, `Account`, `Session`
 
 ---
 
+## Migración a Better Auth (#19, 2026-11-26)
+
+Decisión del usuario 4 (D2 del informe): la autenticación pasa a **Better Auth**; D3.1 (JWT propio) y D3.2 (EdDSA) quedan reemplazadas y la sección "JWT target" de abajo es histórica.
+
+Diff de schema (migración `20261126000000_better_auth`, aditiva):
+
+- `sessions`: columna `token` única (Better Auth busca la sesión por ella); `token_hash` pasa a opcional y deja de escribirse. Se borran las sesiones del JWT.
+- `accounts`: `password`, `id_token`, `scope`, `access_token_expires_at`, `refresh_token_expires_at`. La contraseña vive en la cuenta `credential` (bcrypt).
+- `verifications`: `value` y `updated_at`; `value_hash` y `type` pasan a opcionales (Better Auth valida al arrancar que puede insertar aquí).
+- Trigger `users_sync_credential_account`: copia `users.password_hash` a la cuenta `credential` en cada escritura. Puente hasta #20, cuando la gestión de usuarios escriba la cuenta directamente.
+
+Columnas que quedan sin uso: `sessions.token_hash/refresh_token_hash/rotated_from/is_active/revoked_at/revoked_by/device_id/last_activity_at`, `users.login_attempts/locked_until` (el límite de intentos es por IP en Better Auth). Se pueden borrar en un issue de limpieza.
+
 ## JWT target
 
 ### Claim shape

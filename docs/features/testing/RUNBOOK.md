@@ -93,7 +93,7 @@ pos-system-client/
 - **El seed falla con `P2021 table does not exist` en tablas de auth**: la imagen del **server** aplica `migrate deploy` al arrancar (dueño del schema desde Fase 1; antes lo hacía el client); asegurate de tener la migración `20260811000000_migrate_auth_clerk_to_custom_jwt` en `pos-system-server/prisma/migrations/` (generada el 2026-08-11 — el schema de auth se había aplicado con `db push` sin archivos de migración). Rebuild + `docker compose down -v` + up.
 - **Timeouts flaky de login con tests en paralelo**: la config fija `workers: 1` en local a propósito — la app corre en un solo contenedor y los logins concurrentes (bcrypt cost 12) degradan hasta el timeout. No subir workers sin medir.
 - **`getByLabel(/contraseña/i)` matchea 2 elementos**: el botón de mostrar/ocultar tiene `aria-label="Mostrar contraseña"`. Usar el regex anclado `/^contraseña$/i` (así está en `fixtures/auth.ts`).
-- **`context().cookies(...)` recibe URLs, no nombres de cookie**: pedir todas con `cookies()` y filtrar por `c.name === 'auth-token'`.
+- **`context().cookies(...)` recibe URLs, no nombres de cookie**: pedir todas con `cookies()` y filtrar por nombre con `isSessionCookie()` de `e2e/fixtures/auth.ts` (cookie de Better Auth `better-auth.session_token`, con prefijo `__Secure-` bajo HTTPS). El CI sube `AUTH_SIGN_IN_MAX_ATTEMPTS` en el paso P0 porque la suite inicia sesión muchas veces desde la misma IP.
 
 ## Convención de specs
 
