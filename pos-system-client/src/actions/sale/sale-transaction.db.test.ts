@@ -46,13 +46,13 @@ after(async () => {
   await db.$disconnect();
 });
 
-const newProduct = async (stock: number) => {
+const newProduct = async (stock: number, salePrice = 1000) => {
   const product = await db.product.create({
     data: {
       organizationId: actor.organizationId,
       name: `${TAG}-${productIds.length}`,
       costPrice: 500,
-      salePrice: 1000,
+      salePrice,
       currentStock: stock,
     },
   });
@@ -149,4 +149,93 @@ test('anular una venta devuelve el stock en la misma transacción', async () => 
   assert.equal(await stockOf(productId), 4);
   const back = await db.stockMovement.findMany({ where: { productId, type: 'IN', reference: saleId } });
   assert.deepEqual(back.map((m) => [m.quantity, m.previousStock, m.newStock]), [[3, 1, 4]]);
+});
+
+/** CC-POS-10: vendedor de la tienda de prueba (el precio lo pone el servidor). */
+const sellerActor = async (): Promise<Actor> => {
+  const seller = await db.user.findFirstOrThrow({ where: { email: 'seller@pos.test', isDeleted: false } });
+  return { userId: seller.id, organizationId: actor.organizationId, role: 'SELLER', storeId };
+};
+
+test('un vendedor que envía un precio distinto al del producto recibe error y no se guarda la venta', async () => {
+  const productId = await newProduct(5);
+  const salesBefore = await db.sale.count({ where: { storeId } });
+
+  const result = await createSaleForActor(db, await sellerActor(), {
+    saleData: { storeId, status: 'PAID' },
+    saleItems: [{ productId, quantity: 1, unitPrice: 1 }],
+  });
+
+  assert.equal(result.status, 403, result.message);
+  assert.match(result.message, /^El precio de CI-17-\d+-\d+ cambió\. Recarga la venta$/);
+  assert.equal(await db.sale.count({ where: { storeId } }), salesBefore);
+  assert.equal(await stockOf(productId), 5);
+});
+
+test('la venta de un vendedor guarda el precio del producto aunque no lo envíe', async () => {
+  const productId = await newProduct(5);
+
+  const result = await createSaleForActor(db, await sellerActor(), {
+    saleData: { storeId, status: 'PAID' },
+    saleItems: [{ productId, quantity: 2 }],
+  });
+
+  assert.equal(result.status, 201, result.message);
+  const saved = await db.sale.findUniqueOrThrow({ where: { id: result.data!.id }, include: { saleItems: true } });
+  assert.equal(saved.saleItems[0].unitPrice.toString(), '1000');
+  assert.equal(saved.saleItems[0].subtotal.toString(), '2000');
+  assert.equal(saved.total.toString(), '2000');
+});
+
+test('3 × 33,33 da un total de 99,99 igual a la suma de la base y exige pagar exacto', async () => {
+  const productId = await newProduct(10, 33.33);
+  const sell = (amount: number) =>
+    createSaleForActor(db, actor, {
+      saleData: { storeId, status: 'PAID' },
+      saleItems: [{ productId, quantity: 3 }],
+      salePayments: [{ paymentMethodId: cashId, amount }],
+    });
+
+  const short = await sell(99.98);
+  assert.equal(short.status, 400, 'un centavo de menos no cuadra');
+
+  const result = await sell(99.99);
+  assert.equal(result.status, 201, result.message);
+  const [row] = await db.$queryRaw<{ total: string; items: string }[]>`
+    SELECT s.total::text AS total, SUM(i.subtotal)::text AS items
+    FROM sales s JOIN sale_items i ON i.sale_id = s.id
+    WHERE s.id = ${result.data!.id}::uuid GROUP BY s.total`;
+  assert.deepEqual(row, { total: '99.99', items: '99.99' });
+});
+
+test('7 × 1,15 pagado con el monto que calcula el navegador (8.049999999999999) se guarda', async () => {
+  const productId = await newProduct(10, 1.15);
+
+  const result = await createSaleForActor(db, actor, {
+    saleData: { storeId, status: 'PAID' },
+    saleItems: [{ productId, quantity: 7 }],
+    salePayments: [{ paymentMethodId: cashId, amount: 7 * 1.15 }],
+  });
+
+  assert.equal(7 * 1.15, 8.049999999999999);
+  assert.equal(result.status, 201, result.message);
+  const saved = await db.sale.findUniqueOrThrow({ where: { id: result.data!.id }, include: { salePayments: true } });
+  assert.equal(saved.total.toString(), '8.05');
+  assert.equal(saved.salePayments[0].amount.toString(), '8.05');
+});
+
+test('un precio del ADMIN con más de 2 decimales se guarda redondeado y el total cuadra', async () => {
+  const productId = await newProduct(10);
+
+  const result = await createSaleForActor(db, actor, {
+    saleData: { storeId, status: 'PAID' },
+    saleItems: [{ productId, quantity: 3, unitPrice: 33.333 }],
+    salePayments: [{ paymentMethodId: cashId, amount: 99.99 }],
+  });
+
+  assert.equal(result.status, 201, result.message);
+  const saved = await db.sale.findUniqueOrThrow({ where: { id: result.data!.id }, include: { saleItems: true } });
+  assert.equal(saved.saleItems[0].unitPrice.toString(), '33.33');
+  assert.equal(saved.saleItems[0].subtotal.toString(), '99.99');
+  assert.equal(saved.total.toString(), '99.99');
 });

@@ -4,7 +4,7 @@ import { SaleItem, Prisma, MembershipRole } from '@/generated/prisma';
 import { ActionResponse, Serialized } from '@/interfaces';
 import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
 import { prisma, serializeDecimals } from '../utils';
-import { calculateSaleTotals } from '../sale/sale-totals';
+import { calculateSaleTotals, lineSubtotal, toMoney } from '../sale/sale-totals';
 import {
   idSchema,
   saleItemInputSchema,
@@ -99,6 +99,9 @@ export const addSaleItem = async (
       };
     }
 
+    // Sin precio enviado se usa el de lista del producto
+    const unitPrice = toMoney(itemData.unitPrice ?? product.salePrice);
+
     // Agregar item en transacción
     const newItem = await prisma.$transaction(async (tx) => {
       // Crear el item
@@ -107,9 +110,9 @@ export const addSaleItem = async (
           productId: itemData.productId,
           unitMeasureId: itemData.unitMeasureId ?? null,
           quantity: itemData.quantity,
-          unitPrice: itemData.unitPrice,
+          unitPrice,
           saleId,
-          subtotal: itemData.quantity * itemData.unitPrice,
+          subtotal: lineSubtotal({ quantity: itemData.quantity, unitPrice }),
         },
         include: saleItemInclude,
       });
@@ -122,7 +125,7 @@ export const addSaleItem = async (
       const { subtotal, total } = calculateSaleTotals(
         saleItems.map((i) => ({
           quantity: i.quantity,
-          unitPrice: i.unitPrice.toNumber(),
+          unitPrice: i.unitPrice,
         }))
       );
 
@@ -233,8 +236,7 @@ export const updateSaleItem = async (
     // Actualizar item en transacción
     const updatedItem = await prisma.$transaction(async (tx) => {
       const newQuantity = updateData.quantity ?? existingItem.quantity;
-      const newUnitPrice =
-        updateData.unitPrice ?? existingItem.unitPrice.toNumber();
+      const newUnitPrice = toMoney(updateData.unitPrice ?? existingItem.unitPrice);
       const quantityDiff = newQuantity - existingItem.quantity;
 
       // Verificar stock si se aumenta la cantidad
@@ -254,7 +256,7 @@ export const updateSaleItem = async (
         data: {
           quantity: newQuantity,
           unitPrice: newUnitPrice,
-          subtotal: newQuantity * newUnitPrice,
+          subtotal: lineSubtotal({ quantity: newQuantity, unitPrice: newUnitPrice }),
           updatedAt: new Date(),
         },
         include: saleItemInclude,
@@ -297,7 +299,7 @@ export const updateSaleItem = async (
       const { subtotal, total } = calculateSaleTotals(
         saleItems.map((i) => ({
           quantity: i.quantity,
-          unitPrice: i.unitPrice.toNumber(),
+          unitPrice: i.unitPrice,
         }))
       );
 
@@ -425,7 +427,7 @@ export const deleteSaleItem = async (itemIdInput: string): Promise<ActionRespons
       const { subtotal, total } = calculateSaleTotals(
         remainingSaleItems.map((i) => ({
           quantity: i.quantity,
-          unitPrice: i.unitPrice.toNumber(),
+          unitPrice: i.unitPrice,
         }))
       );
 

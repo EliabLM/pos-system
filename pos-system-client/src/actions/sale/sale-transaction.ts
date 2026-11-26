@@ -2,7 +2,7 @@ import { Prisma, PrismaClient, Sale } from '@/generated/prisma';
 import { ActionResponse } from '@/interfaces';
 import type { Actor } from '@/lib/auth/actor';
 import { recordStockMovement, StockMovementError } from '../stock-movement/record-stock-movement';
-import { calculateSaleTotals } from './sale-totals';
+import { calculateSaleTotals, lineSubtotal, sumAmounts, toMoney } from './sale-totals';
 import { saleInclude } from './sale.include';
 import { createSaleInputSchema, idSchema, type CreateSaleInput } from './sale.schemas';
 
@@ -68,13 +68,29 @@ export const createSaleForActor = async (
       return invalidInput('Uno o más productos no existen o están inactivos');
     }
 
+    // El vendedor no cambia precios: solo vende al precio de lista del producto
+    const productById = new Map(products.map((p) => [p.id, p]));
+    if (actor.role === 'SELLER') {
+      // A different price from a seller means the list price changed while the sale was open
+      const stale = saleItems.find(
+        (item) => item.unitPrice !== undefined && !productById.get(item.productId)!.salePrice.equals(toMoney(item.unitPrice))
+      );
+      if (stale) {
+        const name = productById.get(stale.productId)!.name;
+        return { status: 403, message: `El precio de ${name} cambió. Recarga la venta`, data: null };
+      }
+    }
+    const lines = saleItems.map((item) => ({
+      ...item,
+      unitPrice: toMoney(item.unitPrice ?? productById.get(item.productId)!.salePrice),
+    }));
+
     // Calcular totales (siempre en el servidor)
-    const { subtotal, total } = calculateSaleTotals(saleItems);
+    const { subtotal, total } = calculateSaleTotals(lines);
 
     // Validar pagos si se proporcionan
     if (salePayments && salePayments.length > 0) {
-      const totalPayments = salePayments.reduce((sum, payment) => sum + payment.amount, 0);
-      if (Math.abs(totalPayments - total) > 0.01) {
+      if (!sumAmounts(salePayments.map((p) => p.amount)).equals(total)) {
         return invalidInput('El total de pagos no coincide con el total de la venta');
       }
 
@@ -119,7 +135,7 @@ export const createSaleForActor = async (
 
         // Orden fijo por producto: dos ventas con los mismos productos bloquean
         // las filas en el mismo orden y no se interbloquean.
-        const orderedItems = [...saleItems].sort((a, b) => a.productId.localeCompare(b.productId));
+        const orderedItems = [...lines].sort((a, b) => a.productId.localeCompare(b.productId));
         for (const itemData of orderedItems) {
           await tx.saleItem.create({
             data: {
@@ -128,7 +144,7 @@ export const createSaleForActor = async (
               unitMeasureId: itemData.unitMeasureId ?? null,
               quantity: itemData.quantity,
               unitPrice: itemData.unitPrice,
-              subtotal: itemData.quantity * itemData.unitPrice,
+              subtotal: lineSubtotal(itemData),
             },
           });
 
@@ -148,7 +164,7 @@ export const createSaleForActor = async (
               data: {
                 saleId: sale.id,
                 paymentMethodId: paymentData.paymentMethodId,
-                amount: paymentData.amount,
+                amount: toMoney(paymentData.amount),
                 reference: paymentData.reference ?? null,
                 notes: paymentData.notes ?? null,
                 paymentDate: paymentData.paymentDate ?? new Date(),

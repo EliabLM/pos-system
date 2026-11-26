@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { loadWithMocks } from '../../../test/load-with-mocks.mjs';
+
+// Decimal real de Prisma: los totales de venta se calculan con él (CC-POS-10).
+const { Decimal } = createRequire(import.meta.url)('../../generated/prisma/runtime/library.js');
+globalThis.__Decimal = Decimal;
 
 // Contrato de ventas (sale, sale-item, sale-payment): identidad y tenant salen
 // del actor de sesión; IDs de organización/usuario del cliente se ignoran.
@@ -13,7 +18,7 @@ const ID = {
   productA: '00000000-0000-4000-8000-0000000000a2',
   methodA: '00000000-0000-4000-8000-0000000000a3',
 };
-const dec = (n) => ({ toNumber: () => n });
+const dec = (n) => new Decimal(n);
 const ADMIN_A = { userId: 'admin-a', organizationId: 'org-a', role: 'ADMIN', storeId: null };
 const SELLER_A = { userId: 'seller-a', organizationId: 'org-a', role: 'SELLER', storeId: ID.storeA };
 const ADMIN_B = { userId: 'admin-b', organizationId: 'org-b', role: 'ADMIN', storeId: null };
@@ -76,7 +81,7 @@ const prisma = {
   },
   customer: { findFirst: read('customer', 'findFirst', () => null) },
   product: {
-    findMany: read('product', 'findMany', ({ where }) => (where.organizationId === 'org-a' ? [{ id: ID.productA, name: 'Producto A', currentStock: 10 }] : [])),
+    findMany: read('product', 'findMany', ({ where }) => (where.organizationId === 'org-a' ? [{ id: ID.productA, name: 'Producto A', currentStock: 10, salePrice: new Decimal(5) }] : [])),
     findFirst: read('product', 'findFirst', () => null),
     findUnique: read('product', 'findUnique', () => null),
     update: write('product', 'update'),
@@ -92,7 +97,7 @@ globalThis.__salePrisma = prisma;
 
 const mocks = {
   '@/generated/prisma': `
-    export const Prisma = { PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {}, Decimal: class Decimal {} };
+    export const Prisma = { PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {}, Decimal: globalThis.__Decimal };
     export const MembershipRole = { ADMIN: 'ADMIN', SELLER: 'SELLER' };
     export const SaleStatus = { PAID: 'PAID', PENDING: 'PENDING', OVERDUE: 'OVERDUE', CANCELLED: 'CANCELLED' };`,
   '@/lib/auth/actor': `
@@ -208,12 +213,12 @@ test('createSale: ignora organizationId/userId/totales enviados por el cliente',
   const created = state.writes.find((w) => w.model === 'sale' && w.method === 'create').data;
   assert.equal(created.organizationId, 'org-a');
   assert.equal(created.userId, 'seller-a');
-  assert.equal(created.total, 10);
-  assert.equal(created.subtotal, 10);
+  assert.equal(String(created.total), '10');
+  assert.equal(String(created.subtotal), '10');
   assert.equal(created.saleNumber, 'A-000001', 'consecutivo del contador de la tienda, no del cliente');
   const item = state.writes.find((w) => w.model === 'saleItem').data;
   assert.equal(item.saleId, 'new-sale');
-  assert.equal(item.subtotal, 10);
+  assert.equal(String(item.subtotal), '10');
   assert.equal(item.organizationId, undefined);
   const payment = state.writes.find((w) => w.model === 'salePayment').data;
   assert.equal(payment.saleId, 'new-sale');
@@ -297,4 +302,15 @@ test('analíticas, pendientes y vencidas: solo la organización del actor', asyn
       assert.equal(call.where.organizationId, 'org-a');
     }
   }
+});
+
+test('updateSaleItem: el ADMIN cambia el precio y el subtotal y el total se guardan con 2 decimales', async () => {
+  reset(ADMIN_B);
+  const result = await saleItem.updateSaleItem(ID.itemB, { unitPrice: 33.333 });
+  assert.equal(result.status, 200, result.message);
+  const item = state.writes.find((w) => w.model === 'saleItem' && w.method === 'update').data;
+  assert.equal(String(item.unitPrice), '33.33');
+  assert.equal(String(item.subtotal), '33.33');
+  const totals = state.writes.find((w) => w.model === 'sale' && w.method === 'update').data;
+  assert.equal(String(totals.total), '10', 'el total sale de los ítems guardados');
 });

@@ -42,6 +42,7 @@ import { Separator } from '@/components/ui/separator';
 import { ProductFilterCombobox } from '@/components/product-filter-combobox';
 
 import { useStore } from '@/store';
+import { isSeller } from '@/lib/rbac';
 import { useCreateSale } from '@/hooks/useSales';
 import { useActiveProducts } from '@/hooks/useProducts';
 import { useActiveStores } from '@/hooks/useStores';
@@ -97,6 +98,8 @@ export function QuickSaleDialog({
 }: QuickSaleDialogProps) {
   // Get user data from Zustand store
   const user = useStore((state) => state.user);
+  // Sellers sell at the list price; the server enforces it
+  const priceLocked = isSeller(user?.role ?? '');
 
   // Fetch data with hooks
   const { data: products } = useActiveProducts();
@@ -607,6 +610,8 @@ export function QuickSaleDialog({
                   fixedDecimalScale
                   allowNegative={false}
                   className="w-full"
+                  disabled={priceLocked}
+                  title={priceLocked ? 'Solo un administrador puede cambiar el precio' : undefined}
                   aria-label="Precio unitario del producto"
                   aria-required="true"
                   aria-describedby={
