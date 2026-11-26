@@ -62,7 +62,8 @@ export const auth = betterAuth({
   ...buildAuthOptions({
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
     secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
+    // Without it, Better Auth infers the origin from each request (and warns).
+    baseURL: process.env.BETTER_AUTH_URL,
     secureCookies: process.env.HTTPS_ENABLED === 'true',
     signInMaxAttempts: signInMaxAttempts(),
     generateId: false,

@@ -20,7 +20,7 @@ export interface SignInDenial {
 export interface AuthOptionsInput {
   database: BetterAuthOptions['database'];
   secret: string | undefined;
-  baseURL: string;
+  baseURL: string | undefined;
   secureCookies: boolean;
   /** Sign-in requests allowed per client IP in SIGN_IN_WINDOW_SECONDS. */
   signInMaxAttempts: number;
