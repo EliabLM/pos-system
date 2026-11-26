@@ -26,7 +26,8 @@ docker compose -f compose.seed.yml up -d --wait seed-db
 export DATABASE_URL='postgresql://pos:<clave-local-de-compose>@127.0.0.1:55432/pos_seed?schema=public'
 export DIRECT_URL="$DATABASE_URL"
 export POS_SEED_ALLOW_RESET=1
-export JWT_SECRET="$(openssl rand -hex 32)" # sintético de esta sesión; no imprimir
+export BETTER_AUTH_SECRET="$(openssl rand -hex 32)" # sintético de esta sesión; no imprimir
+export BETTER_AUTH_URL="http://127.0.0.1:3000"
 export HTTPS_ENABLED=false
 export E2E_BASE_URL=http://127.0.0.1:3000
 
@@ -58,7 +59,7 @@ El borrado y la carga comparten una transacción: al fallar no debe quedar una b
 
 ### Smoke de aplicación sobre la misma base
 
-`compose.seed.yml` **solo** levanta PostgreSQL; no arranca Next. Mantener las variables `DATABASE_URL`/`DIRECT_URL` de arriba en **la terminal de build, la de la app y la de Playwright**; si son terminales distintas, exportarlas de nuevo con el mismo valor (sin pegarlas en el informe). Usar `JWT_SECRET` sintético exclusivo de esta ejecución (longitud válida), `HTTPS_ENABLED=false` y `E2E_BASE_URL=http://127.0.0.1:3000`; no apuntar la app a otro `.env` o DB del stack habitual. Desde la raíz, tras la segunda verificación, ejecutar secuencialmente:
+`compose.seed.yml` **solo** levanta PostgreSQL; no arranca Next. Mantener las variables `DATABASE_URL`/`DIRECT_URL` de arriba en **la terminal de build, la de la app y la de Playwright**; si son terminales distintas, exportarlas de nuevo con el mismo valor (sin pegarlas en el informe). Usar `BETTER_AUTH_SECRET` sintético exclusivo de esta ejecución (32 caracteres o más) y `BETTER_AUTH_URL=http://127.0.0.1:3000` (sin ellas `next start` no arranca), `HTTPS_ENABLED=false` y `E2E_BASE_URL=http://127.0.0.1:3000`; no apuntar la app a otro `.env` o DB del stack habitual. Desde la raíz, tras la segunda verificación, ejecutar secuencialmente:
 
 ```bash
 pnpm -r --filter './packages/*' build
@@ -88,4 +89,4 @@ El script de rollback toma una huella estable de **todas las filas completas e I
 
 ## Detener
 
-Detener primero Next (Ctrl-C); luego `docker compose -f compose.seed.yml down` detiene **solo** este entorno y conserva el volumen sintético. Si la PC/runner debe quedar limpia, tras confirmar nuevamente que `pos-seed`/`seed-data` contienen **solo fixtures descartables**, usar `docker compose -f compose.seed.yml down -v` únicamente con este archivo (destruye ese volumen). Retirar `DATABASE_URL`, `DIRECT_URL`, `POS_SEED_ALLOW_RESET`, `JWT_SECRET` y `E2E_SKIP_SEED` de las terminales; no guardar credenciales ni logs con URL completa. Documentar commit, entorno, pasos/resultado y limpieza. No borrar volúmenes de otros proyectos.
+Detener primero Next (Ctrl-C); luego `docker compose -f compose.seed.yml down` detiene **solo** este entorno y conserva el volumen sintético. Si la PC/runner debe quedar limpia, tras confirmar nuevamente que `pos-seed`/`seed-data` contienen **solo fixtures descartables**, usar `docker compose -f compose.seed.yml down -v` únicamente con este archivo (destruye ese volumen). Retirar `DATABASE_URL`, `DIRECT_URL`, `POS_SEED_ALLOW_RESET`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` y `E2E_SKIP_SEED` de las terminales; no guardar credenciales ni logs con URL completa. Documentar commit, entorno, pasos/resultado y limpieza. No borrar volúmenes de otros proyectos.

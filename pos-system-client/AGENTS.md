@@ -46,7 +46,7 @@ pnpm db:generate    # regenerate the Prisma client only
 
 ## Environment
 
-`.env` requires: `DATABASE_URL` (pooled), `DIRECT_URL` (migrations), `BETTER_AUTH_SECRET` (≥ 32 chars), `BETTER_AUTH_URL` (public origin of the app), `HTTPS_ENABLED` (secure cookies), `UPLOADS_DIR` (product images; persistent volume in production). (The `vercel-build` script was removed — the legacy Vercel deploy is frozen on the pre-monorepo repo; migrations are applied by `pos-system-server`.)
+`.env` requires: `DATABASE_URL` (pooled), `DIRECT_URL` (migrations), `BETTER_AUTH_SECRET` (≥ 32 chars) and `BETTER_AUTH_URL` (public origin; both required in production, the server refuses to start without them), `HTTPS_ENABLED` (only `'true'`/`'false'` override the Secure cookie; unset = Better Auth decides), see `../docs/deployment/auth-better-auth.md`, `UPLOADS_DIR` (product images; persistent volume in production). (The `vercel-build` script was removed — the legacy Vercel deploy is frozen on the pre-monorepo repo; migrations are applied by `pos-system-server`.)
 
 ## Git workflow
 

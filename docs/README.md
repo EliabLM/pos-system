@@ -52,6 +52,7 @@ docs/
 |-----------|-------------|
 | [estrategia-despliegue.md](./deployment/estrategia-despliegue.md) | Estrategia global: local (docker-compose) + testing (Vercel+Supabase) + prod (VPS+Coolify+Postgres) |
 | [deploy-vercel-monorepo.md](./deployment/deploy-vercel-monorepo.md) | Paso a paso para deployar el client en Vercel desde el monorepo (testing con Supabase) |
+| [auth-better-auth.md](./deployment/auth-better-auth.md) | Variables de Better Auth, cookie `Secure` e IP del cliente para el límite de intentos |
 | [docker-local.md](./deployment/docker-local.md) | Levantar el stack completo local con `docker compose up` |
 | [imagenes-producto.md](./deployment/imagenes-producto.md) | Imágenes de producto en volumen persistente (Coolify), `StorageProvider` y variables |
 | [PM2_DEPLOYMENT_GUIDE.md](./deployment/PM2_DEPLOYMENT_GUIDE.md) | Deploy con PM2 en producción (legacy) |

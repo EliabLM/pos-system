@@ -251,12 +251,11 @@ Most entities are scoped to an `organizationId`:
 
 The system includes comprehensive authentication tables:
 
-- **Session** - JWT session management with:
-  - Token storage (hashed)
+- **Session** - Better Auth session rows:
+  - Session token (`token`), looked up on every request
   - Expiration tracking
-  - Device metadata (IP address, user agent, device ID)
-  - Session revocation support
-  - Last activity tracking
+  - Metadata (IP address, user agent)
+  - Revocation: logout or deleting the row
 
 - **PasswordReset** - Secure password reset flow:
   - Unique tokens with expiration
