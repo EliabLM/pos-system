@@ -21,7 +21,8 @@
     "test": "node --test test/*.test.mjs src/lib/auth/*.test.mjs src/actions/*/*.test.mjs",
     "test:actions:guard": "node --test test/actions-guard.test.mjs",
     "test:sale:access": "node --test src/lib/auth/actor.test.mjs src/actions/sale/*.test.mjs",
-    "test:images": "tsx --test src/lib/images/images.test.ts"
+    "test:images": "tsx --test src/lib/images/images.test.ts",
+    "test:db": "tsx --test --test-concurrency=1 src/actions/*/*.db.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

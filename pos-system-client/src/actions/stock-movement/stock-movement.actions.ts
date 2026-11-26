@@ -12,7 +12,7 @@ import {
   paginationSchema,
   type PaginationInput,
 } from '../common.schemas';
-import { recordStockMovement } from './record-stock-movement';
+import { recordStockMovement, StockMovementError } from './record-stock-movement';
 import { stockMovementInclude, type StockMovementWithRelations } from './stock-movement.include';
 import {
   createStockMovementInputSchema,
@@ -71,8 +71,15 @@ export const createStockMovement = async (
       return invalidInput('La tienda especificada no existe');
     }
 
-    return await recordStockMovement(actor.organizationId, actor.userId, movement);
+    const created = await prisma.$transaction((tx) =>
+      recordStockMovement(tx, actor.organizationId, actor.userId, movement)
+    );
+    return { status: 201, message: 'Movimiento de stock creado exitosamente', data: created };
   } catch (error) {
+    if (error instanceof StockMovementError) return invalidInput(error.message);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+      return invalidInput('Una de las referencias especificadas no existe');
+    }
     return handleError(error, 'creating stock movement');
   }
 };

@@ -18,7 +18,8 @@ export const saleItemInputSchema = z.object({
   productId: id,
   unitMeasureId: id.nullish(),
   quantity,
-  unitPrice: money,
+  /** Solo el ADMIN puede fijar otro precio; si falta, se usa el precio del producto. */
+  unitPrice: money.optional(),
 });
 
 export const salePaymentInputSchema = z.object({

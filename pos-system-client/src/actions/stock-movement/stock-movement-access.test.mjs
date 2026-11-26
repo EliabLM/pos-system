@@ -50,10 +50,12 @@ test('createStockMovement: organización y usuario salen del actor, no del clien
   const movement = state.writes.find((w) => w.model === 'stockMovement' && w.method === 'create').data;
   assert.equal(movement.organizationId, 'org-b');
   assert.equal(movement.userId, 'admin-b');
-  assert.equal(movement.previousStock, 5);
-  assert.equal(movement.newStock, 7);
-  const productUpdate = state.writes.find((w) => w.model === 'product' && w.method === 'update');
-  assert.deepEqual(productUpdate.where, { id: ID.product, organizationId: 'org-b' });
+  // El doble devuelve stock 5 tras el UPDATE relativo: 3 + 2 = 5, nunca el 999 del cliente.
+  assert.equal(movement.previousStock, 3);
+  assert.equal(movement.newStock, 5);
+  const productUpdate = state.writes.find((w) => w.model === 'product' && w.method === 'updateMany');
+  assert.deepEqual(productUpdate.where, { id: ID.product, organizationId: 'org-b', isDeleted: false });
+  assert.deepEqual(productUpdate.data, { currentStock: { increment: 2 } });
   assertScopedTo('org-b');
 });
 

@@ -82,6 +82,12 @@ jobs:
           pnpm -C pos-system-client --ignore-workspace db:seed:verify
           echo 'POS-03c verifier 2/2 passed'
           bash scripts/ci/seed-rollback.sh
+      - name: Restricciones CHECK y venta atómica en PostgreSQL real (CC-POS-09)
+        env:
+          NODE_ENV: test
+        run: |
+          psql "$DATABASE_URL" -X -q -v ON_ERROR_STOP=1 -f pos-system-server/scripts/db/stock-checks-ci.sql
+          pnpm -C pos-system-client --ignore-workspace test:db
       - name: Instalar navegador Chromium
         working-directory: pos-system-client
         run: pnpm --ignore-workspace exec playwright install --with-deps chromium

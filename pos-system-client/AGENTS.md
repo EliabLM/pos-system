@@ -16,6 +16,7 @@ pnpm db:generate    # regenerate the Prisma client only
 
 - **The Prisma schema lives in `../pos-system-server/prisma/schema.prisma`** (the server owns it since Fase 1). Migrations run from `../pos-system-server/` (`pnpm db:migrate -- --name <change>`); this project only regenerates/consumes the client.
 - Tests: `pnpm test` (`node --test` + esbuild with mocked Prisma/session; see `test/load-with-mocks.mjs`). CI runs them (and `pnpm test:images`) in their own step of `pr-ci.yml`. Verification = `pnpm lint` + `pnpm test` + `pnpm build` (build runs `tsc` via Next and fails on type errors).
+- DB tests: `*.db.test.ts` files (`src/actions/*/`) run against a real PostgreSQL with `pnpm test:db` (`tsx --test`, no mocks; `pnpm test` does not pick them up). Use them for transactions, locks and concurrency. They refuse to run unless `NODE_ENV=test` and `DATABASE_URL` points to `localhost`/`127.0.0.1`, and need a migrated and seeded database (they use the demo org and clean up their own rows). Local: a disposable `postgres:17` container, `pnpm --filter @pos/server db:deploy` from the root, `NODE_ENV=test POS_SEED_ALLOW_RESET=1 pnpm db:seed`, then `NODE_ENV=test pnpm test:db`. CI runs them after the seed step.
 - `postinstall` runs `prisma generate` against the server's schema, so a fresh `pnpm install` regenerates the client (requires the sibling `pos-system-server/` checkout).
 
 ## Hard rules (zero tolerance, enforced in review)
