@@ -4,6 +4,8 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { validatePassword, validateEmail } from './validation';
 import { AuthError } from './types';
 
+export { assertAuthEnv } from './auth-env';
+
 /**
  * Better Auth configuration (#19), without infrastructure: the database
  * adapter and the sign-in rule come from outside, so tests build the real
@@ -21,7 +23,8 @@ export interface AuthOptionsInput {
   database: BetterAuthOptions['database'];
   secret: string | undefined;
   baseURL: string | undefined;
-  secureCookies: boolean;
+  /** undefined = Better Auth decides (https base URL or production → Secure). */
+  secureCookies: boolean | undefined;
   /** Sign-in requests allowed per client IP in SIGN_IN_WINDOW_SECONDS. */
   signInMaxAttempts: number;
   /** false: the database generates the id (uuidv7 in PostgreSQL). */
@@ -30,6 +33,22 @@ export interface AuthOptionsInput {
 }
 
 export const SIGN_IN_WINDOW_SECONDS = 60;
+
+/**
+ * Client IP for the attempt limit. Traefik (Coolify) sets `x-real-ip` to the
+ * single client address; `x-forwarded-for` is the fallback. Better Auth only
+ * trusts a single-value header: a chain ("a, b") would put every client in one
+ * shared counter.
+ */
+export const CLIENT_IP_HEADERS = ['x-real-ip', 'x-forwarded-for'];
+
+/** HTTPS_ENABLED only overrides Better Auth when it is explicitly 'true' or 'false'. */
+export function secureCookiesFromEnv(value: string | undefined): boolean | undefined {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
+
 const BCRYPT_ROUNDS = 12;
 const SESSION_DAYS = 7;
 
@@ -108,6 +127,7 @@ export function buildAuthOptions(input: AuthOptionsInput) {
     },
     advanced: {
       useSecureCookies: input.secureCookies,
+      ipAddress: { ipAddressHeaders: CLIENT_IP_HEADERS },
       database: { generateId: input.generateId },
     },
     telemetry: { enabled: false },

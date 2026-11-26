@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import bcrypt from 'bcrypt';
 import { betterAuth } from 'better-auth';
 import { memoryAdapter } from 'better-auth/adapters/memory';
-import { buildAuthOptions, type SignInDenial } from './auth-options';
+import { assertAuthEnv, buildAuthOptions, secureCookiesFromEnv, type SignInDenial } from './auth-options';
 import { authErrorMessage, INVALID_CREDENTIALS_MESSAGE } from './auth-messages';
 
 // Real Better Auth handler with our options over an in-memory database: the
@@ -15,14 +15,20 @@ const MAX_ATTEMPTS = 5;
 type Row = Record<string, unknown>;
 interface MemoryDb { [model: string]: Row[] }
 
-function setup(denials: Record<string, SignInDenial> = {}) {
+function setup(
+  denials: Record<string, SignInDenial> = {},
+  opts: { baseURL?: string; secureCookies?: boolean | undefined } = {},
+) {
+  const baseURL = opts.baseURL ?? BASE_URL;
+  // An explicit undefined must reach Better Auth (it then decides Secure itself).
+  const secureCookies = 'secureCookies' in opts ? opts.secureCookies : false;
   const db: MemoryDb = { user: [], session: [], account: [], verification: [] };
   const auth = betterAuth(
     buildAuthOptions({
       database: memoryAdapter(db),
       secret: 'test-secret-with-at-least-32-characters!!',
-      baseURL: BASE_URL,
-      secureCookies: false,
+      baseURL,
+      secureCookies,
       signInMaxAttempts: MAX_ATTEMPTS,
       generateId: 'uuid',
       canSignIn: async (userId) => denials[userId] ?? null,
@@ -172,4 +178,48 @@ test('registro: valida nombre, correo y fuerza de la contraseña; ignora campos 
   await signUp(auth, 'repetido@pos.test');
   const dup = await signUp(auth, 'repetido@pos.test');
   assert.equal(authErrorMessage({ status: dup.status, ...dup.json }), 'Ya existe un usuario con este correo electrónico');
+});
+
+test('cookie Secure: sin HTTPS_ENABLED explícito vale el criterio de Better Auth (URL https → Secure)', async () => {
+  assert.equal(secureCookiesFromEnv(undefined), undefined);
+  assert.equal(secureCookiesFromEnv(''), undefined);
+  assert.equal(secureCookiesFromEnv('true'), true);
+  assert.equal(secureCookiesFromEnv('false'), false);
+
+  const httpsUrl = 'https://pos.example.com';
+  const { auth } = setup({}, { baseURL: httpsUrl, secureCookies: secureCookiesFromEnv(undefined) });
+  const res = await auth.handler(new Request(`${httpsUrl}/api/auth/sign-up/email`, {
+    method: 'POST',
+    headers: { origin: httpsUrl, 'content-type': 'application/json', 'x-real-ip': nextIp() },
+    body: JSON.stringify({ name: 'Segura', email: 'segura@pos.test', password: PASSWORD }),
+  }));
+  assert.equal(res.status, 200);
+  const sessionCookie = res.headers.getSetCookie().find((c) => c.includes('session_token='));
+  assert.match(sessionCookie ?? '', /^__Secure-better-auth\.session_token=/);
+  assert.match(sessionCookie ?? '', /;\s*Secure/i);
+  assert.match(sessionCookie ?? '', /;\s*HttpOnly/i);
+});
+
+test('IP del cliente: x-real-ip (un solo valor, lo pone Traefik) manda sobre un x-forwarded-for con varias IP', async () => {
+  const { auth } = setup();
+  await signUp(auth, 'ip@pos.test');
+  const attempt = (realIp: string) => auth.handler(new Request(`${BASE_URL}/api/auth/sign-in/email`, {
+    method: 'POST',
+    headers: { origin: BASE_URL, 'content-type': 'application/json', 'x-real-ip': realIp, 'x-forwarded-for': '203.0.113.9, 10.0.0.1' },
+    body: JSON.stringify({ email: 'ip@pos.test', password: 'Mala#Clave2026' }),
+  }));
+  const blocked = nextIp();
+  for (let i = 0; i < MAX_ATTEMPTS; i++) assert.equal((await attempt(blocked)).status, 401);
+  assert.equal((await attempt(blocked)).status, 429);
+  assert.equal((await attempt(nextIp())).status, 401, 'otra IP real no comparte el contador');
+});
+
+test('producción: sin BETTER_AUTH_URL o sin BETTER_AUTH_SECRET la app no arranca (el build sí)', () => {
+  const secret = 'x'.repeat(32);
+  assert.throws(() => assertAuthEnv({ NODE_ENV: 'production', BETTER_AUTH_SECRET: secret }), /BETTER_AUTH_URL/);
+  assert.throws(() => assertAuthEnv({ NODE_ENV: 'production', BETTER_AUTH_URL: 'https://pos.example.com' }), /BETTER_AUTH_SECRET/);
+  assert.throws(() => assertAuthEnv({ NODE_ENV: 'production', BETTER_AUTH_URL: 'https://pos.example.com', BETTER_AUTH_SECRET: 'corto' }), /BETTER_AUTH_SECRET/);
+  assert.doesNotThrow(() => assertAuthEnv({ NODE_ENV: 'production', BETTER_AUTH_URL: 'https://pos.example.com', BETTER_AUTH_SECRET: secret }));
+  assert.doesNotThrow(() => assertAuthEnv({ NODE_ENV: 'production', NEXT_PHASE: 'phase-production-build' }));
+  assert.doesNotThrow(() => assertAuthEnv({ NODE_ENV: 'development' }));
 });
