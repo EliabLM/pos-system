@@ -99,13 +99,17 @@ export async function requireSessionUserId(): Promise<string> {
 }
 
 /**
- * Onboarding: the authenticated user that has NO active membership yet and may
- * therefore create its own organization. A user that already belongs to an
- * organization gets FORBIDDEN (it cannot create or join another one here).
+ * Onboarding: the authenticated user that has NO membership yet and may
+ * therefore create its own organization. Any non-deleted membership counts,
+ * also one in a deactivated organization or not ACTIVE: that user gets
+ * FORBIDDEN (it cannot create or join another organization here).
  */
 export async function requireOnboardingUser(): Promise<{ userId: string }> {
   const userId = await requireSessionUserId();
-  const membership = await resolveMembership(userId);
+  const membership = await prisma.membership.findFirst({
+    where: { userId, deletedAt: null },
+    select: { organizationId: true },
+  });
   if (membership) throw new ActorError('FORBIDDEN');
   return { userId };
 }

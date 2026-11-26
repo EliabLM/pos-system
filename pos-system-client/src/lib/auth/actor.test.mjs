@@ -18,7 +18,13 @@ const { getActor, requireActor, requireOnboardingUser, requireSessionUserId, act
   } } };`,
   '@/lib/db': `export const prisma = {
     user: { findFirst: async q => { globalThis.__actorTest.queries.push(['user', q]); return globalThis.__actorTest.user; } },
-    membership: { findFirst: async q => { globalThis.__actorTest.queries.push(['membership', q]); return globalThis.__actorTest.membership; } },
+    // Queries filtering by an active organization get the active membership;
+    // the onboarding check (any non-deleted membership) gets anyMembership.
+    membership: { findFirst: async q => {
+      const s = globalThis.__actorTest;
+      s.queries.push(['membership', q]);
+      return q.where.organization ? s.membership : (s.anyMembership !== undefined ? s.anyMembership : s.membership);
+    } },
   };`,
 });
 
@@ -29,6 +35,7 @@ function reset() {
     session: { userId: 'user-a' },
     user: { id: 'user-a' },
     membership: { organizationId: 'org-a', role: 'SELLER', defaultStoreId: 'store-a' },
+    anyMembership: undefined,
     queries: [],
   });
 }
@@ -113,4 +120,12 @@ test('requireSessionUserId: id de la sesión, nunca de parámetros', async () =>
   assert.equal(await requireSessionUserId(), 'user-a');
   reset(); state.session = null;
   assert.equal(await codeOf(requireSessionUserId()), 'UNAUTHENTICATED');
+});
+
+test('organización desactivada con la sesión abierta: no puede crear otra en el onboarding', async () => {
+  reset(); state.membership = null; state.anyMembership = { organizationId: 'org-off' };
+  assert.equal(await codeOf(getActor()), 'FORBIDDEN');
+  assert.equal(await codeOf(requireOnboardingUser()), 'FORBIDDEN');
+  const onboardingQuery = state.queries.filter(([model]) => model === 'membership').at(-1)[1];
+  assert.deepEqual(onboardingQuery.where, { userId: 'user-a', deletedAt: null });
 });
