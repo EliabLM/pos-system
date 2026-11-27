@@ -26,3 +26,7 @@ Riesgos:
 - El contenedor del client no debe quedar expuesto sin pasar por Traefik: sin proxy, el cliente puede inventar esas cabeceras y saltarse el límite.
 - Con Cloudflare delante, Traefik vería la IP de Cloudflare: habría que leer `cf-connecting-ip` y configurar `trustedProxies`.
 - El contador vive en la memoria del proceso: con varias instancias, cada una cuenta por su lado.
+
+## Invitaciones (#20)
+
+No hay servicio de correo: el ADMIN copia el enlace `<BETTER_AUTH_URL>/invitacion/<id>` desde Usuarios y lo envía por el canal que quiera. El enlace vence en 7 días y se puede revocar. Quien lo abre debe entrar o registrarse con el correo invitado; no se verifica el correo, así que el enlace es el secreto (UUIDv4 aleatorio): compártelo solo con la persona invitada. La ruta `/invitacion/` es pública en el middleware.
