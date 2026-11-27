@@ -571,8 +571,6 @@ model Membership {
   @@map("memberships")
 }
 
-// D3.7 — unifica password_resets + email_verifications (+ magic-link/change-email
-// futuros). Las tablas viejas se eliminan en el bloque 3b cuando el client migre.
 // Invitación de un ADMIN para que un correo entre a su organización (#20,
 // plugin organization de Better Auth). El id es el secreto del enlace (UUIDv4).
 model Invitation {
@@ -596,6 +594,8 @@ model Invitation {
   @@map("invitations")
 }
 
+// D3.7 — unifica password_resets + email_verifications (+ magic-link/change-email
+// futuros). Las tablas viejas se eliminan en el bloque 3b cuando el client migre.
 model Verification {
   id         String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
   identifier String // email (o userId para tipos futuros)
