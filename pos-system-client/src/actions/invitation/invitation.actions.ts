@@ -39,6 +39,19 @@ const pluginErrorCode = (error: unknown): string | undefined => {
 
 const badRequest = (message: string) => ({ status: 400, message, data: null });
 
+const DELETED_MEMBER_MESSAGE =
+  'Ese correo es de un usuario que existe pero fue eliminado. Restáuralo desde Usuarios en lugar de invitarlo';
+
+/**
+ * The plugin does not know the soft delete: a deleted membership still counts
+ * as "already a member". Tell the ADMIN to restore it instead.
+ */
+const isDeletedMember = async (email: string, organizationId: string) =>
+  !(await prisma.membership.findFirst({
+    where: { organizationId, deletedAt: null, user: { email, isDeleted: false } },
+    select: { id: true },
+  }));
+
 // CREATE — el ADMIN invita un correo a SU organización como vendedor
 export const createInvitation = async (input: {
   email: string;
@@ -49,11 +62,23 @@ export const createInvitation = async (input: {
     const parsed = createInvitationInputSchema.safeParse(input);
     if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Datos inválidos');
 
+    const { email } = parsed.data;
     // Re-inviting the same e-mail cancels the previous pending invitation.
-    const invitation = await auth.api.createInvitation({
-      headers: await headers(),
-      body: { email: parsed.data.email, role: MembershipRole.SELLER, organizationId: actor.organizationId },
-    });
+    const invitation = await auth.api
+      .createInvitation({
+        headers: await headers(),
+        body: { email, role: MembershipRole.SELLER, organizationId: actor.organizationId },
+      })
+      .catch(async (error: unknown) => {
+        if (
+          pluginErrorCode(error) === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION' &&
+          (await isDeletedMember(email, actor.organizationId))
+        ) {
+          return null;
+        }
+        throw error;
+      });
+    if (!invitation) return { status: 409, message: DELETED_MEMBER_MESSAGE, data: null };
 
     return {
       status: 201,

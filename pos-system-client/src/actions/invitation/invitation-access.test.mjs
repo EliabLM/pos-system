@@ -37,7 +37,9 @@ const { createInvitation, getPendingInvitations, cancelInvitation } = await load
       cancelInvitation: async (args) => { globalThis.__invTest.authCalls.push(['cancel', args]); return { id: args.body.invitationId, status: 'canceled' }; },
     } };`,
     '@/generated/prisma': `export const MembershipRole = { ADMIN: 'ADMIN', SELLER: 'SELLER' };`,
-    '../utils': `export const prisma = { invitation: {
+    '../utils': `export const prisma = {
+    membership: { findFirst: async (q) => { globalThis.__invTest.reads.push(q); return globalThis.__invTest.liveMember; } },
+    invitation: {
       findMany: async (q) => { globalThis.__invTest.reads.push(q); return []; },
       findFirst: async (q) => { globalThis.__invTest.reads.push(q); return q.where.id === '${INV.own}' && q.where.organizationId === 'org-a' ? { id: q.where.id } : null; },
     } };`,
@@ -45,7 +47,7 @@ const { createInvitation, getPendingInvitations, cancelInvitation } = await load
 );
 
 function reset(actor) {
-  Object.assign(state, { actor, authCalls: [], reads: [], authError: null });
+  Object.assign(state, { actor, authCalls: [], reads: [], authError: null, liveMember: { id: 'm-1' } });
 }
 
 test('un SELLER no puede invitar, listar ni revocar invitaciones (403) y no llega a Better Auth', async () => {
@@ -101,4 +103,20 @@ test('revocar: solo una invitación pendiente de su organización; otra = 404 si
   assert.equal((await cancelInvitation(INV.own)).status, 200);
   assert.deepEqual(state.authCalls[0][1].body, { invitationId: INV.own });
   assert.equal(state.reads.at(-1).where.status, 'pending');
+});
+
+test('re-invitar el correo de un vendedor eliminado: 409 que dice que existe pero fue eliminado y se puede restaurar', async () => {
+  reset(ADMIN_A);
+  state.liveMember = null; // the plugin found the soft-deleted membership
+  state.authError = Object.assign(new Error('User is already a member of this organization'), {
+    body: { code: 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION' },
+  });
+  const res = await createInvitation({ email: 'Borrado@pos.test' });
+  assert.equal(res.status, 409);
+  assert.match(res.message, /eliminado/);
+  assert.match(res.message, /Restáuralo/);
+  const { where } = state.reads.at(-1);
+  assert.equal(where.organizationId, 'org-a');
+  assert.equal(where.deletedAt, null);
+  assert.deepEqual(where.user, { email: 'borrado@pos.test', isDeleted: false });
 });
