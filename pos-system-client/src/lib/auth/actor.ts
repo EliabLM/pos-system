@@ -1,7 +1,8 @@
 import { headers } from 'next/headers';
-import { MembershipRole, MembershipStatus } from '@/generated/prisma';
+import { MembershipRole } from '@/generated/prisma';
 import { prisma } from '@/lib/db';
 import { auth } from './better-auth';
+import { ACTIVE_MEMBERSHIP_ORDER, ACTIVE_MEMBERSHIP_WHERE } from './membership-rules';
 
 /**
  * ============================================
@@ -14,7 +15,7 @@ import { auth } from './better-auth';
  *
  * The public contract (`Actor`, `ActorError`, `getActor`, `requireActor`,
  * `actorErrorResponse`) is independent of the session mechanism: switching to
- * another auth provider only changes `resolveSessionUserId()` (and, if needed,
+ * another auth provider only changes `resolveSession()` (and, if needed,
  * `resolveMembership()`), not the modules that consume it.
  */
 
@@ -50,41 +51,52 @@ const ALLOWED_ROLES: readonly ActorRole[] = [MembershipRole.ADMIN, MembershipRol
  * logout or deleted in the database stops authenticating immediately.
  * Returns the authenticated user id or null. Must never trust client input.
  */
-async function resolveSessionUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user.id ?? null;
+interface SessionIdentity {
+  userId: string;
+  /** Organization plugin (#20): the organization the session works in. */
+  activeOrganizationId: string | null;
 }
 
-/**
- * Membership selection criterion shared by every place that derives tenancy
- * (actor, session refresh): the oldest ACTIVE membership of an active,
- * non-deleted organization.
- */
-export const ACTIVE_MEMBERSHIP_WHERE = {
-  deletedAt: null,
-  status: MembershipStatus.ACTIVE,
-  organization: { isDeleted: false, isActive: true },
-} as const;
-export const ACTIVE_MEMBERSHIP_ORDER = { createdAt: 'asc' } as const;
+async function resolveSession(): Promise<SessionIdentity | null> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return null;
+  return { userId: session.user.id, activeOrganizationId: session.session.activeOrganizationId ?? null };
+}
 
-/** Tenancy: the oldest ACTIVE membership of an active organization. */
-async function resolveMembership(userId: string) {
+export { ACTIVE_MEMBERSHIP_ORDER, ACTIVE_MEMBERSHIP_WHERE } from './membership-rules';
+
+/**
+ * Tenancy: the ACTIVE membership in the session's active organization. A
+ * session without one (created before #20) falls back to the oldest ACTIVE
+ * membership of an active organization.
+ */
+async function resolveMembership(userId: string, activeOrganizationId: string | null) {
   return prisma.membership.findFirst({
-    where: { userId, ...ACTIVE_MEMBERSHIP_WHERE },
+    where: {
+      userId,
+      ...(activeOrganizationId ? { organizationId: activeOrganizationId } : {}),
+      ...ACTIVE_MEMBERSHIP_WHERE,
+    },
     orderBy: ACTIVE_MEMBERSHIP_ORDER,
     select: { organizationId: true, role: true, defaultStoreId: true },
   });
 }
 
-/** Authenticated, active and non-deleted user id from the session, or null. */
-async function resolveActiveSessionUserId(): Promise<string | null> {
-  const sessionUserId = await resolveSessionUserId();
-  if (!sessionUserId) return null;
+/** Session of an authenticated, active and non-deleted user, or null. */
+async function resolveActiveSession(): Promise<SessionIdentity | null> {
+  const session = await resolveSession();
+  if (!session) return null;
   const user = await prisma.user.findFirst({
-    where: { id: sessionUserId, isDeleted: false, isActive: true },
+    where: { id: session.userId, isDeleted: false, isActive: true },
     select: { id: true },
   });
-  return user?.id ?? null;
+  return user ? session : null;
+}
+
+async function requireActiveSession(): Promise<SessionIdentity> {
+  const session = await resolveActiveSession();
+  if (!session) throw new ActorError('UNAUTHENTICATED');
+  return session;
 }
 
 /**
@@ -93,9 +105,7 @@ async function resolveActiveSessionUserId(): Promise<string | null> {
  * Throws UNAUTHENTICATED.
  */
 export async function requireSessionUserId(): Promise<string> {
-  const userId = await resolveActiveSessionUserId();
-  if (!userId) throw new ActorError('UNAUTHENTICATED');
-  return userId;
+  return (await requireActiveSession()).userId;
 }
 
 /**
@@ -114,16 +124,36 @@ export async function requireOnboardingUser(): Promise<{ userId: string }> {
   return { userId };
 }
 
+/** Reasons shown on the login page (src/app/auth/login/page.tsx). */
+export type BlockedMembershipReason = 'organizacion-desactivada' | 'membresia-suspendida';
+
+/**
+ * Why a signed-in user with a membership has no actor: its organization is
+ * deactivated, or the ADMIN suspended its membership (status not ACTIVE) in an
+ * active organization. Throws UNAUTHENTICATED without a session.
+ */
+export async function blockedMembershipReason(): Promise<BlockedMembershipReason> {
+  const userId = await requireSessionUserId();
+  const membership = await prisma.membership.findFirst({
+    where: { userId, deletedAt: null },
+    orderBy: ACTIVE_MEMBERSHIP_ORDER,
+    select: { status: true, organization: { select: { isActive: true, isDeleted: true } } },
+  });
+  const organizationUsable = membership && membership.organization.isActive && !membership.organization.isDeleted;
+  return organizationUsable ? 'membresia-suspendida' : 'organizacion-desactivada';
+}
+
 /**
  * Returns the authenticated actor or throws `ActorError`:
  * - UNAUTHENTICATED (401): no cookie, invalid/revoked session, inactive or deleted user.
- * - FORBIDDEN (403): no active membership in an active organization, or unknown role.
+ * - FORBIDDEN (403): no active membership in the session's active organization
+ *   (or, without one, in any active organization), or unknown role.
  */
 export async function getActor(): Promise<Actor> {
-  const userId = await requireSessionUserId();
+  const { userId, activeOrganizationId } = await requireActiveSession();
 
   // No membership = no role at all (onboarding only, see requireOnboardingUser).
-  const membership = await resolveMembership(userId);
+  const membership = await resolveMembership(userId, activeOrganizationId);
   if (!membership || !ALLOWED_ROLES.includes(membership.role)) {
     throw new ActorError('FORBIDDEN');
   }

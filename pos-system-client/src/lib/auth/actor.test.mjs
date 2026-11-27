@@ -5,7 +5,7 @@ import { loadWithMocks } from '../../../test/load-with-mocks.mjs';
 const state = {};
 globalThis.__actorTest = state;
 
-const { getActor, requireActor, requireOnboardingUser, requireSessionUserId, actorErrorResponse, ActorError } = await loadWithMocks('src/lib/auth/actor.ts', {
+const { getActor, requireActor, requireOnboardingUser, requireSessionUserId, actorErrorResponse, ActorError, blockedMembershipReason } = await loadWithMocks('src/lib/auth/actor.ts', {
   'next/headers': 'export const headers = async () => new Headers(globalThis.__actorTest.token ? { cookie: "better-auth.session_token=" + globalThis.__actorTest.token } : {});',
   '@/generated/prisma': 'export const MembershipRole = { ADMIN: "ADMIN", SELLER: "SELLER" }; export const MembershipStatus = { ACTIVE: "ACTIVE", REVOKED: "REVOKED" };',
   // Better Auth: getSession reads the session row by the cookie token (null if
@@ -14,7 +14,9 @@ const { getActor, requireActor, requireOnboardingUser, requireSessionUserId, act
     const s = globalThis.__actorTest;
     if (s.sessionError) throw s.sessionError;
     if (!headers.get('cookie')) return null;
-    return s.session ? { session: { userId: s.session.userId }, user: { id: s.session.userId } } : null;
+    return s.session
+      ? { session: { userId: s.session.userId, activeOrganizationId: s.session.activeOrganizationId ?? null }, user: { id: s.session.userId } }
+      : null;
   } } };`,
   '@/lib/db': `export const prisma = {
     user: { findFirst: async q => { globalThis.__actorTest.queries.push(['user', q]); return globalThis.__actorTest.user; } },
@@ -128,4 +130,28 @@ test('organización desactivada con la sesión abierta: no puede crear otra en e
   assert.equal(await codeOf(requireOnboardingUser()), 'FORBIDDEN');
   const onboardingQuery = state.queries.filter(([model]) => model === 'membership').at(-1)[1];
   assert.deepEqual(onboardingQuery.where, { userId: 'user-a', deletedAt: null });
+});
+
+test('organización activa de la sesión: el actor sale de la membresía en ESA organización', async () => {
+  reset(); state.session.activeOrganizationId = 'org-a';
+  assert.deepEqual(await getActor(), { userId: 'user-a', organizationId: 'org-a', role: 'SELLER', storeId: 'store-a' });
+  const membershipQuery = state.queries.filter(([model]) => model === 'membership').at(-1)[1];
+  assert.deepEqual(membershipQuery.where, {
+    userId: 'user-a', organizationId: 'org-a', deletedAt: null, status: 'ACTIVE', organization: { isDeleted: false, isActive: true },
+  });
+});
+
+test('organización activa sin membresía activa en ella (suspendida, borrada u otra org): FORBIDDEN', async () => {
+  reset(); state.session.activeOrganizationId = 'org-b'; state.membership = null;
+  assert.equal(await codeOf(getActor()), 'FORBIDDEN');
+});
+
+test('motivo del bloqueo: membresía suspendida en organización activa ≠ organización desactivada', async () => {
+  reset(); state.membership = null;
+  state.anyMembership = { organizationId: 'org-a', status: 'REVOKED', organization: { isActive: true, isDeleted: false } };
+  assert.equal(await blockedMembershipReason(), 'membresia-suspendida');
+  state.anyMembership = { organizationId: 'org-off', status: 'ACTIVE', organization: { isActive: false, isDeleted: false } };
+  assert.equal(await blockedMembershipReason(), 'organizacion-desactivada');
+  state.anyMembership = { organizationId: 'org-off', status: 'REVOKED', organization: { isActive: false, isDeleted: false } };
+  assert.equal(await blockedMembershipReason(), 'organizacion-desactivada', 'la organización desactivada manda');
 });

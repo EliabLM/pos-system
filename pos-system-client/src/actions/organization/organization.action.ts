@@ -294,6 +294,11 @@ export const createOrganization = async (
           acceptedAt: new Date(),
         },
       });
+      // The creator's sessions work in the new organization (#20).
+      await tx.session.updateMany({
+        where: { userId },
+        data: { activeOrganizationId: organization.id },
+      });
       if (type) {
         await tx.systemConfig.create({
           data: {

@@ -1,14 +1,11 @@
 import { redirect } from 'next/navigation';
-import { ActorError, getActor, requireOnboardingUser } from '@/lib/auth/actor';
-
-/** Reason shown on the login page (src/app/auth/login/page.tsx). */
-const DISABLED_ORGANIZATION_REASON = 'organizacion-desactivada';
+import { ActorError, blockedMembershipReason, getActor, requireOnboardingUser } from '@/lib/auth/actor';
 
 /**
  * Onboarding solo para usuarios con sesión y SIN ninguna membresía. Quien ya
  * pertenece a una organización activa va al dashboard; quien pertenece a una
- * desactivada (o sin membresía activa) no puede crear otra: va al login con el
- * motivo. Sin sesión, al login.
+ * desactivada, o tiene la membresía suspendida (#20), no puede crear otra: va
+ * al login con su motivo. Sin sesión, al login.
  */
 async function onboardingRedirect(): Promise<string | null> {
   try {
@@ -23,7 +20,7 @@ async function onboardingRedirect(): Promise<string | null> {
     return null;
   } catch (error) {
     if (error instanceof ActorError && error.code === 'FORBIDDEN') {
-      return `/auth/login?motivo=${DISABLED_ORGANIZATION_REASON}`;
+      return `/auth/login?motivo=${await blockedMembershipReason()}`;
     }
     if (error instanceof ActorError) return '/auth/login';
     throw error;
