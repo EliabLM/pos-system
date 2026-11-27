@@ -15,14 +15,16 @@ ALTER TABLE "sessions"
   ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- Open sessions keep working: their active organization is the oldest ACTIVE
--- membership (the same rule getActor() applied before).
+-- membership of an active, non-deleted organization (ACTIVE_MEMBERSHIP_WHERE,
+-- the rule getActor() applied before).
 UPDATE "sessions" s
 SET "active_organization_id" = m."organization_id"
 FROM (
   SELECT DISTINCT ON (m."user_id") m."user_id", m."organization_id"
   FROM "memberships" m
   JOIN "organizations" o ON o."id" = m."organization_id"
-  WHERE m."deleted_at" IS NULL AND m."status" = 'ACTIVE' AND o."is_deleted" = false
+  WHERE m."deleted_at" IS NULL AND m."status" = 'ACTIVE'
+    AND o."is_deleted" = false AND o."is_active" = true
   ORDER BY m."user_id", m."created_at" ASC
 ) m
 WHERE s."user_id" = m."user_id";
