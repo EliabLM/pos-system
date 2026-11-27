@@ -33,6 +33,9 @@ model Organization {
   city           String?
   department     String?
   taxId          String?         @map("tax_id")
+  // Campos del modelo organization de Better Auth (#20); la app no los usa.
+  logo           String?
+  metadata       String?
   isActive       Boolean         @default(true) @map("is_active")
   isDeleted      Boolean         @default(false) @map("is_deleted")
   createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz
@@ -42,6 +45,8 @@ model Organization {
   categories     Category[]
   customers      Customer[]
   memberships    Membership[]
+  invitations    Invitation[]
+  activeSessions Session[]
   paymentMethods PaymentMethod[]
   products       Product[]
   stockMovements StockMovement[]
@@ -116,6 +121,7 @@ model User {
   auditLogs      AuditLog[]
   memberships    Membership[]
   accounts       Account[]
+  invitations    Invitation[]
 
   // unique (email) WHERE deleted_at IS NULL — partial index in SQL
   @@index([email, isDeleted])
@@ -132,13 +138,16 @@ model Session {
 
   // Token y seguridad
   // Token de sesión de Better Auth (#19); la cookie lleva este valor firmado.
-  token            String?  @unique
+  token                String?  @unique
   // Legado del JWT propio (antes de #19): ya no se escribe.
-  tokenHash        String?  @unique @map("token_hash")
+  tokenHash            String?  @unique @map("token_hash")
   // Refresh rotation (D3/R8) — el módulo auth de Fase 2 los llena
-  refreshTokenHash String?  @unique @map("refresh_token_hash")
-  rotatedFrom      String?  @map("rotated_from") @db.Uuid // reuse-detection chain
-  expiresAt        DateTime @map("expires_at") @db.Timestamptz
+  refreshTokenHash     String?  @unique @map("refresh_token_hash")
+  rotatedFrom          String?  @map("rotated_from") @db.Uuid // reuse-detection chain
+  expiresAt            DateTime @map("expires_at") @db.Timestamptz
+  // Organización activa (plugin organization de Better Auth, #20): getActor()
+  // toma de aquí el tenant.
+  activeOrganizationId String?  @map("active_organization_id") @db.Uuid
 
   // Metadata de seguridad
   ipAddress String? @map("ip_address")
@@ -156,7 +165,8 @@ model Session {
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relación
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeOrganization Organization? @relation(fields: [activeOrganizationId], references: [id], onDelete: SetNull)
 
   // Índices para queries eficientes
   @@index([userId, isActive])
@@ -563,6 +573,29 @@ model Membership {
 
 // D3.7 — unifica password_resets + email_verifications (+ magic-link/change-email
 // futuros). Las tablas viejas se eliminan en el bloque 3b cuando el client migre.
+// Invitación de un ADMIN para que un correo entre a su organización (#20,
+// plugin organization de Better Auth). El id es el secreto del enlace (UUIDv4).
+model Invitation {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  email          String
+  role           MembershipRole @default(SELLER)
+  // pending | accepted | rejected | canceled (CHECK en SQL)
+  status         String         @default("pending")
+  inviterId      String         @map("inviter_id") @db.Uuid
+  expiresAt      DateTime       @map("expires_at") @db.Timestamptz
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter      User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([email])
+  @@index([inviterId])
+  @@map("invitations")
+}
+
 model Verification {
   id         String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
   identifier String // email (o userId para tipos futuros)
