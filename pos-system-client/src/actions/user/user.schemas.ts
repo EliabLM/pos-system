@@ -25,15 +25,6 @@ const optionalStoreId = z.preprocess((value) => (value === '' ? null : value), i
 export const idSchema = id;
 export const roleSchema = role;
 
-export const createUserInputSchema = z.object({
-  name: z.string().trim().min(1, 'El nombre es requerido').max(150),
-  email: z.string().trim().toLowerCase().email('Email inválido').max(254),
-  password,
-  role,
-  storeId: optionalStoreId,
-  isActive: z.boolean().optional(),
-});
-
 export const updateUserInputSchema = z.object({
   name: z.string().trim().min(1).max(150).optional(),
   email: z.string().trim().toLowerCase().email('Email inválido').max(254).optional(),

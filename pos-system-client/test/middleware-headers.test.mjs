@@ -57,3 +57,8 @@ test('middleware: login, registro y /api/auth/* son públicos', async () => {
 test('lib/auth/server.ts (lectura de cabeceras x-user-*) ya no existe', () => {
   assert.equal(existsSync(new URL('../src/lib/auth/server.ts', import.meta.url)), false);
 });
+
+test('middleware: el enlace de invitación (#20) se abre sin sesión; la página decide qué mostrar', async () => {
+  const res = await middleware(request('/invitacion/00000000-0000-4000-8000-000000000001'));
+  assert.equal(res.kind, 'next');
+});
