@@ -1,18 +1,22 @@
 import { GalleryVerticalEnd } from 'lucide-react';
 
 import { LoginForm } from './login-form';
+import { isInvitationId } from '@/lib/auth/invitation-link';
+import { SUSPENDED_MEMBERSHIP_REASON } from '@/lib/auth/auth-messages';
 
 const REASONS: Record<string, string> = {
   'organizacion-desactivada':
     'Tu organización está desactivada y no puedes usar el sistema. Contacta a soporte.',
+  [SUSPENDED_MEMBERSHIP_REASON]:
+    'Tu acceso a la organización fue suspendido. Contacta a tu administrador.',
 };
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ motivo?: string | string[] }>;
+  searchParams: Promise<{ motivo?: string | string[]; invitacion?: string | string[] }>;
 }) {
-  const { motivo } = await searchParams;
+  const { motivo, invitacion } = await searchParams;
   const reason = typeof motivo === 'string' ? REASONS[motivo] : undefined;
 
   return (
@@ -29,7 +33,7 @@ export default async function LoginPage({
             {reason}
           </p>
         )}
-        <LoginForm />
+        <LoginForm invitationId={isInvitationId(invitacion) ? invitacion : null} />
       </div>
     </div>
   );

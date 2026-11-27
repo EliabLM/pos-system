@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
 import { authClient } from '@/lib/auth/auth-client';
+import { invitationReturnPath } from '@/lib/auth/invitation-link';
 import { authErrorMessage, USER_EXISTS_MESSAGE } from '@/lib/auth/auth-messages';
 
 // Schema de validación con Yup (D3.4/D3.5: sin username, nombre en un campo)
@@ -62,8 +63,12 @@ type SignUpFormData = yup.InferType<typeof signUpSchema>;
 
 export const RegisterForm = ({
   className,
+  invitationId = null,
   ...props
-}: React.ComponentProps<'div'>) => {
+}: React.ComponentProps<'div'> & {
+  /** Invitation to come back to after this form (#20), already validated. */
+  invitationId?: string | null;
+}) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,6 +86,8 @@ export const RegisterForm = ({
     reValidateMode: 'onChange',
   });
 
+  const returnTo = invitationReturnPath(invitationId);
+
   const onSubmit = async (data: SignUpFormData) => {
     try {
       setIsLoading(true);
@@ -97,12 +104,14 @@ export const RegisterForm = ({
         await Swal.fire({
           icon: 'success',
           title: '¡Cuenta creada!',
-          text: 'Tu cuenta ha sido creada exitosamente. Ahora vamos a configurar tu organización.',
+          text: returnTo
+            ? 'Tu cuenta ha sido creada exitosamente. Ahora acepta la invitación.'
+            : 'Tu cuenta ha sido creada exitosamente. Ahora vamos a configurar tu organización.',
           confirmButtonText: 'Continuar',
         });
 
-        // Todo usuario nuevo crea su negocio en el onboarding
-        window.location.href = '/onboarding';
+        // Desde una invitación vuelve a ella; si no, crea su negocio en el onboarding
+        window.location.href = returnTo ?? '/onboarding';
         return;
       }
 
@@ -277,7 +286,7 @@ export const RegisterForm = ({
                 <div className="text-center text-sm">
                   ¿Ya tienes una cuenta?{' '}
                   <Link
-                    href="/auth/login"
+                    href={invitationId ? `/auth/login?invitacion=${invitationId}` : '/auth/login'}
                     className="underline underline-offset-4"
                   >
                     Iniciar sesión

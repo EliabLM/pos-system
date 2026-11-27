@@ -83,13 +83,11 @@ function reset(actor) {
 }
 
 const foreign = { organizationId: 'org-b', orgId: 'org-b', userId: ID.userB };
-const newUser = () => ({ name: 'Vendedor', email: 'v@x.co', password: 'Secreta#2026', role: 'SELLER', storeId: ID.storeA, ...foreign });
 
 /** Acciones de administración con un usuario de la organización B como objetivo. */
 const adminActions = {
   getUsers: () => users.getUsers(),
   getUsersByRole: () => users.getUsersByRole('SELLER'),
-  createUser: () => users.createUser(newUser()),
   updateUser: () => users.updateUser(ID.userB, { name: 'x', ...foreign }),
   updateUserRole: () => users.updateUserRole(ID.userB, 'ADMIN'),
   toggleUserStatus: () => users.toggleUserStatus(ID.userB, false),
@@ -139,19 +137,8 @@ test('ADMIN de A: listados filtrados por su organización', async () => {
   for (const r of lists) assert.equal(r.where.memberships.some.organizationId, 'org-a');
 });
 
-test('ADMIN de A: crea vendedores solo en su organización (ignora organizationId del cliente)', async () => {
-  reset(ADMIN_A);
-  const result = await users.createUser(newUser());
-  assert.equal(result.status, 201);
-  const membership = state.writes.find((w) => w.model === 'membership' && w.method === 'create');
-  assert.equal(membership.data.organizationId, 'org-a');
-  assert.equal(membership.data.invitedBy, ID.adminA);
-  const user = state.writes.find((w) => w.model === 'user' && w.method === 'create');
-  assert.ok(!('organizationId' in user.data) && !('userId' in user.data));
-
-  reset(ADMIN_A);
-  assert.equal((await users.createUser({ ...newUser(), storeId: ID.storeB })).status, 400, 'tienda de otra organización');
-  assert.deepEqual(state.writes, []);
+test('el ADMIN ya no crea vendedores con contraseña: entran solo por invitación (#20)', () => {
+  assert.equal('createUser' in users, false);
 });
 
 test('ADMIN de A: gestiona usuarios de su organización y no puede quitarse el rol a sí mismo', async () => {
@@ -173,10 +160,9 @@ test('SELLER: solo se ve a sí mismo', async () => {
   assert.equal((await users.getUserById(ID.adminA)).status, 404);
 });
 
-test('ADMIN: crear o editar usuarios exige la misma política de contraseña que el registro', async () => {
+test('ADMIN: editar la contraseña de un usuario exige la misma política que el registro', async () => {
   for (const weak of ['password1', 'Corta#1', 'sinmayuscula#2026', 'SinEspecial2026']) {
     reset(ADMIN_A);
-    assert.equal((await users.createUser({ ...newUser(), password: weak })).status, 400, `create: ${weak}`);
     assert.equal((await users.updateUser(ID.sellerA, { password: weak })).status, 400, `update: ${weak}`);
     assert.deepEqual(state.writes, [], weak);
   }

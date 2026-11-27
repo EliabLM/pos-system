@@ -13,7 +13,6 @@ import { actorErrorResponse, requireActor } from '@/lib/auth/actor';
 import { prisma } from '../utils';
 import bcrypt from 'bcrypt';
 import {
-  createUserInputSchema,
   idSchema,
   roleSchema,
   updateUserInputSchema,
@@ -26,7 +25,7 @@ import {
 //
 // Autorización (#11): todo sale de requireActor(). Solo el ADMIN gestiona
 // usuarios y solo los de SU organización; no hay acciones multi-organización.
-// Los vendedores los crea el ADMIN aquí (las invitaciones llegan en #20).
+// Los vendedores entran solo por invitación (#20, src/actions/invitation).
 // ============================================================
 
 export type UserWithTenancy = Omit<User, 'passwordHash'> & {
@@ -36,15 +35,6 @@ export type UserWithTenancy = Omit<User, 'passwordHash'> & {
   organization: Organization | null;
   store: Store | null;
 };
-
-export interface CreateUserInput {
-  name: string;
-  email: string;
-  password: string;
-  role: MembershipRole;
-  storeId?: string | null;
-  isActive?: boolean;
-}
 
 export interface UpdateUserInput {
   name?: string;
@@ -183,107 +173,6 @@ const storeInOrg = (storeId: string, organizationId: string) =>
     where: { id: storeId, organizationId, isDeleted: false },
     select: { id: true },
   });
-
-// CREATE — el ADMIN crea la identidad + su membership en SU organización (tx)
-export const createUser = async (
-  userData: CreateUserInput
-): Promise<ActionResponse<UserWithTenancy | null>> => {
-  try {
-    const actor = await requireActor(ADMIN_ONLY);
-
-    const parsed = createUserInputSchema.safeParse(userData);
-    if (!parsed.success) return badRequest(firstIssue(parsed.error));
-    const data = parsed.data;
-
-    // Email único global entre usuarios vivos (D3.4)
-    const existingUserByEmail = await prisma.user.findFirst({
-      where: { email: data.email, isDeleted: false },
-      select: { id: true },
-    });
-
-    if (existingUserByEmail) {
-      return {
-        status: 409,
-        message: 'Ya existe un usuario con ese email',
-        data: null,
-      };
-    }
-
-    if (data.storeId) {
-      if (!(await storeInOrg(data.storeId, actor.organizationId))) {
-        return badRequest('La tienda especificada no existe');
-      }
-
-      if (
-        data.role === MembershipRole.SELLER &&
-        (await storeHasActiveSeller(data.storeId))
-      ) {
-        return {
-          status: 409,
-          message: 'La tienda ya tiene un vendedor asignado',
-          data: null,
-        };
-      }
-    }
-
-    const hashedPassword = await bcrypt.hash(data.password, 12);
-
-    const newUser = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          name: data.name,
-          email: data.email,
-          passwordHash: hashedPassword,
-          isActive: data.isActive ?? true,
-          passwordChangedAt: new Date(),
-        },
-      });
-
-      await tx.membership.create({
-        data: {
-          userId: user.id,
-          organizationId: actor.organizationId,
-          role: data.role,
-          defaultStoreId: data.storeId ?? null,
-          status: MembershipStatus.ACTIVE,
-          invitedBy: actor.userId,
-          acceptedAt: new Date(),
-        },
-      });
-
-      return tx.user.findUniqueOrThrow({
-        where: { id: user.id },
-        include: { memberships: orgMembershipInclude(actor.organizationId) },
-      });
-    });
-
-    return {
-      status: 201,
-      message: 'Usuario creado exitosamente',
-      data: composeUser(newUser),
-    };
-  } catch (error) {
-    const denied = actorErrorResponse(error);
-    if (denied) return denied;
-
-    console.error('Error creating user:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        return {
-          status: 409,
-          message: 'Ya existe un usuario con ese email',
-          data: null,
-        };
-      }
-      if (error.code === 'P2003') {
-        return badRequest('Una de las referencias especificadas no existe');
-      }
-    }
-
-    return { status: 500, message: 'Error interno del servidor', data: null };
-  }
-};
 
 // GET MANY — usuarios de la organización del actor (vía memberships)
 export const getUsers = async (

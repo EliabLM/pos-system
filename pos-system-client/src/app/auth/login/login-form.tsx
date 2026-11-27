@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/form';
 import { getCurrentUser } from '@/actions/auth';
 import { authClient } from '@/lib/auth/auth-client';
+import { invitationReturnPath } from '@/lib/auth/invitation-link';
 import { authErrorMessage } from '@/lib/auth/auth-messages';
 import { useStore } from '@/store';
 import { User } from '@/interfaces';
@@ -47,8 +48,12 @@ type LoginFormData = yup.InferType<typeof schema>;
 
 export function LoginForm({
   className,
+  invitationId = null,
   ...props
-}: React.ComponentProps<'div'>) {
+}: React.ComponentProps<'div'> & {
+  /** Invitation to come back to after this form (#20), already validated. */
+  invitationId?: string | null;
+}) {
   const setUser = useStore((state) => state.setUser);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -65,6 +70,8 @@ export function LoginForm({
     reValidateMode: 'onChange',
     resolver: yupResolver(schema),
   });
+
+  const returnTo = invitationReturnPath(invitationId);
 
   const handleLoginWithEmailAndPassword = async (data: LoginFormData) => {
     try {
@@ -88,8 +95,9 @@ export function LoginForm({
 
       toast.success('Inicio de sesión exitoso');
 
-      // Sin membresía todavía → onboarding (crear su negocio)
-      window.location.href = user?.organizationId ? '/dashboard' : '/onboarding';
+      // Desde una invitación, de vuelta a ella; sin membresía todavía →
+      // onboarding (crear su negocio)
+      window.location.href = returnTo ?? (user?.organizationId ? '/dashboard' : '/onboarding');
     } catch (error) {
       if (error && typeof error === 'object' && 'digest' in error) {
         throw error;
@@ -226,7 +234,7 @@ export function LoginForm({
                 <div className="text-center text-sm">
                   ¿No tienes una cuenta?{' '}
                   <Link
-                    href={'/auth/register'}
+                    href={invitationId ? `/auth/register?invitacion=${invitationId}` : '/auth/register'}
                     className="underline underline-offset-4"
                   >
                     Registrarse

@@ -6,6 +6,10 @@
 
 export const INVALID_CREDENTIALS_MESSAGE = 'Correo electrónico o contraseña inválidos';
 export const TOO_MANY_ATTEMPTS_MESSAGE = 'Demasiados intentos de inicio de sesión. Espera un minuto e inténtalo de nuevo';
+/** Login page reason (?motivo=) for a member suspended by its ADMIN (#20). */
+export const SUSPENDED_MEMBERSHIP_REASON = 'membresia-suspendida';
+export const ALREADY_IN_ORGANIZATION_MESSAGE =
+  'Ya perteneces a una organización. Una cuenta solo puede estar en una organización';
 export const USER_EXISTS_MESSAGE = 'Ya existe un usuario con este correo electrónico';
 const GENERIC_MESSAGE = 'No se pudo completar la solicitud. Por favor intente más tarde';
 
@@ -25,6 +29,9 @@ const BY_CODE: Record<string, string> = {
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: USER_EXISTS_MESSAGE,
   PASSWORD_TOO_SHORT: 'La contraseña debe tener al menos 8 caracteres',
   PASSWORD_TOO_LONG: 'La contraseña es demasiado larga',
+  // Invitations (#20)
+  INVITATION_NOT_FOUND: 'Esta invitación ya no es válida: venció, fue revocada o ya se usó',
+  YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: 'Esta invitación es para otro correo',
 };
 
 /** Better Auth's own messages are in English; ours (hooks) are in Spanish. */

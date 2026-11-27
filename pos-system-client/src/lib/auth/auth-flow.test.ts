@@ -17,12 +17,18 @@ interface MemoryDb { [model: string]: Row[] }
 
 function setup(
   denials: Record<string, SignInDenial> = {},
-  opts: { baseURL?: string; secureCookies?: boolean | undefined } = {},
+  opts: {
+    baseURL?: string;
+    secureCookies?: boolean | undefined;
+    acceptDenials?: Record<string, SignInDenial>;
+  } = {},
 ) {
   const baseURL = opts.baseURL ?? BASE_URL;
   // An explicit undefined must reach Better Auth (it then decides Secure itself).
   const secureCookies = 'secureCookies' in opts ? opts.secureCookies : false;
-  const db: MemoryDb = { user: [], session: [], account: [], verification: [] };
+  const db: MemoryDb = {
+    user: [], session: [], account: [], verification: [], organization: [], membership: [], invitation: [],
+  };
   const auth = betterAuth(
     buildAuthOptions({
       database: memoryAdapter(db),
@@ -32,6 +38,10 @@ function setup(
       signInMaxAttempts: MAX_ATTEMPTS,
       generateId: 'uuid',
       canSignIn: async (userId) => denials[userId] ?? null,
+      // Same rule as production: the oldest membership of the user.
+      activeOrganizationFor: async (userId) =>
+        (db.membership.find((m) => m.userId === userId)?.organizationId as string | undefined) ?? null,
+      canAcceptInvitation: async ({ userId }) => opts.acceptDenials?.[userId] ?? null,
     }),
   );
   return { db, auth };
@@ -222,4 +232,138 @@ test('producción: sin BETTER_AUTH_URL o sin BETTER_AUTH_SECRET la app no arranc
   assert.doesNotThrow(() => assertAuthEnv({ NODE_ENV: 'production', BETTER_AUTH_URL: 'https://pos.example.com', BETTER_AUTH_SECRET: secret }));
   assert.doesNotThrow(() => assertAuthEnv({ NODE_ENV: 'production', NEXT_PHASE: 'phase-production-build' }));
   assert.doesNotThrow(() => assertAuthEnv({ NODE_ENV: 'development' }));
+});
+
+// ---------------------------------------------------------------------------
+// Organizations, roles and invitations (#20)
+// ---------------------------------------------------------------------------
+
+type Auth = ReturnType<typeof setup>['auth'];
+
+/** An organization with its ADMIN signed in (the onboarding creates both). */
+async function orgWithAdmin(db: MemoryDb, auth: Auth, label: string) {
+  const organizationId = crypto.randomUUID();
+  db.organization.push({ id: organizationId, name: `Tienda ${label}`, slug: `tienda-${label}`, createdAt: new Date() });
+  const admin = await signUp(auth, `admin-${label}@pos.test`);
+  const adminId = String(db.user.find((u) => u.email === `admin-${label}@pos.test`)?.id);
+  db.membership.push({ id: crypto.randomUUID(), organizationId, userId: adminId, role: 'ADMIN', createdAt: new Date() });
+  // Signs in again so the session gets its active organization.
+  const signIn = await call(auth, '/sign-in/email', { body: { email: `admin-${label}@pos.test`, password: PASSWORD }, ip: nextIp() });
+  assert.equal(signIn.status, 200);
+  return { organizationId, adminId, cookie: signIn.cookie || admin.cookie };
+}
+
+/** Server-side call (as the invitation server actions do), with the cookie of the caller. */
+const invite = (auth: Auth, cookie: string, email: string, role: 'ADMIN' | 'SELLER' = 'SELLER') =>
+  auth.api.createInvitation({ headers: new Headers({ cookie }), body: { email, role } });
+
+const accept = (auth: Auth, cookie: string, invitationId: string) =>
+  call(auth, '/organization/accept-invitation', { cookie, body: { invitationId } });
+
+test('sesión nueva: la organización activa es la de su membresía', async () => {
+  const { db, auth } = setup();
+  const { organizationId, cookie } = await orgWithAdmin(db, auth, 'activa');
+  const session = (await sessionUser(auth, cookie)) as { session: { activeOrganizationId: string | null } };
+  assert.equal(session.session.activeOrganizationId, organizationId);
+  const fresh = await signUp(auth, 'sin-org@pos.test');
+  const freshSession = (await sessionUser(auth, fresh.cookie)) as { session: { activeOrganizationId: string | null } };
+  assert.equal(freshSession.session.activeOrganizationId ?? null, null);
+});
+
+test('el ADMIN invita, el vendedor acepta con su correo y entra como SELLER con esa organización activa', async () => {
+  const { db, auth } = setup();
+  const { organizationId, adminId, cookie: adminCookie } = await orgWithAdmin(db, auth, 'invita');
+  const invitation = await invite(auth, adminCookie, 'Vendedor@pos.test');
+  assert.equal(invitation.status, 'pending');
+  assert.equal(invitation.email, 'vendedor@pos.test');
+  assert.equal(invitation.inviterId, adminId);
+  const days = (new Date(invitation.expiresAt).getTime() - Date.now()) / 86_400_000;
+  assert.ok(days > 6.9 && days <= 7, `caduca en 7 días (${days})`);
+
+  const seller = await signUp(auth, 'vendedor@pos.test');
+  const res = await accept(auth, seller.cookie, invitation.id);
+  assert.equal(res.status, 200, JSON.stringify(res.json));
+  const sellerId = db.user.find((u) => u.email === 'vendedor@pos.test')?.id;
+  const member = db.membership.find((m) => m.userId === sellerId);
+  assert.equal(member?.role, 'SELLER');
+  assert.equal(member?.organizationId, organizationId);
+  const session = (await sessionUser(auth, seller.cookie)) as { session: { activeOrganizationId: string } };
+  assert.equal(session.session.activeOrganizationId, organizationId);
+  assert.equal(db.invitation[0].status, 'accepted');
+});
+
+test('aceptar con otro correo falla y no crea membresía', async () => {
+  const { db, auth } = setup();
+  const { cookie } = await orgWithAdmin(db, auth, 'otro-correo');
+  const invitation = await invite(auth, cookie, 'elegido@pos.test');
+  const intruder = await signUp(auth, 'intruso@pos.test');
+  const res = await accept(auth, intruder.cookie, invitation.id);
+  assert.equal(res.status, 403);
+  assert.equal(db.membership.length, 1);
+  assert.equal(db.invitation[0].status, 'pending');
+});
+
+test('una invitación caducada o revocada no se puede aceptar', async () => {
+  const { db, auth } = setup();
+  const { cookie } = await orgWithAdmin(db, auth, 'caduca');
+  const expired = await invite(auth, cookie, 'tarde@pos.test');
+  const row = db.invitation.find((i) => i.id === expired.id);
+  if (row) row.expiresAt = new Date(Date.now() - 1000);
+  const late = await signUp(auth, 'tarde@pos.test');
+  assert.equal((await accept(auth, late.cookie, expired.id)).status, 400);
+
+  const revoked = await invite(auth, cookie, 'revocado@pos.test');
+  await auth.api.cancelInvitation({ headers: new Headers({ cookie }), body: { invitationId: revoked.id } });
+  const user = await signUp(auth, 'revocado@pos.test');
+  assert.equal((await accept(auth, user.cookie, revoked.id)).status, 400);
+  assert.equal(db.membership.length, 1, 'solo el ADMIN');
+});
+
+test('un SELLER no puede invitar', async () => {
+  const { db, auth } = setup();
+  const { cookie } = await orgWithAdmin(db, auth, 'seller-no');
+  const invitation = await invite(auth, cookie, 'vende@pos.test');
+  const seller = await signUp(auth, 'vende@pos.test');
+  await accept(auth, seller.cookie, invitation.id);
+  await assert.rejects(invite(auth, seller.cookie, 'otro@pos.test'), (error: { status?: string }) => error.status === 'FORBIDDEN');
+  await assert.rejects(invite(auth, cookie, 'otro-admin@pos.test', 'ADMIN'), 'el ADMIN solo invita vendedores');
+});
+
+test('canAcceptInvitation deniega (ya pertenece a otra organización): 403 con su mensaje y sin membresía', async () => {
+  const acceptDenials: Record<string, SignInDenial> = {};
+  const { db, auth } = setup({}, { acceptDenials });
+  const { cookie } = await orgWithAdmin(db, auth, 'dos-orgs');
+  const invitation = await invite(auth, cookie, 'ocupado@pos.test');
+  const user = await signUp(auth, 'ocupado@pos.test');
+  const userId = String(db.user.find((u) => u.email === 'ocupado@pos.test')?.id);
+  acceptDenials[userId] = { status: 'FORBIDDEN', message: 'Ya perteneces a una organización' };
+  const res = await accept(auth, user.cookie, invitation.id);
+  assert.equal(res.status, 403);
+  assert.equal(authErrorMessage({ status: 403, ...res.json }), 'Ya perteneces a una organización');
+  assert.equal(db.invitation[0].status, 'pending');
+});
+
+test('ninguna ruta HTTP permite unirse o cambiar de organización sin invitación', async () => {
+  const { db, auth } = setup();
+  const { organizationId, cookie: adminCookie } = await orgWithAdmin(db, auth, 'rutas');
+  const outsider = await signUp(auth, 'fuera@pos.test');
+  const outsiderId = String(db.user.find((u) => u.email === 'fuera@pos.test')?.id);
+  const attempts: Array<[string, unknown, string]> = [
+    ['/organization/create', { name: 'Mía', slug: 'mia' }, outsider.cookie],
+    ['/organization/set-active', { organizationId }, outsider.cookie],
+    ['/organization/update-member-role', { memberId: 'x', role: 'ADMIN', organizationId }, outsider.cookie],
+    ['/organization/invite-member', { email: 'fuera@pos.test', role: 'SELLER', organizationId }, adminCookie],
+    ['/organization/cancel-invitation', { invitationId: 'x' }, adminCookie],
+    ['/organization/remove-member', { memberIdOrEmail: 'x', organizationId }, adminCookie],
+    ['/organization/leave', { organizationId }, adminCookie],
+    ['/organization/delete', { organizationId }, adminCookie],
+    ['/organization/update', { data: { name: 'x' }, organizationId }, adminCookie],
+  ];
+  for (const [path, body, cookie] of attempts) {
+    const res = await call(auth, path, { body, cookie });
+    assert.equal(res.status, 404, path);
+  }
+  assert.equal(db.membership.filter((m) => m.userId === outsiderId).length, 0);
+  assert.equal(db.organization.length, 1);
+  assert.equal(db.invitation.length, 0);
 });

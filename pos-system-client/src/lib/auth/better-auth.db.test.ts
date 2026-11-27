@@ -108,3 +108,73 @@ test('la contraseña que pone el ADMIN (users.password_hash) es la que acepta el
   assert.equal((await call('/sign-in/email', { body: { email, password: PASSWORD } })).status, 401);
   assert.equal((await call('/sign-in/email', { body: { email, password: 'Nueva#Clave2026' } })).status, 200);
 });
+
+// ---------------------------------------------------------------------------
+// #20: organization plugin over organizations, memberships and invitations.
+// ---------------------------------------------------------------------------
+
+const signInAs = async (email: string, password: string) => {
+  const res = await call('/sign-in/email', { body: { email, password } });
+  assert.equal(res.status, 200, JSON.stringify(res.json));
+  return res.cookie;
+};
+const demoOrg = () => db.organization.findFirstOrThrow({ where: { name: 'Pos Demo Org' } });
+const inviteAs = (cookie: string, email: string) =>
+  auth.api.createInvitation({ headers: new Headers({ cookie }), body: { email, role: 'SELLER' } });
+
+test('al iniciar sesión, la sesión queda con la organización de su membresía activa', async () => {
+  const cookie = await signInAs('admin@pos.test', 'Admin123!');
+  const session = (await sessionOf(cookie)) as { session: { activeOrganizationId: string | null } };
+  assert.equal(session.session.activeOrganizationId, (await demoOrg()).id);
+  await call('/sign-out', { cookie, body: {} });
+});
+
+test('invitación real: el ADMIN invita, el vendedor se registra con ese correo, acepta y queda SELLER activo', async () => {
+  const org = await demoOrg();
+  const adminCookie = await signInAs('admin@pos.test', 'Admin123!');
+  const email = `${TAG}-invitado@pos.test`;
+  createdEmails.push(email);
+  const invitation = await inviteAs(adminCookie, email);
+  assert.match(invitation.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4/, 'id UUIDv4 (secreto del enlace)');
+  const row = await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } });
+  assert.equal(row.role, 'SELLER');
+  assert.equal(row.organizationId, org.id);
+
+  const seller = await call('/sign-up/email', { body: { name: 'Invitado', email, password: PASSWORD } });
+  const accepted = await call('/organization/accept-invitation', { cookie: seller.cookie, body: { invitationId: invitation.id } });
+  assert.equal(accepted.status, 200, JSON.stringify(accepted.json));
+
+  const user = await db.user.findFirstOrThrow({ where: { email } });
+  const membership = await db.membership.findFirstOrThrow({ where: { userId: user.id } });
+  assert.equal(membership.organizationId, org.id);
+  assert.equal(membership.role, 'SELLER');
+  assert.equal(membership.status, 'ACTIVE');
+  assert.ok(membership.acceptedAt);
+  assert.equal(membership.invitedBy, row.inviterId);
+  const session = (await sessionOf(seller.cookie)) as { session: { activeOrganizationId: string } };
+  assert.equal(session.session.activeOrganizationId, org.id);
+  assert.equal((await db.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).status, 'accepted');
+  await call('/sign-out', { cookie: adminCookie, body: {} });
+});
+
+test('quien ya pertenece a una organización no acepta la invitación de otra', async () => {
+  const isolation = await db.organization.findFirstOrThrow({ where: { name: 'Pos Isolation Org' } });
+  const isolationAdmin = await signInAs('admin.isolation@pos.test', 'Admin123!');
+  const invitation = await inviteAs(isolationAdmin, 'seller@pos.test');
+  const sellerCookie = await signInAs('seller@pos.test', 'Seller123!');
+  const res = await call('/organization/accept-invitation', { cookie: sellerCookie, body: { invitationId: invitation.id } });
+  assert.equal(res.status, 403);
+  assert.equal(await db.membership.count({ where: { organizationId: isolation.id, user: { email: 'seller@pos.test' } } }), 0);
+  await db.invitation.delete({ where: { id: invitation.id } });
+});
+
+test('vendedor con la membresía suspendida (organización activa): su propio mensaje, no el de organización desactivada', async () => {
+  const { user, email } = await signUp('suspendido');
+  const org = await demoOrg();
+  await db.membership.create({ data: { userId: user.id, organizationId: org.id, role: 'SELLER', status: 'REVOKED' } });
+  await db.session.deleteMany({ where: { userId: user.id } });
+  const res = await call('/sign-in/email', { body: { email, password: PASSWORD } });
+  assert.equal(res.status, 403);
+  assert.match(String(res.json?.message), /acceso .* suspendido/i);
+  assert.doesNotMatch(String(res.json?.message), /organización ha sido desactivada/);
+});

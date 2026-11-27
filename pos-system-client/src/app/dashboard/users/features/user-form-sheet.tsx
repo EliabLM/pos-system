@@ -44,30 +44,9 @@ import {
   IconAlertTriangle,
 } from '@tabler/icons-react';
 
-import { useCreateUser, useUpdateUser } from '@/hooks/useUsers';
+import { useUpdateUser } from '@/hooks/useUsers';
 import { useActiveStores } from '@/hooks/useStores';
 import type { UserWithTenancy } from '@/actions/user/user.actions';
-
-const createSchema = yup.object().shape({
-  name: yup
-    .string()
-    .min(3, 'Debe ingresar mínimo 3 caracteres')
-    .required('El nombre es requerido'),
-  email: yup
-    .string()
-    .email('Debe ingresar un email válido')
-    .required('El email es requerido'),
-  password: yup
-    .string()
-    .min(8, 'La contraseña debe tener al menos 8 caracteres')
-    .matches(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])/,
-      'Debe contener mayúscula, minúscula, número y carácter especial'
-    )
-    .required('La contraseña es requerida'),
-  storeId: yup.string().nullable().notRequired().defined(),
-  active: yup.bool().default(true),
-});
 
 const editSchema = yup.object().shape({
   name: yup
@@ -82,9 +61,7 @@ const editSchema = yup.object().shape({
   active: yup.bool().default(true),
 });
 
-type CreateUserFormData = yup.InferType<typeof createSchema>;
-type EditUserFormData = yup.InferType<typeof editSchema>;
-type UserFormData = CreateUserFormData | EditUserFormData;
+type UserFormData = yup.InferType<typeof editSchema>;
 
 interface UserFormSheetProps {
   setSheetOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -97,63 +74,41 @@ export default function UserFormSheet({
   itemSelected,
   setItemSelected,
 }: UserFormSheetProps) {
-  const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const { data: activeStores } = useActiveStores();
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<CreateUserFormData | EditUserFormData>({
+  // Edit only: sellers join by invitation (#20, invite-seller-dialog.tsx).
+  const form = useForm<UserFormData>({
     criteriaMode: 'firstError',
-    defaultValues: itemSelected
-      ? {
-          name: itemSelected.name,
-          email: itemSelected.email,
-          storeId: itemSelected.storeId ?? null,
-          active: itemSelected.isActive,
-        }
-      : {
-          name: '',
-          email: '',
-          password: '',
-          storeId: null,
-          active: true,
-        },
+    defaultValues: {
+      name: itemSelected?.name ?? '',
+      email: itemSelected?.email ?? '',
+      storeId: itemSelected?.storeId ?? null,
+      active: itemSelected?.isActive ?? true,
+    },
     mode: 'all',
     reValidateMode: 'onChange',
-    resolver: yupResolver(itemSelected ? editSchema : createSchema) as Resolver<UserFormData>,
+    resolver: yupResolver(editSchema) as Resolver<UserFormData>,
   });
 
   const onSubmit = async (data: UserFormData) => {
     try {
       setIsLoading(true);
 
-      if (itemSelected) {
-        // Update existing user (role/store se aplican al membership)
-        await updateMutation.mutateAsync({
-          userId: itemSelected.id,
-          updateData: {
-            name: data.name,
-            storeId: data.storeId,
-            isActive: data.active,
-          },
-        });
+      if (!itemSelected) return;
+      // Role/store go to the membership
+      await updateMutation.mutateAsync({
+        userId: itemSelected.id,
+        updateData: {
+          name: data.name,
+          storeId: data.storeId,
+          isActive: data.active,
+        },
+      });
 
-        toast.success('Usuario actualizado exitosamente');
-      } else {
-        // Create new user (identidad + membership SELLER)
-        const createData = data as CreateUserFormData;
-        await createMutation.mutateAsync({
-          name: createData.name,
-          email: createData.email,
-          password: createData.password,
-          role: 'SELLER', // Always SELLER
-          storeId: createData.storeId,
-          isActive: createData.active,
-        });
-
-        toast.success('Usuario creado exitosamente');
-      }
+      toast.success('Usuario actualizado exitosamente');
 
       form.reset();
       setSheetOpen(false);
@@ -186,12 +141,10 @@ export default function UserFormSheet({
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <IconUser className="size-5" />
-              {itemSelected ? 'Editar usuario' : 'Crear nuevo usuario'}
+              Editar usuario
             </SheetTitle>
             <SheetDescription>
-              {itemSelected
-                ? 'Actualiza la información del usuario seleccionado'
-                : 'Completa el formulario para crear un nuevo usuario en el sistema'}
+              Actualiza la información del usuario seleccionado
             </SheetDescription>
           </SheetHeader>
 
@@ -261,36 +214,6 @@ export default function UserFormSheet({
                   )}
                 />
 
-                {!itemSelected && (
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contraseña *</FormLabel>
-                        <div className="relative">
-                          <IconLock
-                            className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
-                            aria-hidden="true"
-                          />
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="••••••••"
-                              {...field}
-                              className="pl-10"
-                            />
-                          </FormControl>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Mínimo 8 caracteres, debe incluir mayúscula, minúscula,
-                          número y carácter especial
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
               </CardContent>
             </Card>
 

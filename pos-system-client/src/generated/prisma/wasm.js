@@ -131,6 +131,8 @@ exports.Prisma.OrganizationScalarFieldEnum = {
   city: 'city',
   department: 'department',
   taxId: 'taxId',
+  logo: 'logo',
+  metadata: 'metadata',
   isActive: 'isActive',
   isDeleted: 'isDeleted',
   createdAt: 'createdAt',
@@ -182,6 +184,7 @@ exports.Prisma.SessionScalarFieldEnum = {
   refreshTokenHash: 'refreshTokenHash',
   rotatedFrom: 'rotatedFrom',
   expiresAt: 'expiresAt',
+  activeOrganizationId: 'activeOrganizationId',
   ipAddress: 'ipAddress',
   userAgent: 'userAgent',
   deviceId: 'deviceId',
@@ -442,6 +445,18 @@ exports.Prisma.MembershipScalarFieldEnum = {
   deletedAt: 'deletedAt'
 };
 
+exports.Prisma.InvitationScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  email: 'email',
+  role: 'role',
+  status: 'status',
+  inviterId: 'inviterId',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.VerificationScalarFieldEnum = {
   id: 'id',
   identifier: 'identifier',
@@ -599,6 +614,7 @@ exports.Prisma.ModelName = {
   StockMovement: 'StockMovement',
   SystemConfig: 'SystemConfig',
   Membership: 'Membership',
+  Invitation: 'Invitation',
   Verification: 'Verification',
   Account: 'Account',
   LegacyIdMap: 'LegacyIdMap'

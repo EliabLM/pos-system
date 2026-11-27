@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  createUser,
   updateUser,
   getUsers,
   getUserById,
@@ -13,7 +12,7 @@ import {
 } from '@/actions/user';
 import { useStore } from '@/store';
 import { MembershipRole } from '@/generated/prisma';
-import type { CreateUserInput, UpdateUserInput } from '@/actions/user/user.actions';
+import type { UpdateUserInput } from '@/actions/user/user.actions';
 
 // Tipos para los filtros de usuarios
 interface UserFilters {
@@ -111,37 +110,6 @@ export const useUsersByRole = (role: MembershipRole) => {
     enabled: !!user?.organizationId && !!role,
     staleTime: 5 * 60 * 1000, // 5 minutos
     gcTime: 10 * 60 * 1000,
-  });
-};
-
-// Hook para crear usuario
-export const useCreateUser = () => {
-  const queryClient = useQueryClient();
-  const user = useStore((state) => state.user);
-
-  return useMutation({
-    mutationFn: async (userData: CreateUserInput) => {
-      if (!user?.organizationId) {
-        throw new Error('Usuario no tiene organización asignada');
-      }
-
-      const response = await createUser(userData);
-
-      if (response.status !== 201) {
-        throw new Error(response.message);
-      }
-
-      return response.data;
-    },
-    onSuccess: () => {
-      // Invalidar múltiples queries relacionadas
-      queryClient.invalidateQueries({
-        queryKey: ['users', user?.organizationId],
-      });
-    },
-    onError: (error) => {
-      console.error('Error creando el usuario:', error);
-    },
   });
 };
 

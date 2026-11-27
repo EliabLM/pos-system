@@ -20,6 +20,7 @@ const prisma = {
   brand: { createMany: async ({ data }) => { state.catalog.push({ model: 'brand', data }); return { count: data.length }; } },
   paymentMethod: { createMany: async ({ data }) => { state.catalog.push({ model: 'paymentMethod', data }); return { count: data.length }; } },
   unitMeasure: { createMany: async ({ data }) => { state.catalog.push({ model: 'unitMeasure', data }); return { count: data.length }; } },
+  session: { updateMany: async (q) => { state.writes.push({ model: 'session', ...q }); return { count: 1 }; } },
   systemConfig: { create: async ({ data }) => { state.writes.push({ model: 'systemConfig', data }); return { id: 'cfg-new', ...data }; } },
   $queryRaw: async () => [],
   $transaction: async (fn) => fn(prisma),
@@ -65,6 +66,12 @@ test('onboarding: el usuario sin membresía crea su organización y queda como A
   assert.deepEqual(
     { userId: membership.data.userId, organizationId: membership.data.organizationId, role: membership.data.role, status: membership.data.status },
     { userId: 'user-new', organizationId: 'org-new', role: 'ADMIN', status: 'ACTIVE' },
+  );
+  // La organización nueva queda activa en las sesiones del usuario (#20).
+  const session = state.writes.find((w) => w.model === 'session');
+  assert.deepEqual(
+    { where: session?.where, data: session?.data },
+    { where: { userId: 'user-new' }, data: { activeOrganizationId: 'org-new' } },
   );
   // Catálogo inicial (categorías, métodos de pago, marcas, unidades) en la organización nueva.
   assert.deepEqual(state.catalog.map((c) => c.model), ['category', 'paymentMethod', 'brand', 'unitMeasure']);

@@ -10,7 +10,8 @@ import { getSessionCookie } from 'better-auth/cookies';
  */
 
 /** Everything else needs the cookie (as before #19). */
-const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/api/auth/'];
+/** /invitacion/<id>: the invitee may not have an account yet (#20). */
+const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/api/auth/', '/invitacion/'];
 
 const isPublicRoute = (pathname: string) => PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 

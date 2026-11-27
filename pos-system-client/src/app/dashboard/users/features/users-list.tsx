@@ -12,7 +12,7 @@ import {
 import { DataTable } from './data-table';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
-import { IconFilter, IconPlus, IconUserPlus } from '@tabler/icons-react';
+import { IconFilter } from '@tabler/icons-react';
 
 import { useUsers } from '@/hooks/useUsers';
 import { MembershipRole } from '@/generated/prisma';
@@ -20,6 +20,8 @@ import type { UserWithTenancy } from '@/actions/user/user.actions';
 import { useStore } from '@/store';
 
 import UserFormSheet from './user-form-sheet';
+import { InviteSellerDialog } from './invite-seller-dialog';
+import { PendingInvitations } from './pending-invitations';
 import { UsersFilters } from './users-filters';
 import { UserDetailDialog } from './user-detail-dialog';
 
@@ -143,20 +145,8 @@ const UsersList = () => {
                   <IconFilter className="size-4" />
                   <span className="hidden sm:inline">Filtros</span>
                 </Button>
-                {isAdmin && (
-                  <Button
-                    onClick={() => {
-                      setItemSelected(null);
-                      setSheetOpen(true);
-                    }}
-                    className="gap-2"
-                  >
-                    <IconPlus className="size-4 sm:hidden" />
-                    <IconUserPlus className="size-4 hidden sm:inline" />
-                    <span className="hidden sm:inline">Crear nuevo usuario</span>
-                    <span className="sm:hidden">Nuevo</span>
-                  </Button>
-                )}
+                {/* Sellers join only by invitation (#20). */}
+                {isAdmin && <InviteSellerDialog />}
                 <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
                   <UserFormSheet
                     setSheetOpen={setSheetOpen}
@@ -184,6 +174,8 @@ const UsersList = () => {
                 />
               </div>
             )}
+
+            {isAdmin && <PendingInvitations />}
 
             <CardContent>
               <DataTable
