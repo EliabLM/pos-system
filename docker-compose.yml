@@ -8,7 +8,7 @@
 #   app      8082:8082   pos-system-app (Expo web)     — opcional, ver nota
 #
 # Cómo correrlo:
-#   1. cp .env.example .env   (y ajusta JWT_SECRET si quieres)
+#   1. cp .env.example .env   (y ajusta CLIENT_AUTH_SECRET si quieres)
 #   2. docker compose up --build
 #
 # Nota sobre la app móvil: Expo en docker solo sirve el bundle WEB. Para probar en
@@ -86,8 +86,9 @@ services:
       # Prisma — mismo DB local, sin pooling. Migrations las aplica el server.
       DATABASE_URL: "postgresql://${POSTGRES_USER:-pos}:${POSTGRES_PASSWORD:-pos}@db:5432/${POSTGRES_DB:-pos}?schema=public"
       DIRECT_URL: "postgresql://${POSTGRES_USER:-pos}:${POSTGRES_PASSWORD:-pos}@db:5432/${POSTGRES_DB:-pos}?schema=public"
-      # Auth
-      JWT_SECRET: ${CLIENT_JWT_SECRET}
+      # Auth (Better Auth, #19)
+      BETTER_AUTH_SECRET: ${CLIENT_AUTH_SECRET}
+      BETTER_AUTH_URL: ${CLIENT_AUTH_URL:-http://localhost:3000}
       HTTPS_ENABLED: "false"
       # Imágenes de producto en un volumen persistente
       UPLOADS_DIR: /app/uploads

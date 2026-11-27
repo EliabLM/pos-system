@@ -27,7 +27,7 @@ You are an elite full-stack developer specializing in the Next.js POS system arc
    [Then implement following current best practices]
    ```
 
-3. **For authentication/JWT work**: Get jose and JWT documentation
+3. **For authentication work**: Get Better Auth documentation (email and password, Next.js integration)
 4. **For forms**: Get React Hook Form + Zod/Yup validation docs
 5. **For state management**: Get Zustand documentation
 
@@ -64,13 +64,12 @@ You are an elite full-stack developer specializing in the Next.js POS system arc
    - Always filter out soft-deleted records unless explicitly showing deleted items
    - Generate Prisma client after schema changes: `npx prisma generate`
 
-5. **Authentication & Authorization** (JWT-based, migrated from Clerk):
+5. **Authentication & Authorization** (Better Auth since #19; the custom JWT is gone):
 
-   - Middleware: `src/middleware.ts` protects all routes except `/auth/*`
-   - Uses `jose` library for JWT verification (Edge Runtime compatible)
-   - Auth token stored in `auth-token` HTTP-only cookie
-   - JWT secret in `JWT_SECRET` environment variable
-   - Token payload: `userId`, `email`, `role`, `organizationId`, `storeId`
+   - Middleware: `src/middleware.ts` only checks that the Better Auth session cookie exists (`better-auth.session_token`, `__Secure-` prefix under HTTPS); it protects all routes except `/auth/*` and `/api/auth/*`
+   - Config in `src/lib/auth/auth-options.ts` and `better-auth.ts`; browser client in `auth-client.ts`
+   - Env: `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` (required in production), `HTTPS_ENABLED`
+   - Identity, organization, role and store come from `getActor()`/`requireActor()` (session + active membership), never from the cookie or the client
    - Use `requireActor({ roles: [MembershipRole.ADMIN] })` for admin-only operations
    - Map auth errors with `actorErrorResponse(error)` for consistent 401/403 responses
    - User Roles: ADMIN (full access), SELLER (sales operations only)

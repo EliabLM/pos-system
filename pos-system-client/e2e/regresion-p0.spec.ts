@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { PrismaClient } from '../src/generated/prisma';
-import { ADMIN, loginUI } from './fixtures/auth';
+import { ADMIN, isSessionCookie, loginUI } from './fixtures/auth';
 
 // Consultas de verificación, nunca mutaciones directas: el actor de las escrituras es Next.
 // El servicio CI usa un owner; esto prueba autorización de la aplicación, NO FORCE RLS.
@@ -32,9 +32,11 @@ test('P0 registro con name crea identidad y sesión real', async ({ page }) => {
   await expect(page).toHaveURL(/\/onboarding/);
   const user = await db.user.findFirst({ where: { email, isDeleted: false } });
   expect(user?.name).toBe(name);
-  expect(user?.passwordHash).toBeTruthy();
-  expect(await db.session.count({ where: { userId: user?.id, isActive: true } })).toBe(1);
-  expect((await page.context().cookies()).some(c => c.name === 'auth-token' && c.value.length > 0)).toBe(true);
+  // Better Auth guarda la contraseña en la cuenta "credential" y la sesión con su token.
+  const account = await db.account.findFirst({ where: { userId: user?.id, providerId: 'credential' } });
+  expect(account?.password).toBeTruthy();
+  expect(await db.session.count({ where: { userId: user?.id, token: { not: null } } })).toBe(1);
+  expect((await page.context().cookies()).some(c => isSessionCookie(c.name) && c.value.length > 0)).toBe(true);
 });
 
 test('P0 compra y recepción por ADMIN aumentan stock y generan movimiento', async ({ page }) => {

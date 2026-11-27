@@ -24,11 +24,8 @@ const PENDING = {};
 
 /** Acciones públicas: gestionan la sesión ellas mismas (archivo → motivo). */
 const PUBLIC = {
-  'auth/login.ts': 'crea la sesión',
-  'auth/register.ts': 'registro público',
-  'auth/logout.ts': 'invalida la sesión de la cookie',
-  'auth/refreshToken.ts': 'renueva la sesión de la cookie',
-  'auth/getCurrentUser.ts': 'lee la sesión de la cookie',
+  'auth/logout.ts': 'cierra en Better Auth la sesión de la cookie',
+  'auth/getCurrentUser.ts': 'lee la sesión con requireSessionUserId()',
 };
 
 /** Onboarding: archivo → acciones que usan requireOnboardingUser(). */

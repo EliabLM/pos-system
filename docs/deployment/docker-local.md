@@ -39,7 +39,7 @@
 ```bash
 # 1. Variables (una sola vez)
 cp .env.example .env
-#    al menos setea CLIENT_JWT_SECRET con >= 32 chars:
+#    al menos setea CLIENT_AUTH_SECRET con >= 32 chars (secreto de Better Auth):
 #    openssl rand -base64 48
 
 # 2. Levantar el stack base (db + server + client)

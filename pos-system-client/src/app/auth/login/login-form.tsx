@@ -26,7 +26,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { loginUser } from '@/actions/auth';
+import { getCurrentUser } from '@/actions/auth';
+import { authClient } from '@/lib/auth/auth-client';
+import { authErrorMessage } from '@/lib/auth/auth-messages';
 import { useStore } from '@/store';
 import { User } from '@/interfaces';
 
@@ -68,42 +70,26 @@ export function LoginForm({
     try {
       setIsLoading(true);
 
-      // Create FormData for the server action
-      const formData = new FormData();
-      formData.append('email', data.email);
-      formData.append('password', data.password);
+      // Better Auth endpoint: checks the password, applies the attempt
+      // limit and sets the session cookie.
+      const { error } = await authClient.signIn.email({
+        email: data.email.trim().toLowerCase(),
+        password: data.password,
+      });
 
-      const result = await loginUser(formData);
-
-      // ============================================
-      // LOGIN EXITOSO
-      // ============================================
-      if (result?.status === 200 && result.data?.user) {
-        // Guardar usuario en store
-        setUser(result.data.user as unknown as User);
-
-        // Mostrar toast de éxito
-        toast.success(result.message || 'Inicio de sesión exitoso');
-
-        const redirectUrl = result.data.redirectTo || '/dashboard';
-
-        // Pequeño delay para que la cookie se propague
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        window.location.href = redirectUrl;
+      if (error) {
+        toast.error(authErrorMessage(error));
         return;
       }
 
-      // ============================================
-      // LOGIN CON ERROR
-      // ============================================
-      if (result) {
-        toast.error(result.message || 'Error al iniciar sesión');
+      const current = await getCurrentUser();
+      const user = current.status === 200 ? current.data?.user : undefined;
+      if (user) setUser(user as unknown as User);
 
-        if (result.data?.attemptsRemaining !== undefined) {
-          toast.warning(`Intentos restantes: ${result.data.attemptsRemaining}`);
-        }
-      }
+      toast.success('Inicio de sesión exitoso');
+
+      // Sin membresía todavía → onboarding (crear su negocio)
+      window.location.href = user?.organizationId ? '/dashboard' : '/onboarding';
     } catch (error) {
       if (error && typeof error === 'object' && 'digest' in error) {
         throw error;

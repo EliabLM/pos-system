@@ -19,7 +19,8 @@ export interface Credentials {
 export const ADMIN: Credentials = { email: 'admin@pos.test', password: 'Admin123!' };
 export const SELLER: Credentials = { email: 'seller@pos.test', password: 'Seller123!' };
 
-const AUTH_COOKIE = 'auth-token';
+/** Better Auth session cookie (with `__Secure-` prefix under HTTPS). */
+export const isSessionCookie = (name: string): boolean => /(^|\.)session_token$/.test(name);
 
 /**
  * Login por UI — para specs que prueban el flujo de login/validaciones.
@@ -45,14 +46,14 @@ export async function loginUI(page: Page, creds: Credentials, expectedPath = '/d
  * usá `loginUI` (que valida por Yup) o `goto` fresh sin sesión.
  *
  * Implementación: navega a /auth/login, hace el submit real una sola vez para
- * obtener el JWT y lo setea en el contexto. Si ya hay una cookie válida, no
+ * obtener la cookie de sesión y la deja en el contexto. Si ya hay una cookie válida, no
  * repite el login (rápido entre specs del mismo worker).
  */
 export async function loginAs(page: Page, creds: Credentials): Promise<void> {
   // Verificar si ya hay sesión activa. cookies() recibe URLs, no nombres —
   // se piden todas y se filtra por nombre.
   const all = await page.context().cookies();
-  const existing = all.filter((c) => c.name === AUTH_COOKIE);
+  const existing = all.filter((c) => isSessionCookie(c.name));
   if (existing.length > 0 && existing[0].value) {
     // Validar que la cookie sirva yendo a /dashboard.
     const res = await page.goto('/dashboard');

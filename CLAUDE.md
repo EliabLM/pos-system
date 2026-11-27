@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Multi-tenant POS system being migrated (strangler-fig, incremental) from a Next.js monolith into 3 projects. This root is the git repo; `pos-system-client/` has no nested `.git`.
 
-- `pos-system-client/` — Next.js 15 App Router + Prisma/PostgreSQL + custom JWT auth. **The only project with business logic today.** Has its own `CLAUDE.md` (full pattern catalog) and `AGENTS.md` (short list of what agents get wrong) — read those before working there.
+- `pos-system-client/` — Next.js 15 App Router + Prisma/PostgreSQL + Better Auth (email and password). **The only project with business logic today.** Has its own `CLAUDE.md` (full pattern catalog) and `AGENTS.md` (short list of what agents get wrong) — read those before working there.
 - `pos-system-server/` — Express 5 + TypeScript, Clean Architecture scaffold (`src/app.ts`, `server.ts`, `config/env.ts`, `shared/`, `health/`). No domain modules yet (Fase 2+).
 - `pos-system-app/` — Expo SDK 57 + expo-router scaffold. No business features yet (Fase 4). Has its own `AGENTS.md`.
 - `packages/` — `dto-types`, `api-client`, `design-tokens` (empty scaffolds).
@@ -75,7 +75,7 @@ pnpm lint           # expo lint
 
 - Server actions per entity in `src/actions/<entity>/` returning `ActionResponse<T>` (`{ status, message, data }`); identity/tenant come ONLY from `requireActor()`/`getActor()` in `src/lib/auth/actor.ts` (never from parameters); shared Prisma singleton in `src/lib/db.ts` (re-exported by `src/actions/utils.ts`) — never `new PrismaClient()`. A guard test fails if an exported `'use server'` function skips the actor (modules pending migration are listed in `test/actions-guard.test.mjs`).
 - Prisma client generates to a custom path: import from `@/generated/prisma`, never `@prisma/client`. The generated client is **committed to git** — expect diff churn after `prisma generate`; don't delete it.
-- Custom JWT auth (migrated off Clerk): `src/middleware.ts` verifies the `auth-token` cookie with `jose` for UI redirects only (no `x-user-*` headers; server code uses `getActor()`). RBAC roles: ADMIN, SELLER — stored on `memberships` (users are global identities since Fase 1 paso 3; auth actions compose the user+membership view).
+- Better Auth (#19, replaced the custom JWT): config in `src/lib/auth/auth-options.ts` + `better-auth.ts` (Prisma adapter over `users`/`sessions`/`accounts`/`verifications`), endpoints at `/api/auth/*`, browser client `src/lib/auth/auth-client.ts`. Sessions live in the DB (logout or deleting the row revokes them), sign-in is limited per IP. `src/middleware.ts` only checks that the session cookie exists (no `x-user-*` headers); the dashboard/onboarding layouts and `getActor()` do the real checks. RBAC roles: ADMIN, SELLER — stored on `memberships` (users are global identities since Fase 1 paso 3; auth actions compose the user+membership view).
 - Multi-tenant + soft delete: almost every query filters `organizationId` and `isDeleted: false`; deletes are `update({ isDeleted: true, deletedAt: new Date() })`.
 - Client data flow: TanStack Query hooks in `src/hooks/use<Entity>.ts` wrap the server actions; Zustand store persists to sessionStorage.
 - Feature pages follow `page.tsx` + `features/` subfolder — mirror an existing module (e.g. `src/app/dashboard/categories/`).

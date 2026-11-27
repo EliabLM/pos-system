@@ -1,9 +1,7 @@
-import { cookies } from 'next/headers';
+import { headers } from 'next/headers';
 import { MembershipRole, MembershipStatus } from '@/generated/prisma';
 import { prisma } from '@/lib/db';
-import { verifyToken } from './jwt';
-import { validateSession } from './session';
-import { AuthError } from './types';
+import { auth } from './better-auth';
 
 /**
  * ============================================
@@ -19,8 +17,6 @@ import { AuthError } from './types';
  * another auth provider only changes `resolveSessionUserId()` (and, if needed,
  * `resolveMembership()`), not the modules that consume it.
  */
-
-export const AUTH_COOKIE_NAME = 'auth-token';
 
 export type ActorRole = MembershipRole;
 
@@ -49,26 +45,14 @@ export class ActorError extends Error {
 const ALLOWED_ROLES: readonly ActorRole[] = [MembershipRole.ADMIN, MembershipRole.SELLER];
 
 /**
- * Session mechanism (current: custom JWT cookie + persisted session row).
+ * Session mechanism (Better Auth, #19): the session cookie is looked up in the
+ * `sessions` table on every call (no cookie cache), so a session closed with
+ * logout or deleted in the database stops authenticating immediately.
  * Returns the authenticated user id or null. Must never trust client input.
  */
 async function resolveSessionUserId(): Promise<string | null> {
-  const token = (await cookies()).get(AUTH_COOKIE_NAME)?.value;
-  if (!token) return null;
-
-  try {
-    // `await` keeps this valid whether verifyToken is sync or async.
-    const payload = await verifyToken(token);
-    if (!payload?.userId) return null;
-    const session = await validateSession(token);
-    if (!session || session.userId !== payload.userId) return null;
-    return session.userId;
-  } catch (error) {
-    // Invalid, expired or revoked token/session is "not authenticated",
-    // not an infrastructure failure.
-    if (error instanceof AuthError) return null;
-    throw error;
-  }
+  const session = await auth.api.getSession({ headers: await headers() });
+  return session?.user.id ?? null;
 }
 
 /**
@@ -115,13 +99,17 @@ export async function requireSessionUserId(): Promise<string> {
 }
 
 /**
- * Onboarding: the authenticated user that has NO active membership yet and may
- * therefore create its own organization. A user that already belongs to an
- * organization gets FORBIDDEN (it cannot create or join another one here).
+ * Onboarding: the authenticated user that has NO membership yet and may
+ * therefore create its own organization. Any non-deleted membership counts,
+ * also one in a deactivated organization or not ACTIVE: that user gets
+ * FORBIDDEN (it cannot create or join another organization here).
  */
 export async function requireOnboardingUser(): Promise<{ userId: string }> {
   const userId = await requireSessionUserId();
-  const membership = await resolveMembership(userId);
+  const membership = await prisma.membership.findFirst({
+    where: { userId, deletedAt: null },
+    select: { organizationId: true },
+  });
   if (membership) throw new ActorError('FORBIDDEN');
   return { userId };
 }

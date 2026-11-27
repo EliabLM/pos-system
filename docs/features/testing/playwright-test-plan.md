@@ -1,5 +1,7 @@
 # Plan de Pruebas E2E — POS System (Playwright)
 
+> **Histórico.** Escrito con el JWT propio (cookie `auth-token`). Desde #19 la sesión es de Better Auth (cookie `better-auth.session_token`); las specs actuales usan `isSessionCookie()` de `e2e/fixtures/auth.ts`.
+
 > Sistema POS multi-tenant construido con **Next.js 15 (App Router)**, probado vía stack local
 > `docker compose up` (Postgres 17 + client en `http://localhost:3000`).
 >

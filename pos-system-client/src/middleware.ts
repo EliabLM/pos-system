@@ -1,201 +1,35 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { jwtVerify } from 'jose';
-import { hasRouteAccess, getUnauthorizedRedirect } from '@/lib/rbac';
-
-// ============================================
-// CONFIGURACIÓN DE RUTAS
-// ============================================
+import { getSessionCookie } from 'better-auth/cookies';
 
 /**
- * Rutas públicas que NO requieren autenticación
+ * Optimistic check only (#19): is there a Better Auth session cookie? It does
+ * not touch the database nor read roles. The real checks run on the server:
+ * dashboard/onboarding layouts redirect by membership and role, and every
+ * server action and route handler calls getActor()/requireActor().
  */
-const PUBLIC_ROUTES = [
-  '/auth/login',
-  '/auth/register',
-  '/auth/forgot-password',
-  '/auth/reset-password',
-  '/api/auth/login',
-  '/api/auth/register',
-  '/api/auth/forgot-password',
-  '/api/auth/reset-password',
-];
 
-/**
- * Rutas protegidas que requieren autenticación
- */
-const PROTECTED_ROUTES = [
-  '/',
-  '/dashboard',
-  '/onboarding',
-];
+/** Everything else needs the cookie (as before #19). */
+const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/api/auth/'];
 
-/**
- * Rutas de API que requieren autenticación
- */
-const PROTECTED_API_ROUTES = [
-  '/api/auth/logout',
-];
-
-// ============================================
-// HELPERS
-// ============================================
-
-/**
- * Verifica si una ruta es pública
- */
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(route => pathname.startsWith(route));
-}
-
-/**
- * Verifica si una ruta es protegida
- */
-function isProtectedRoute(pathname: string): boolean {
-  return PROTECTED_ROUTES.some(route => pathname.startsWith(route));
-}
-
-/**
- * Verifica si es una ruta de API protegida
- */
-function isProtectedApiRoute(pathname: string): boolean {
-  return PROTECTED_API_ROUTES.some(route => pathname.startsWith(route));
-}
-
-/**
- * Verifica si es una ruta de onboarding
- */
-function isOnboardingRoute(pathname: string): boolean {
-  return pathname.startsWith('/onboarding');
-}
-
-/**
- * Verifica si es una ruta de dashboard
- */
-function isDashboardRoute(pathname: string): boolean {
-  return pathname.startsWith('/dashboard');
-}
-
-/**
- * Crea respuesta de redirect a login
- */
-function redirectToLogin(request: NextRequest, clearCookie = false): NextResponse {
-  const loginUrl = new URL('/auth/login', request.url);
-  loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
-
-  const response = NextResponse.redirect(loginUrl);
-
-  if (clearCookie) {
-    response.cookies.delete('auth-token');
-  }
-
-  return response;
-}
-
-/**
- * Crea respuesta de redirect a onboarding
- */
-function redirectToOnboarding(request: NextRequest): NextResponse {
-  const onboardingUrl = new URL('/onboarding', request.url);
-  return NextResponse.redirect(onboardingUrl);
-}
-
-/**
- * Crea respuesta de redirect a dashboard
- */
-function redirectToDashboard(request: NextRequest): NextResponse {
-  const dashboardUrl = new URL('/dashboard', request.url);
-  return NextResponse.redirect(dashboardUrl);
-}
-
-// ============================================
-// MIDDLEWARE PRINCIPAL
-// ============================================
+const isPublicRoute = (pathname: string) => PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Permitir rutas públicas sin verificación
   if (isPublicRoute(pathname)) {
     return NextResponse.next();
   }
 
-  // 2. Verificar autenticación en rutas protegidas y API protegida
-  const requiresAuth = isProtectedRoute(pathname) || isProtectedApiRoute(pathname);
-
-  if (requiresAuth) {
-    // Obtener token de la cookie
-    const token = request.cookies.get('auth-token')?.value;
-
-    // No hay token → redirigir a login
-    if (!token) {
-      return redirectToLogin(request);
-    }
-
-    try {
-      // Verificar JWT usando jose (compatible con Edge Runtime)
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-
-      if (!secret || secret.length === 0) {
-        console.error('JWT_SECRET is not defined in environment variables');
-        return redirectToLogin(request, true);
-      }
-
-      const { payload } = await jwtVerify(token, secret);
-
-      // Validar payload
-      if (!payload || !payload.userId) {
-        console.warn('Invalid token payload');
-        return redirectToLogin(request, true);
-      }
-
-      // Claims del JWT: solo para redirecciones de UI. La autorización real la
-      // hace getActor() en el servidor con la sesión y la membresía en BD.
-      const role = payload.role as string;
-      const organizationId = payload.organizationId as string | null;
-
-      // 4. Role-based redirects
-
-      // Usuario en onboarding pero ya tiene organización → redirect a dashboard
-      if (isOnboardingRoute(pathname) && organizationId) {
-        return redirectToDashboard(request);
-      }
-
-      // Usuario sin organización intenta acceder a dashboard → redirect a onboarding
-      if (isDashboardRoute(pathname) && !organizationId) {
-        return redirectToOnboarding(request);
-      }
-
-      // 5. Role-based route access control
-      if (isDashboardRoute(pathname)) {
-        const hasAccess = hasRouteAccess(role, pathname);
-
-        if (!hasAccess) {
-          console.warn(`User with role ${role} attempted to access restricted route: ${pathname}`);
-          const redirectPath = getUnauthorizedRedirect();
-          const redirectUrl = new URL(redirectPath, request.url);
-          return NextResponse.redirect(redirectUrl);
-        }
-      }
-
-      // JWT válido → permitir acceso. No se añaden cabeceras x-user-*: la
-      // identidad se obtiene en el servidor con getActor().
-      return NextResponse.next();
-
-    } catch (error) {
-      // Error verificando token (expirado, malformado, etc.)
-      console.error('JWT verification error:', error);
-      return redirectToLogin(request, true);
-    }
+  if (!getSessionCookie(request)) {
+    const loginUrl = new URL('/auth/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // Otras rutas → permitir acceso
+  // No x-user-* headers: identity comes from getActor() on the server.
   return NextResponse.next();
 }
-
-// ============================================
-// CONFIGURACIÓN DEL MATCHER
-// ============================================
 
 export const config = {
   matcher: [
